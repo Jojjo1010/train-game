@@ -4,7 +4,7 @@ import {
   TARGET_DISTANCE, AUTO_WEAPONS, MAX_AUTO_WEAPON_LEVEL, MOUNT_RADIUS
 } from './constants.js';
 import { Train } from './train.js';
-import { Renderer } from './renderer.js';
+import { Renderer3D } from './renderer3d.js';
 import { InputManager } from './input.js';
 import { Spawner } from './enemies.js';
 import { CombatSystem } from './combat.js';
@@ -14,26 +14,20 @@ import { playLevelUp, playPowerup, playVictory, playDefeat, startMusic, stopMusi
 
 const STATES = { ZONE_MAP: 0, SETUP: 1, RUNNING: 2, LEVELUP: 3, PLACE_WEAPON: 4, GAMEOVER: 5, PAUSED: 6, SHOP: 7 };
 
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+const threeCanvas = document.getElementById('game3d');
+const uiCanvas = document.getElementById('gameUI');
+const ctx = uiCanvas.getContext('2d');
 
 function resizeCanvas() {
-  const ratio = CANVAS_WIDTH / CANVAS_HEIGHT;
-  const winW = window.innerWidth;
-  const winH = window.innerHeight;
-  let w, h;
-  if (winW / winH > ratio) { h = winH; w = h * ratio; }
-  else { w = winW; h = w / ratio; }
-  canvas.style.width = w + 'px';
-  canvas.style.height = h + 'px';
-  canvas.width = CANVAS_WIDTH;
-  canvas.height = CANVAS_HEIGHT;
+  // UI canvas internal resolution
+  uiCanvas.width = CANVAS_WIDTH;
+  uiCanvas.height = CANVAS_HEIGHT;
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-const renderer = new Renderer(ctx);
-const input = new InputManager(canvas);
+const renderer = new Renderer3D(threeCanvas, ctx);
+const input = new InputManager(uiCanvas); // input on top canvas
 const spawner = new Spawner();
 const combat = new CombatSystem();
 const coinSystem = new CoinSystem();
@@ -69,7 +63,8 @@ const UPGRADE_KEYS = Object.keys(save.upgrades);
 let hoveredShopItem = -1;
 
 const trainTotalWidth = 4 * CAR_WIDTH + 3 * CAR_GAP;
-const trainScreenX = CAMERA_TRAIN_X - trainTotalWidth / 2;
+// Center train in the pixel grid so toWorld() maps it near 3D origin
+const trainScreenX = CANVAS_WIDTH / 2 - trainTotalWidth / 2;
 const trainScreenY = CANVAS_HEIGHT / 2 - CAR_HEIGHT / 2;
 const crewPanelY = trainScreenY + CAR_HEIGHT + 80;
 const departBtn = { x: CANVAS_WIDTH / 2 - 70, y: CANVAS_HEIGHT - 80, w: 140, h: 48 };
@@ -219,11 +214,13 @@ function handleKeyboardRotation(dt) {
   }
 }
 
-// Find crew at click position (assigned to a slot or in panel)
+// Screen position of a slot (uses projected coords if available)
+function slotScreenX(s) { return s.screenX !== undefined ? s.screenX : s.worldX; }
+function slotScreenY(s) { return s.screenY !== undefined ? s.screenY : s.worldY; }
+
 function findCrewAtMouse() {
-  // Check all slots for crew
   for (const slot of train.allSlots) {
-    if (slot.crew && !slot.crew.isMoving && input.hitCircle(slot.worldX, slot.worldY, 22)) {
+    if (slot.crew && !slot.crew.isMoving && input.hitCircle(slotScreenX(slot), slotScreenY(slot), 22)) {
       return slot.crew;
     }
   }
@@ -268,7 +265,7 @@ function updateSetup(dt) {
     if (selectedCrew) {
       const slot = findSlotAtMouse();
       if (slot) {
-        if (slot.autoWeaponId) return; // can't place on auto-weapon mount
+        if (slot.autoWeaponId) return;
         train.assignCrew(selectedCrew, slot);
         return;
       }
@@ -300,6 +297,7 @@ function renderSetup() {
   renderer.drawDepartButton(departBtn.x, departBtn.y, departBtn.w, departBtn.h,
     crewReady && input.hitRect(departBtn.x, departBtn.y, departBtn.w, departBtn.h), !crewReady);
   if (selectedCrew) renderer.drawSelectedIndicator(selectedCrew);
+  renderer.flush();
 }
 
 // --- RUN PHASE ---
@@ -311,6 +309,28 @@ function updateRun(dt) {
   for (const c of train.crew) if (c.reassignCooldown > 0) c.reassignCooldown -= dt;
 
   train.updateCrewMovement(dt);
+
+  // Screen-space crew walk animation (3D mode)
+  const CREW_WALK_SPEED = 250; // pixels/sec in screen space
+  for (const c of train.crew) {
+    if (!c.isMoving || c.moveScreenX === undefined) continue;
+    const dx = c.moveTargetX - c.moveScreenX;
+    const dy = c.moveTargetY - c.moveScreenY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 3) {
+      // Arrived
+      c.isMoving = false;
+      if (c.moveTargetSlot) {
+        train.assignCrew(c, c.moveTargetSlot);
+        c.moveTargetSlot = null;
+      }
+      c.moveScreenX = undefined;
+    } else {
+      const step = CREW_WALK_SPEED * dt;
+      c.moveScreenX += (dx / dist) * Math.min(step, dist);
+      c.moveScreenY += (dy / dist) * Math.min(step, dist);
+    }
+  }
   handleKeyboardRotation(dt);
 
   if (input.clicked) {
@@ -327,13 +347,23 @@ function updateRun(dt) {
       if (slot) {
         // Can't move to a slot with an auto-weapon
         if (slot.autoWeaponId) return;
+        // Animated walk: unassign, set up screen-space movement, assign on arrival
         const fromSlot = selectedCrew.assignment;
         if (fromSlot) {
-          const fromCar = train.findCarForSlot(fromSlot);
-          const fromX = fromSlot.worldX;
-          const fromY = fromSlot.worldY;
+          const fromSX = slotScreenX(fromSlot);
+          const fromSY = slotScreenY(fromSlot);
+          const toSX = slotScreenX(slot);
+          const toSY = slotScreenY(slot);
           train.unassignCrew(selectedCrew);
-          train.startCrewMove(selectedCrew, fromX, fromY, fromCar, slot);
+          selectedCrew.isMoving = true;
+          selectedCrew.moveScreenX = fromSX;
+          selectedCrew.moveScreenY = fromSY;
+          selectedCrew.moveTargetX = toSX;
+          selectedCrew.moveTargetY = toSY;
+          selectedCrew.moveTargetSlot = slot;
+        } else {
+          // From panel — instant
+          train.assignCrew(selectedCrew, slot);
         }
         return;
       }
@@ -403,6 +433,7 @@ function renderRun() {
   renderer.drawHUD(train);
   renderer.drawAutoWeaponHUD(train);
   if (selectedCrew) renderer.drawSelectedIndicator(selectedCrew);
+  renderer.flush();
 }
 
 // --- LEVEL UP ---
@@ -455,6 +486,7 @@ function renderLevelUp() {
   renderer.drawHUD(train);
   renderer.drawLevelUpMenu(train.level, levelUpChoices, hoveredPowerup);
   renderer.updateAndDrawConfetti(0.016);
+  renderer.flush();
 }
 
 // --- PLACE WEAPON ---
@@ -465,7 +497,7 @@ function updatePlaceWeapon() {
     // Find which empty mount was clicked
     for (const mount of train.allMounts) {
       if (mount.isOccupied) continue;
-      if (input.hitCircle(mount.worldX, mount.worldY, 22)) {
+      if (input.hitCircle(slotScreenX(mount), slotScreenY(mount), 22)) {
         // Place the weapon here
         mount.autoWeaponId = pendingWeaponId;
         train.autoWeapons[pendingWeaponId] = { level: 1, cooldownTimer: 0, tickTimer: 0, mount };
@@ -491,9 +523,9 @@ function renderPlaceWeapon() {
   const def = pendingWeaponId ? AUTO_WEAPONS[pendingWeaponId] : null;
   for (const mount of train.allMounts) {
     if (mount.isOccupied) continue;
-    const hovered = input.hitCircle(mount.worldX, mount.worldY, 22);
+    const hovered = input.hitCircle(slotScreenX(mount), slotScreenY(mount), 22);
     ctx.beginPath();
-    ctx.arc(mount.worldX, mount.worldY, MOUNT_RADIUS + 6, 0, Math.PI * 2);
+    ctx.arc(slotScreenX(mount), slotScreenY(mount), MOUNT_RADIUS + 6, 0, Math.PI * 2);
     ctx.strokeStyle = hovered ? '#fff' : '#f5a623';
     ctx.lineWidth = hovered ? 3 : 2;
     ctx.stroke();
@@ -506,6 +538,7 @@ function renderPlaceWeapon() {
   ctx.font = 'bold 20px monospace';
   ctx.textAlign = 'center';
   ctx.fillText(`Place ${def ? def.name : 'weapon'} — click an empty mount`, CANVAS_WIDTH / 2, 34);
+  renderer.flush();
 }
 
 // --- GAMEOVER ---
@@ -555,6 +588,7 @@ function renderGameOver() {
   renderer.drawWeaponMounts(train, null);
   renderer.drawMovingCrew(train.crew);
   renderer.drawGameOver(won, train, goldEarned, gameOverBtns, input);
+  renderer.flush();
 }
 
 // --- SHOP (tiered upgrades) ---
@@ -616,6 +650,7 @@ function updateShop() {
 function renderShop() {
   renderer.drawTerrain(0);
   renderer.drawShop(save, UPGRADE_KEYS, hoveredShopItem, departBtn, input, kbShopOnDepart);
+  renderer.flush();
 }
 
 // --- PAUSED ---
@@ -665,6 +700,7 @@ function renderPaused() {
 
   // Overlay
   renderer.drawPauseMenu(pauseButtons, input, kbPauseIndex);
+  renderer.flush();
 }
 
 // --- ZONE MAP ---
@@ -827,6 +863,7 @@ function renderZoneMap() {
   if (stationArrival) {
     renderer.drawStationArrival(stationArrival);
   }
+  renderer.flush();
 }
 
 // --- MAIN LOOP ---

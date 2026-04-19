@@ -1,0 +1,1612 @@
+import * as THREE from 'three';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { toWorld, toWorldX, toWorldZ, toPixelX, toPixelZ } from './coordMap.js';
+import {
+  CANVAS_WIDTH, CANVAS_HEIGHT, MOUNT_RADIUS, CREW_RADIUS,
+  WEAPON_RANGE, TARGET_DISTANCE, COIN_RADIUS,
+  AUTO_WEAPONS, MAX_ENEMIES, MAX_PROJECTILES, MAX_RICOCHET_BOLTS,
+  MAX_COINS, MAX_FLYING_COINS
+} from './constants.js';
+
+export class Renderer3D {
+  constructor(threeCanvas, overlayCtx) {
+    this.ctx = overlayCtx;
+
+    // --- Three.js renderer ---
+    this.threeRenderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true });
+    this.threeRenderer.setSize(window.innerWidth, window.innerHeight);
+    this.threeRenderer.setPixelRatio(window.devicePixelRatio);
+    window.addEventListener('resize', () => {
+      this.threeRenderer.setSize(window.innerWidth, window.innerHeight);
+      // Keep camera frustum matching UI canvas aspect (1.5) so projection stays aligned
+      const aspect = CANVAS_WIDTH / CANVAS_HEIGHT;
+      const fs = this.frustumSize;
+      this.camera.left = -fs * aspect / 2;
+      this.camera.right = fs * aspect / 2;
+      this.camera.top = fs / 2;
+      this.camera.bottom = -fs / 2;
+      this.camera.updateProjectionMatrix();
+    });
+
+    // --- Scene ---
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x2d3a1e);
+
+    // --- Camera (isometric view matching Blender reference) ---
+    // Camera frustum must match UI canvas aspect (960/640 = 1.5) for projection to align
+    this.frustumSize = 300;
+    const aspect = CANVAS_WIDTH / CANVAS_HEIGHT; // always 1.5
+    this.camera = new THREE.OrthographicCamera(
+      -this.frustumSize * aspect / 2, this.frustumSize * aspect / 2,
+      this.frustumSize / 2, -this.frustumSize / 2,
+      0.1, 2000
+    );
+    // Isometric view matching Blender reference:
+    // Train runs diagonally bottom-left to top-right, locomotive top-right
+    // Camera looks from front-left-above toward the train
+    this.camera.position.set(-180, 220, 180);
+    this.camera.lookAt(0, 0, 0);
+    this.cameraBasePos = this.camera.position.clone();
+
+    // --- Lights ---
+    const ambient = new THREE.AmbientLight(0x404040);
+    this.scene.add(ambient);
+
+    const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+    directional.position.set(100, 200, 100);
+    this.scene.add(directional);
+
+    const hemi = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.4);
+    this.scene.add(hemi);
+
+    // --- State ---
+    this.shakeX = 0;
+    this.shakeY = 0;
+    this.confetti = [];
+    this._zoneGold = 0;
+    this._kbHighlightStation = -1;
+
+    // --- FBX Models ---
+    this.models = {};
+    this.modelsLoaded = false;
+    this._loadAssets();
+
+    // --- Ground plane ---
+    const groundGeo = new THREE.PlaneGeometry(2000, 2000);
+    const groundMat = new THREE.MeshLambertMaterial({ color: 0x3d5c2e });
+    this.ground = new THREE.Mesh(groundGeo, groundMat);
+    this.ground.rotation.x = -Math.PI / 2;
+    this.ground.position.y = -0.5;
+    this.scene.add(this.ground);
+
+    // --- Rail track centered at origin, running along X axis ---
+    const railGroup = new THREE.Group();
+    const railMat = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
+    const rail1 = new THREE.Mesh(new THREE.BoxGeometry(2000, 1, 1.5), railMat);
+    rail1.position.set(0, 0.3, -8);
+    const rail2 = new THREE.Mesh(new THREE.BoxGeometry(2000, 1, 1.5), railMat);
+    rail2.position.set(0, 0.3, 8);
+    railGroup.add(rail1, rail2);
+
+    const sleeperMat = new THREE.MeshLambertMaterial({ color: 0x6b5a3e });
+    for (let i = -60; i <= 60; i++) {
+      const sleeper = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 24), sleeperMat);
+      sleeper.position.set(i * 15, 0, 0);
+      railGroup.add(sleeper);
+    }
+    this.railGroup = railGroup;
+    this.scene.add(railGroup);
+
+    // --- Object pools ---
+    this._initPools();
+  }
+
+  // =============================================
+  // ASSET LOADING
+  // =============================================
+  _loadAssets() {
+    const loader = new FBXLoader();
+    const assetNames = ['Train', 'Rail', 'enemy', 'Gun', 'AutoGun', 'Garlic', 'Laser'];
+    let loaded = 0;
+
+    for (const name of assetNames) {
+      loader.load(
+        `assets/${name}.fbx`,
+        (object) => {
+          // Normalise scale — FBX files often come in huge
+          object.scale.setScalar(0.05);
+          this.models[name] = object;
+          loaded++;
+          if (loaded === assetNames.length) {
+            this.modelsLoaded = true;
+            this._populatePoolsWithModels();
+          }
+        },
+        undefined,
+        (err) => {
+          console.warn(`Failed to load ${name}.fbx:`, err);
+          loaded++;
+          if (loaded === assetNames.length) {
+            this.modelsLoaded = true;
+            this._populatePoolsWithModels();
+          }
+        }
+      );
+    }
+  }
+
+  // =============================================
+  // OBJECT POOLS
+  // =============================================
+  _initPools() {
+    // Enemy pool — small cones matching the FBX blockout
+    this.enemyPool = [];
+    const enemyMat = new THREE.MeshLambertMaterial({ color: 0x8e44ad });
+    for (let i = 0; i < MAX_ENEMIES; i++) {
+      const mesh = new THREE.Mesh(new THREE.ConeGeometry(3, 8, 8), enemyMat.clone());
+      mesh.visible = false;
+      mesh.position.y = 4;
+      this.scene.add(mesh);
+      this.enemyPool.push(mesh);
+    }
+
+    // Projectile pool
+    this.projectilePool = [];
+    const projMat = new THREE.MeshBasicMaterial({ color: 0xffeeaa });
+    for (let i = 0; i < MAX_PROJECTILES; i++) {
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(2, 6, 6), projMat.clone());
+      mesh.visible = false;
+      mesh.position.y = 5;
+      this.scene.add(mesh);
+      this.projectilePool.push(mesh);
+    }
+
+    // Ricochet bolt pool (lines)
+    this.ricochetPool = [];
+    for (let i = 0; i < MAX_RICOCHET_BOLTS; i++) {
+      const geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, 0, 0)
+      ]);
+      const mat = new THREE.LineBasicMaterial({ color: 0xd4b8ff, linewidth: 2 });
+      const line = new THREE.Line(geo, mat);
+      line.visible = false;
+      this.scene.add(line);
+      this.ricochetPool.push(line);
+    }
+
+    // Coin pool
+    this.coinPool = [];
+    const coinMat = new THREE.MeshLambertMaterial({ color: 0xf5a623 });
+    for (let i = 0; i < MAX_COINS; i++) {
+      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(COIN_RADIUS * 0.6, COIN_RADIUS * 0.6, 2, 12), coinMat.clone());
+      mesh.visible = false;
+      mesh.position.y = 4;
+      this.scene.add(mesh);
+      this.coinPool.push(mesh);
+    }
+
+    // Flying coin pool
+    this.flyingCoinPool = [];
+    for (let i = 0; i < MAX_FLYING_COINS; i++) {
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(3, 8, 8), coinMat.clone());
+      mesh.visible = false;
+      mesh.position.y = 8;
+      this.scene.add(mesh);
+      this.flyingCoinPool.push(mesh);
+    }
+
+    // Train — single FBX model (contains all cars), centered at origin
+    const placeholderTrain = new THREE.Mesh(
+      new THREE.BoxGeometry(200, 15, 30),
+      new THREE.MeshLambertMaterial({ color: 0x444444 })
+    );
+    placeholderTrain.position.y = 8;
+    this.trainMesh = placeholderTrain;
+    this.scene.add(placeholderTrain);
+
+    // Fixed 3D mount positions ON the train (offsets from train center)
+    // 8 weapon mounts: 4 on rear weapon car, 4 on front weapon car
+    // Train layout (along X): rear weapon (-80) | cargo (-27) | front weapon (27) | locomotive (80)
+    this.mountOffsets3D = [
+      // Rear weapon car (4 mounts: corners)
+      { x: -95, y: 16, z: -15 },  // rear-left-back
+      { x: -65, y: 16, z: -15 },  // rear-right-back
+      { x: -95, y: 16, z: 15 },   // rear-left-front
+      { x: -65, y: 16, z: 15 },   // rear-right-front
+      // Front weapon car (4 mounts: corners)
+      { x: 10, y: 16, z: -15 },   // front-left-back
+      { x: 40, y: 16, z: -15 },   // front-right-back
+      { x: 10, y: 16, z: 15 },    // front-left-front
+      { x: 40, y: 16, z: 15 },    // front-right-front
+    ];
+    // Driver seat on locomotive
+    this.driverOffset3D = { x: 75, y: 16, z: 0 };
+
+    // Mount meshes — one group per mount slot, model swapped based on state
+    this.mountGroups = [];
+    for (let i = 0; i < 12; i++) {
+      const group = new THREE.Group();
+      group.visible = false;
+      group.position.y = 16;
+      this.scene.add(group);
+      this.mountGroups.push({ group, currentType: null }); // track what's shown
+    }
+
+    // Steam blast aura ring
+    const ringGeo = new THREE.RingGeometry(38, 42, 48);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0x8ecae6, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+    this.steamRing = new THREE.Mesh(ringGeo, ringMat);
+    this.steamRing.rotation.x = -Math.PI / 2;
+    this.steamRing.position.y = 1;
+    this.steamRing.visible = false;
+    this.scene.add(this.steamRing);
+
+    // Crew walking spheres
+    this.crewMoveMeshes = [];
+    const crewColors = [0xe74c3c, 0x3498db, 0x2ecc71];
+    for (let i = 0; i < 3; i++) {
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(CREW_RADIUS * 0.4, 8, 8),
+        new THREE.MeshLambertMaterial({ color: crewColors[i] })
+      );
+      mesh.visible = false;
+      mesh.position.y = 10;
+      this.scene.add(mesh);
+      this.crewMoveMeshes.push(mesh);
+    }
+  }
+
+  _populatePoolsWithModels() {
+    // Replace placeholder enemy meshes with cloned FBX if available
+    if (this.models.enemy) {
+      for (let i = 0; i < this.enemyPool.length; i++) {
+        const old = this.enemyPool[i];
+        const clone = this.models.enemy.clone();
+        clone.visible = false;
+        clone.position.copy(old.position);
+        clone.scale.setScalar(0.015); // much smaller base scale
+        this.scene.remove(old);
+        old.geometry?.dispose();
+        this.scene.add(clone);
+        this.enemyPool[i] = clone;
+      }
+    }
+
+    // Replace train placeholder with Train.fbx (single model, all cars)
+    if (this.models.Train) {
+      const old = this.trainMesh;
+      this.scene.remove(old);
+      old.geometry?.dispose();
+      const trainModel = this.models.Train.clone();
+      trainModel.visible = true;
+      this.trainMesh = trainModel;
+      this.scene.add(trainModel);
+    }
+
+    // Mount models are now swapped dynamically in drawWeaponMounts
+  }
+
+  // =============================================
+  // COORDINATE HELPER — project 3D pos to 2D overlay
+  // =============================================
+  _project(worldX, worldZ) {
+    const v = new THREE.Vector3(worldX, 16, worldZ);
+    v.project(this.camera);
+    // Map NDC (-1..1) to UI canvas coords (0..CANVAS_WIDTH, 0..CANVAS_HEIGHT)
+    // The UI canvas is always 960×640 internal resolution
+    return {
+      x: (v.x * 0.5 + 0.5) * CANVAS_WIDTH,
+      y: (-v.y * 0.5 + 0.5) * CANVAS_HEIGHT,
+    };
+  }
+
+  // =============================================
+  // CLEAR + FLUSH
+  // =============================================
+  clear() {
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  }
+
+  flush() {
+    this.threeRenderer.render(this.scene, this.camera);
+  }
+
+  // =============================================
+  // GAME WORLD METHODS (3D)
+  // =============================================
+
+  applyShake(train, dt) {
+    if (train.shakeTimer > 0) {
+      train.shakeTimer -= dt;
+      const intensity = train.shakeTimer * 30;
+      this.shakeX = (Math.random() - 0.5) * intensity;
+      this.shakeY = (Math.random() - 0.5) * intensity;
+      this.camera.position.copy(this.cameraBasePos);
+      this.camera.position.x += this.shakeX;
+      this.camera.position.y += this.shakeY * 0.5;
+      this.ctx.setTransform(1, 0, 0, 1, this.shakeX, this.shakeY);
+    } else {
+      this.shakeX = 0;
+      this.shakeY = 0;
+      this.camera.position.copy(this.cameraBasePos);
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    if (train.damageFlash > 0) train.damageFlash -= dt;
+  }
+
+  drawTerrain(scrollOffset) {
+    // Scroll only by one sleeper spacing cycle so track never disappears
+    const sleeperSpacing = 15;
+    const offset = (scrollOffset * 0.5) % sleeperSpacing;
+    this.railGroup.position.x = -offset;
+  }
+
+  drawTrain(train) {
+    if (!this.trainMesh) return;
+    // Train always at scene origin
+    this.trainMesh.position.set(0, 0, 0);
+    this.trainMesh.visible = true;
+
+    // Project driver seat to screen coords
+    for (const car of train.cars) {
+      if (car.driverSeat) {
+        const d = this.driverOffset3D;
+        const ds = this._project(d.x, d.z);
+        car.driverSeat.screenX = ds.x;
+        car.driverSeat.screenY = ds.y;
+        car.driverSeat.worldX = toPixelX(d.x);
+        car.driverSeat.worldY = toPixelZ(d.z);
+      }
+    }
+  }
+
+  drawWeaponMounts(train, aimingMount) {
+    const ctx = this.ctx;
+    let mountIdx = 0;
+
+    // Flatten all mounts to iterate alongside 3D offsets
+    const allMounts = train.allMounts;
+
+    for (let i = 0; i < allMounts.length; i++) {
+      const mount = allMounts[i];
+      const offset = this.mountOffsets3D[i];
+      if (!offset) continue;
+
+      // Show correct 3D model based on mount state
+      if (mountIdx < this.mountGroups.length) {
+        const entry = this.mountGroups[mountIdx];
+        const group = entry.group;
+        group.position.set(offset.x, offset.y, offset.z);
+        group.rotation.y = -mount.coneDirection + Math.PI / 2;
+
+        // Determine which model to show
+        let desiredType = null;
+        if (mount.hasAutoWeapon) {
+          const modelMap = { turret: 'AutoGun', steamBlast: 'Garlic', ricochetShot: 'Laser' };
+          desiredType = modelMap[mount.autoWeaponId] || null;
+        } else if (mount.isManned) {
+          desiredType = 'Gun';
+        }
+        // Empty mount = no model
+
+        // Swap model if type changed
+        if (entry.currentType !== desiredType) {
+          while (group.children.length) group.remove(group.children[0]);
+          entry.currentType = desiredType;
+          if (desiredType && this.models[desiredType]) {
+            const clone = this.models[desiredType].clone();
+            clone.scale.copy(this.models[desiredType].scale);
+            group.add(clone);
+          }
+        }
+
+        group.visible = desiredType !== null;
+        mountIdx++;
+      }
+
+      // Project to screen for overlay + input
+      const screenPos = this._project(offset.x, offset.z);
+      const sx = screenPos.x;
+      const sy = screenPos.y;
+
+      // Slot circle on overlay
+      const hasAuto = mount.hasAutoWeapon;
+      const active = mount.isManned || hasAuto;
+      ctx.beginPath();
+      ctx.arc(sx, sy, MOUNT_RADIUS, 0, Math.PI * 2);
+      if (hasAuto) {
+        const awDef = AUTO_WEAPONS[mount.autoWeaponId];
+        ctx.fillStyle = awDef ? awDef.color : '#888';
+      } else if (mount.isManned) {
+        ctx.fillStyle = 'rgba(245, 166, 35, 0.7)';
+      } else {
+        ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+      }
+      ctx.fill();
+      ctx.strokeStyle = active ? '#fff' : 'rgba(150,150,150,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Crew dot + direction arrow (projected from 3D to match gun barrel)
+      if (mount.crew) {
+        ctx.beginPath();
+        ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+        ctx.fillStyle = mount.crew.color;
+        ctx.fill();
+
+        // Project a point offset in the shooting direction to get screen-space angle
+        const dirDist = 30; // 3D offset distance
+        const dirX = offset.x + Math.cos(mount.coneDirection) * dirDist;
+        const dirZ = offset.z + Math.sin(mount.coneDirection) * dirDist;
+        const dirScreen = this._project(dirX, dirZ);
+        const screenAngle = Math.atan2(dirScreen.y - sy, dirScreen.x - sx);
+
+        const arrowLen = MOUNT_RADIUS + 8;
+        const tipX = sx + Math.cos(screenAngle) * arrowLen;
+        const tipY = sy + Math.sin(screenAngle) * arrowLen;
+        ctx.strokeStyle = mount.crew.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sx + Math.cos(screenAngle) * (MOUNT_RADIUS - 2),
+                   sy + Math.sin(screenAngle) * (MOUNT_RADIUS - 2));
+        ctx.lineTo(tipX, tipY);
+        ctx.stroke();
+        const headLen = 5, headAngle = 0.5;
+        ctx.fillStyle = mount.crew.color;
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(tipX - Math.cos(screenAngle - headAngle) * headLen,
+                   tipY - Math.sin(screenAngle - headAngle) * headLen);
+        ctx.lineTo(tipX - Math.cos(screenAngle + headAngle) * headLen,
+                   tipY - Math.sin(screenAngle + headAngle) * headLen);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Auto-weapon icon
+      if (hasAuto) {
+        const awDef = AUTO_WEAPONS[mount.autoWeaponId];
+        ctx.fillStyle = '#fff';
+        ctx.font = '11px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(awDef ? awDef.icon : '?', sx, sy + 4);
+      }
+
+      // Screen coords for input hit-testing + overlay drawing
+      mount.screenX = sx;
+      mount.screenY = sy;
+      // Set pixel coords from 3D offset so combat fires from turret position
+      mount.worldX = toPixelX(offset.x);
+      mount.worldY = toPixelZ(offset.z);
+    }
+
+    // Hide unused mount groups
+    for (let i = mountIdx; i < this.mountGroups.length; i++) {
+      this.mountGroups[i].group.visible = false;
+    }
+  }
+
+  drawEnemies(enemies) {
+    let idx = 0;
+    for (const e of enemies) {
+      if (idx >= this.enemyPool.length) break;
+      const mesh = this.enemyPool[idx];
+      if (!e.active) {
+        mesh.visible = false;
+        idx++;
+        continue;
+      }
+      const w = toWorld(e.x, e.y);
+      mesh.position.x = w.x;
+      mesh.position.z = w.z;
+      mesh.visible = true;
+
+      // Subtle size: purple base 0.015, red slightly bigger
+      const baseScale = 0.015;
+      const hpBonus = Math.min(0.006, (e.maxHp - 20) / 80 * 0.006);
+      mesh.scale.setScalar(baseScale + hpBonus);
+
+      // Flash white on hit
+      const color = e.flashTimer > 0 ? '#ffffff' : e.color;
+      if (mesh.material && mesh.material.color) {
+        mesh.material.color.set(color);
+      } else if (mesh.children) {
+        mesh.traverse(child => {
+          if (child.isMesh && child.material && child.material.color) {
+            child.material.color.set(color);
+          }
+        });
+      }
+
+      // Draw HP bar on 2D overlay at projected screen position
+      const screenPos = this._project(w.x, w.z);
+      const ctx = this.ctx;
+      const barW = 20;
+      const barH = 3;
+      const barX = screenPos.x - barW / 2;
+      const barY = screenPos.y - 18;
+      ctx.fillStyle = '#222';
+      ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
+      const hpRatio = Math.max(0, e.hp / e.maxHp);
+      ctx.fillStyle = hpRatio > 0.5 ? '#e74c3c' : hpRatio > 0.25 ? '#f39c12' : '#ff4444';
+      ctx.fillRect(barX, barY, barW * hpRatio, barH);
+
+      idx++;
+    }
+    // Hide unused
+    for (let i = idx; i < this.enemyPool.length; i++) {
+      this.enemyPool[i].visible = false;
+    }
+  }
+
+  drawProjectiles(projectiles) {
+    let idx = 0;
+    for (const p of projectiles) {
+      if (idx >= this.projectilePool.length) break;
+      const mesh = this.projectilePool[idx];
+      if (!p.active) {
+        mesh.visible = false;
+        idx++;
+        continue;
+      }
+      const w = toWorld(p.x, p.y);
+      mesh.position.x = w.x;
+      mesh.position.z = w.z;
+      mesh.visible = true;
+
+      // Color by source
+      if (mesh.material && mesh.material.color) {
+        mesh.material.color.set(p.source === 'auto' ? '#ff8800' : '#ffeeaa');
+      }
+      idx++;
+    }
+    for (let i = idx; i < this.projectilePool.length; i++) {
+      this.projectilePool[i].visible = false;
+    }
+  }
+
+  drawRicochetBolts(bolts) {
+    let idx = 0;
+    for (const b of bolts) {
+      if (idx >= this.ricochetPool.length) break;
+      const line = this.ricochetPool[idx];
+      if (!b.active) {
+        line.visible = false;
+        idx++;
+        continue;
+      }
+      const trailLen = 30;
+      const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+      const tailX = b.x - (b.vx / speed) * trailLen;
+      const tailY = b.y - (b.vy / speed) * trailLen;
+
+      const wHead = toWorld(b.x, b.y);
+      const wTail = toWorld(tailX, tailY);
+
+      const positions = line.geometry.attributes.position;
+      positions.setXYZ(0, wTail.x, 5, wTail.z);
+      positions.setXYZ(1, wHead.x, 5, wHead.z);
+      positions.needsUpdate = true;
+      line.visible = true;
+      idx++;
+    }
+    for (let i = idx; i < this.ricochetPool.length; i++) {
+      this.ricochetPool[i].visible = false;
+    }
+  }
+
+  drawSteamBlastAura(train) {
+    if (!train.autoWeapons.steamBlast) {
+      this.steamRing.visible = false;
+      return;
+    }
+    const stats = train.getAutoWeaponStats('steamBlast');
+    if (!stats) { this.steamRing.visible = false; return; }
+
+    const m = train.getAutoWeaponMount('steamBlast');
+    const cx = m ? m.worldX : train.centerX;
+    const cy = m ? m.worldY : train.centerY;
+    const pulse = 1 + Math.sin(performance.now() * 0.004) * 0.05;
+    const r = stats.radius * (train.totalAreaMultiplier || 1) * pulse;
+
+    const w = toWorld(cx, cy);
+    this.steamRing.position.x = w.x;
+    this.steamRing.position.z = w.z;
+    // Scale ring to match radius (base geometry is ~40 units)
+    const scale = r / 40;
+    this.steamRing.scale.set(scale, scale, scale);
+    this.steamRing.visible = true;
+
+    // Also draw on 2D overlay for the subtle glow
+    const ctx = this.ctx;
+    ctx.strokeStyle = `rgba(142, 202, 230, ${0.15 + Math.sin(performance.now() * 0.006) * 0.05})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  drawWorldCoins(coins) {
+    const t = performance.now() * 0.003;
+    let idx = 0;
+    for (const c of coins) {
+      if (idx >= this.coinPool.length) break;
+      const mesh = this.coinPool[idx];
+      if (!c.active) {
+        mesh.visible = false;
+        idx++;
+        continue;
+      }
+      const bobY = Math.sin(t + c.bobPhase) * 1.5;
+      const w = toWorld(c.x, c.y);
+      mesh.position.x = w.x;
+      mesh.position.z = w.z;
+      mesh.position.y = 4 + bobY;
+      mesh.rotation.y += 0.02; // slow spin
+      mesh.visible = true;
+      idx++;
+    }
+    for (let i = idx; i < this.coinPool.length; i++) {
+      this.coinPool[i].visible = false;
+    }
+  }
+
+  drawFlyingCoins(flyingCoins) {
+    let idx = 0;
+    for (const fc of flyingCoins) {
+      if (idx >= this.flyingCoinPool.length) break;
+      const mesh = this.flyingCoinPool[idx];
+      if (!fc.active) {
+        mesh.visible = false;
+        idx++;
+        continue;
+      }
+      const w = toWorld(fc.x, fc.y);
+      mesh.position.x = w.x;
+      mesh.position.z = w.z;
+      mesh.position.y = 8;
+      mesh.visible = true;
+      idx++;
+    }
+    for (let i = idx; i < this.flyingCoinPool.length; i++) {
+      this.flyingCoinPool[i].visible = false;
+    }
+  }
+
+  drawMovingCrew(crew) {
+    const ctx = this.ctx;
+    for (let i = 0; i < crew.length; i++) {
+      const c = crew[i];
+      if (i >= this.crewMoveMeshes.length) break;
+      const mesh = this.crewMoveMeshes[i];
+      if (!c.isMoving) {
+        mesh.visible = false;
+        continue;
+      }
+
+      // Screen-space walk (3D mode uses moveScreenX/Y)
+      if (c.moveScreenX !== undefined) {
+        mesh.visible = false; // don't show 3D sphere, draw on overlay instead
+        const pulse = 0.7 + Math.sin(performance.now() * 0.008) * 0.15;
+        ctx.globalAlpha = pulse;
+        ctx.beginPath();
+        ctx.arc(c.moveScreenX, c.moveScreenY, CREW_RADIUS - 2, 0, Math.PI * 2);
+        ctx.fillStyle = c.color;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      } else {
+        // Fallback: old 2D pixel walk
+        const w = toWorld(c.moveX, c.moveY);
+        mesh.position.x = w.x;
+        mesh.position.z = w.z;
+        mesh.visible = true;
+      }
+    }
+  }
+
+  // Cargo boxes are part of the train model — skip in 3D
+  drawCargoBoxes(x, y, w, h, boxes) {
+    // No-op: cargo visual is baked into train model
+  }
+
+  // =============================================
+  // 2D OVERLAY METHODS (copied from renderer.js)
+  // =============================================
+
+  drawSelectedIndicator(crew) {
+    const ctx = this.ctx;
+    let x, y;
+    if (crew.isMoving) {
+      // Project moving crew position to screen
+      const w = toWorld(crew.moveX, crew.moveY);
+      const s = this._project(w.x, w.z);
+      x = s.x;
+      y = s.y;
+    } else if (crew.assignment) {
+      // Use projected screen coords
+      x = crew.assignment.screenX ?? crew.assignment.worldX;
+      y = crew.assignment.screenY ?? crew.assignment.worldY;
+    } else {
+      x = crew.panelX;
+      y = crew.panelY;
+    }
+
+    // Pulsing selection ring
+    const pulse = 1 + Math.sin(performance.now() * 0.006) * 0.15;
+    const r = (CREW_RADIUS + 8) * pulse;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Corner brackets
+    ctx.strokeStyle = crew.color;
+    ctx.lineWidth = 2.5;
+    const s = r + 4;
+    const l = 6;
+    ctx.beginPath(); ctx.moveTo(x - s, y - s + l); ctx.lineTo(x - s, y - s); ctx.lineTo(x - s + l, y - s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + s - l, y - s); ctx.lineTo(x + s, y - s); ctx.lineTo(x + s, y - s + l); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - s, y + s - l); ctx.lineTo(x - s, y + s); ctx.lineTo(x - s + l, y + s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + s - l, y + s); ctx.lineTo(x + s, y + s); ctx.lineTo(x + s, y + s - l); ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('SELECTED', x, y - r - 8);
+  }
+
+  drawDamageNumbers(numbers) {
+    const ctx = this.ctx;
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    for (const d of numbers) {
+      if (!d.active) continue;
+      const w = toWorld(d.x, d.y);
+      const s = this._project(w.x, w.z);
+      const alpha = Math.max(0, d.life / d.maxLife);
+      // Float upward in screen space
+      const yOff = (1 - d.life / d.maxLife) * -20;
+      ctx.fillStyle = `rgba(255, 255, 100, ${alpha})`;
+      ctx.fillText(`-${Math.round(d.damage)}`, s.x, s.y + yOff);
+    }
+  }
+
+  drawDamageFlash(train) {
+    if (train.damageFlash <= 0) return;
+    const ctx = this.ctx;
+    const alpha = Math.min(0.35, train.damageFlash);
+    ctx.fillStyle = `rgba(255, 0, 0, ${alpha})`;
+    ctx.fillRect(-10, -10, CANVAS_WIDTH + 20, CANVAS_HEIGHT + 20);
+  }
+
+  // =============================================
+  // HUD
+  // =============================================
+  drawHUD(train) {
+    const ctx = this.ctx;
+    const pad = 12;
+
+    // === HULL (HP) — top-left ===
+    const hpBarW = 220;
+    const hpBarH = 22;
+    const hpX = pad;
+    const hpY = pad;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    this.roundRect(hpX, hpY, hpBarW + 8, hpBarH + 8, 4);
+    ctx.fill();
+
+    ctx.fillStyle = '#8f8';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('HULL', hpX + 4, hpY - 1);
+
+    ctx.fillStyle = '#222';
+    ctx.fillRect(hpX + 4, hpY + 4, hpBarW, hpBarH);
+
+    const hpRatio = Math.max(0, train.hp / train.maxHp);
+    const segW = 8;
+    const segGap = 2;
+    const totalSegs = Math.floor(hpBarW / (segW + segGap));
+    const filledSegs = Math.ceil(totalSegs * hpRatio);
+    for (let i = 0; i < filledSegs; i++) {
+      const green = hpRatio > 0.5 ? '#4f4' : hpRatio > 0.25 ? '#fa3' : '#f44';
+      ctx.fillStyle = green;
+      ctx.fillRect(hpX + 4 + i * (segW + segGap), hpY + 5, segW, hpBarH - 2);
+    }
+
+    // === XP BAR — top-center ===
+    const xpBarW = 200;
+    const xpBarH = 18;
+    const xpX = CANVAS_WIDTH / 2 - xpBarW / 2 - 30;
+    const xpY = pad;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    this.roundRect(xpX - 4, xpY, xpBarW + 80, xpBarH + 8, 4);
+    ctx.fill();
+
+    ctx.fillStyle = '#f66';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('XP', xpX, xpY - 1);
+
+    ctx.fillStyle = '#333';
+    ctx.fillRect(xpX, xpY + 4, xpBarW, xpBarH);
+
+    const xpRatio = train.xp / train.xpToNextLevel;
+    const xpGrad = ctx.createLinearGradient(xpX, 0, xpX + xpBarW * xpRatio, 0);
+    xpGrad.addColorStop(0, '#e74c3c');
+    xpGrad.addColorStop(1, '#f39c12');
+    ctx.fillStyle = xpGrad;
+    ctx.fillRect(xpX, xpY + 4, xpBarW * xpRatio, xpBarH);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Level ${train.level}`, xpX + xpBarW + 8, xpY + 18);
+
+    // === GOLD — top-right ===
+    const goldX = CANVAS_WIDTH - pad;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    this.roundRect(goldX - 100, xpY, 96, 28, 4);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(goldX - 82, xpY + 14, 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#f5a623';
+    ctx.fill();
+    ctx.strokeStyle = '#c88a1a';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${train.runGold}`, goldX - 10, xpY + 19);
+
+    // === MINI-MAP — bottom-right ===
+    this.drawMiniMap(train.distance);
+  }
+
+  drawMiniMap(distance) {
+    const ctx = this.ctx;
+    const mapW = 180;
+    const mapH = 30;
+    const mapX = CANVAS_WIDTH - mapW - 16;
+    const mapY = CANVAS_HEIGHT - mapH - 16;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    this.roundRect(mapX - 8, mapY - 14, mapW + 16, mapH + 28, 6);
+    ctx.fill();
+
+    ctx.fillStyle = '#aaa';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('Start', mapX, mapY + mapH + 12);
+    ctx.textAlign = 'right';
+    ctx.fillText('Finish', mapX + mapW, mapY + mapH + 12);
+
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(mapX, mapY + mapH / 2);
+    ctx.lineTo(mapX + mapW, mapY + mapH / 2);
+    ctx.stroke();
+
+    ctx.fillStyle = '#888';
+    ctx.fillRect(mapX + mapW - 2, mapY + 4, 4, mapH - 8);
+
+    const ratio = Math.min(1, distance / TARGET_DISTANCE);
+    const trainX = mapX + mapW * ratio;
+
+    ctx.fillStyle = '#f5a623';
+    ctx.fillRect(trainX - 8, mapY + mapH / 2 - 4, 16, 8);
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillRect(trainX - 12, mapY + mapH / 2 - 3, 5, 6);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Math.floor(ratio * 100)}%`, mapX + mapW / 2, mapY - 2);
+  }
+
+  // =============================================
+  // CREW PANEL
+  // =============================================
+  drawCrewPanel(crew, panelY) {
+    const ctx = this.ctx;
+    const spacing = 70;
+    const totalW = crew.length * spacing;
+    const startX = CANVAS_WIDTH / 2 - totalW / 2;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    this.roundRect(startX - 20, panelY - 35, totalW + 30, 75, 10);
+    ctx.fill();
+    ctx.strokeStyle = '#f5a623';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = '#f5a623';
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('CLICK CREW → CLICK SLOT', CANVAS_WIDTH / 2, panelY - 18);
+
+    for (let i = 0; i < crew.length; i++) {
+      const c = crew[i];
+      const cx = startX + i * spacing + spacing / 2;
+      const cy = panelY + 12;
+      c.panelX = cx;
+      c.panelY = cy;
+
+      if (c.assignment) continue;
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, CREW_RADIUS + 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, CREW_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = c.color;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('' + (i + 1), cx, cy + 4);
+    }
+  }
+
+  // =============================================
+  // SETUP OVERLAY
+  // =============================================
+  drawSetupOverlay() {
+    const ctx = this.ctx;
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, 50);
+    ctx.fillStyle = '#f5a623';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Click crew to select, click slot to place, hold to aim', CANVAS_WIDTH / 2, 32);
+  }
+
+  drawDepartButton(x, y, w, h, hovered, disabled = false) {
+    const ctx = this.ctx;
+    if (disabled) {
+      ctx.fillStyle = '#444';
+      this.roundRect(x, y, w, h, 8);
+      ctx.fill();
+      ctx.fillStyle = '#777';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('PLACE CREW FIRST', x + w / 2, y + h / 2 + 5);
+    } else {
+      ctx.fillStyle = hovered ? '#e09520' : '#f5a623';
+      this.roundRect(x, y, w, h, 8);
+      ctx.fill();
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 18px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('DEPART', x + w / 2, y + h / 2 + 6);
+    }
+  }
+
+  // =============================================
+  // AUTO-WEAPON HUD
+  // =============================================
+  drawAutoWeaponHUD(train) {
+    const ctx = this.ctx;
+    const weaponIds = Object.keys(AUTO_WEAPONS);
+    const startX = 16;
+    const y = CANVAS_HEIGHT - 36;
+
+    for (let i = 0; i < weaponIds.length; i++) {
+      const id = weaponIds[i];
+      const def = AUTO_WEAPONS[id];
+      const x = startX + i * 50;
+      const hasIt = train.hasAutoWeapon(id);
+      const level = train.autoWeaponLevel(id);
+
+      ctx.fillStyle = hasIt ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.2)';
+      this.roundRect(x, y, 42, 30, 4);
+      ctx.fill();
+
+      ctx.font = '14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = hasIt ? def.color : '#444';
+      ctx.fillText(def.icon, x + 21, y + 15);
+
+      if (hasIt) {
+        for (let l = 0; l < 5; l++) {
+          ctx.fillStyle = l < level ? def.color : '#333';
+          ctx.fillRect(x + 4 + l * 8, y + 22, 6, 3);
+        }
+      }
+    }
+  }
+
+  // =============================================
+  // LEVEL UP MENU
+  // =============================================
+  drawLevelUpMenu(level, powerups, hoveredIndex) {
+    const ctx = this.ctx;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    ctx.fillStyle = '#f5a623';
+    ctx.font = 'bold 32px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`LEVEL ${level}!`, CANVAS_WIDTH / 2, 120);
+
+    ctx.fillStyle = '#ccc';
+    ctx.font = '16px monospace';
+    ctx.fillText('Choose a powerup:', CANVAS_WIDTH / 2, 155);
+
+    const cardW = 200;
+    const cardH = 200;
+    const gap = 24;
+    const totalW = powerups.length * cardW + (powerups.length - 1) * gap;
+    const startX = CANVAS_WIDTH / 2 - totalW / 2;
+    const cardY = 180;
+
+    for (let i = 0; i < powerups.length; i++) {
+      const p = powerups[i];
+      const cx = startX + i * (cardW + gap);
+      const isHovered = hoveredIndex === i;
+
+      ctx.fillStyle = isHovered ? '#3a3a5a' : '#2a2a3a';
+      ctx.strokeStyle = isHovered ? '#f5a623' : '#555';
+      ctx.lineWidth = isHovered ? 3 : 1;
+      this.roundRect(cx, cardY, cardW, cardH, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '40px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = p.color;
+      ctx.fillText(p.icon, cx + cardW / 2, cardY + 55);
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText(p.name, cx + cardW / 2, cardY + 90);
+
+      ctx.fillStyle = '#aaa';
+      ctx.font = '12px monospace';
+      const words = p.desc.split(' ');
+      let line = '';
+      let lineY = cardY + 115;
+      for (const word of words) {
+        const test = line + word + ' ';
+        if (ctx.measureText(test).width > cardW - 20) {
+          ctx.fillText(line.trim(), cx + cardW / 2, lineY);
+          line = word + ' ';
+          lineY += 16;
+        } else {
+          line = test;
+        }
+      }
+      if (line.trim()) ctx.fillText(line.trim(), cx + cardW / 2, lineY);
+
+      p._x = cx;
+      p._y = cardY;
+      p._w = cardW;
+      p._h = cardH;
+    }
+  }
+
+  // =============================================
+  // GAME OVER
+  // =============================================
+  drawGameOver(won, train, goldEarned, buttons, input) {
+    const ctx = this.ctx;
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    ctx.fillStyle = won ? '#2ecc71' : '#e74c3c';
+    ctx.font = 'bold 44px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(won ? 'DELIVERED!' : 'TRAIN DESTROYED', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 70);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '18px monospace';
+    const pct = Math.floor(train.distance / TARGET_DISTANCE * 100);
+    ctx.fillText(`Distance: ${pct}%  |  Level: ${train.level}`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 25);
+
+    const mult = 1.0 + train.cargoBoxes * 0.25;
+    ctx.fillStyle = '#ccc';
+    ctx.font = '16px monospace';
+    if (won) {
+      ctx.fillText(`Gold collected: ${train.runGold}  x  ${mult.toFixed(1)} cargo bonus`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 5);
+    } else {
+      ctx.fillText(`Gold collected: ${train.runGold}  (no cargo bonus)`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 5);
+    }
+
+    ctx.fillStyle = '#f5a623';
+    ctx.font = 'bold 24px monospace';
+    ctx.fillText(`+${goldEarned} Gold`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 38);
+
+    for (const [key, btn] of Object.entries(buttons)) {
+      const hovered = input.hitRect(btn.x, btn.y, btn.w, btn.h);
+      ctx.fillStyle = hovered ? '#3a3a5a' : '#2a2a3a';
+      ctx.strokeStyle = hovered ? '#f5a623' : '#555';
+      ctx.lineWidth = hovered ? 2 : 1;
+      this.roundRect(btn.x, btn.y, btn.w, btn.h, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = hovered ? '#f5a623' : '#ccc';
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'center';
+      const label = key === 'continue' ? 'CONTINUE' : key.toUpperCase();
+      ctx.fillText(label, btn.x + btn.w / 2, btn.y + btn.h / 2 + 5);
+    }
+  }
+
+  // =============================================
+  // SHOP
+  // =============================================
+  drawShop(save, upgradeKeys, hoveredIndex, departBtn, input, kbOnDepart = false) {
+    const ctx = this.ctx;
+
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    ctx.fillStyle = '#f5a623';
+    ctx.font = 'bold 32px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('UPGRADE SHOP', CANVAS_WIDTH / 2, 50);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText(`Gold: ${save.gold}`, CANVAS_WIDTH / 2, 85);
+
+    const rowH = 44;
+    const startY = 110;
+    const rowX = 80;
+    const rowW = CANVAS_WIDTH - 160;
+
+    for (let i = 0; i < upgradeKeys.length; i++) {
+      const key = upgradeKeys[i];
+      const u = save.upgrades[key];
+      const y = startY + i * (rowH + 6);
+      const isHovered = hoveredIndex === i;
+      const maxed = u.level >= u.maxLevel;
+      const cost = u.cost * (u.level + 1);
+      const canAfford = !maxed && save.gold >= cost;
+
+      u._y = y;
+
+      ctx.fillStyle = isHovered ? '#2a2a4a' : '#1e1e2e';
+      ctx.strokeStyle = isHovered ? '#f5a623' : '#333';
+      ctx.lineWidth = isHovered ? 2 : 1;
+      this.roundRect(rowX, y, rowW, rowH, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = '18px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = u.color;
+      ctx.fillText(u.icon, rowX + 12, y + 28);
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText(u.name, rowX + 40, y + 20);
+
+      ctx.fillStyle = '#888';
+      ctx.font = '11px monospace';
+      ctx.fillText(u.desc, rowX + 40, y + 35);
+
+      const checkX = rowX + rowW - 200;
+      for (let l = 0; l < u.maxLevel; l++) {
+        const cx = checkX + l * 22;
+        ctx.fillStyle = l < u.level ? u.color : '#333';
+        ctx.strokeStyle = l < u.level ? u.color : '#555';
+        ctx.lineWidth = 1;
+        this.roundRect(cx, y + 12, 18, 18, 3);
+        ctx.fill();
+        ctx.stroke();
+        if (l < u.level) {
+          ctx.fillStyle = '#fff';
+          ctx.font = 'bold 12px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('\u2713', cx + 9, y + 26);
+          ctx.textAlign = 'left';
+        }
+      }
+
+      ctx.textAlign = 'right';
+      if (maxed) {
+        ctx.fillStyle = '#666';
+        ctx.font = 'bold 12px monospace';
+        ctx.fillText('MAX', rowX + rowW - 12, y + 28);
+      } else {
+        ctx.fillStyle = canAfford ? '#f5a623' : '#e74c3c';
+        ctx.font = 'bold 12px monospace';
+        ctx.fillText(`${cost}g`, rowX + rowW - 12, y + 28);
+      }
+      ctx.textAlign = 'left';
+    }
+
+    const hovered = input.hitRect(departBtn.x, departBtn.y, departBtn.w, departBtn.h) || kbOnDepart;
+    ctx.fillStyle = hovered ? '#e09520' : '#f5a623';
+    ctx.strokeStyle = kbOnDepart ? '#fff' : 'transparent';
+    ctx.lineWidth = 2;
+    this.roundRect(departBtn.x, departBtn.y, departBtn.w, departBtn.h, 8);
+    ctx.fill();
+    if (kbOnDepart) ctx.stroke();
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('BACK TO MAP', departBtn.x + departBtn.w / 2, departBtn.y + departBtn.h / 2 + 6);
+  }
+
+  // =============================================
+  // PAUSE MENU
+  // =============================================
+  drawPauseMenu(buttons, input, kbIndex = 0) {
+    const ctx = this.ctx;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    ctx.fillStyle = '#f5a623';
+    ctx.font = 'bold 40px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('PAUSED', CANVAS_WIDTH / 2, 200);
+
+    const btnDefs = [
+      { key: 'resume',  label: 'RESUME',  btn: buttons.resume },
+      { key: 'restart', label: 'RESTART', btn: buttons.restart },
+      { key: 'quit',    label: 'QUIT',    btn: buttons.quit },
+    ];
+
+    for (let i = 0; i < btnDefs.length; i++) {
+      const { label, btn } = btnDefs[i];
+      const hovered = input.hitRect(btn.x, btn.y, btn.w, btn.h) || i === kbIndex;
+      ctx.fillStyle = hovered ? '#3a3a5a' : '#2a2a3a';
+      ctx.strokeStyle = hovered ? '#f5a623' : '#555';
+      ctx.lineWidth = hovered ? 2 : 1;
+      this.roundRect(btn.x, btn.y, btn.w, btn.h, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = hovered ? '#f5a623' : '#ccc';
+      ctx.font = 'bold 18px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, btn.x + btn.w / 2, btn.y + btn.h / 2 + 6);
+    }
+
+    ctx.fillStyle = '#666';
+    ctx.font = '12px monospace';
+    ctx.fillText('Press ESC to resume', CANVAS_WIDTH / 2, 470);
+  }
+
+  // =============================================
+  // ZONE MAP
+  // =============================================
+  drawZoneMap(zone, input, save) {
+    const ctx = this.ctx;
+    const W = CANVAS_WIDTH;
+    const H = CANVAS_HEIGHT;
+
+    // Background — earthy terrain
+    ctx.fillStyle = '#2d3a1e';
+    ctx.fillRect(0, 0, W, H);
+    // Subtle grass texture
+    ctx.fillStyle = '#334420';
+    for (let i = 0; i < 80; i++) {
+      const px = (i * 173 + 41) % W;
+      const py = (i * 131 + i * i * 7) % H;
+      ctx.fillRect(px, py, 30 + (i % 20), 20 + (i % 15));
+    }
+
+    // Title
+    ctx.fillStyle = '#c8a96e';
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`ZONE ${zone.difficulty} \u2014 RAIL MAP`, W / 2, 32);
+
+    // Coal display
+    ctx.fillStyle = '#aaa';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'left';
+    const coalFull = '\uD83D\uDFEB'.repeat(zone.coal);
+    const coalEmpty = '\u2B1B'.repeat(zone.maxCoal - zone.coal);
+    ctx.fillText(`Coal ${coalFull}${coalEmpty} ${zone.coal}/${zone.maxCoal}`, 16, 32);
+
+    // Gold display
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#f5a623';
+    ctx.fillText(`Gold: ${this._zoneGold || 0}`, W - 16, 32);
+
+    const pad = 60;
+    const mapW = W - pad * 2;
+    const mapH = H - 100;
+    const mapY = 55;
+
+    const sx = (s) => pad + s.x * mapW;
+    const sy = (s) => mapY + s.y * mapH;
+
+    // Draw rail tracks (connections)
+    for (const station of zone.stations) {
+      for (const cid of station.connections) {
+        if (cid <= station.id) continue;
+        const other = zone.stations[cid];
+        const x1 = sx(station), y1 = sy(station);
+        const x2 = sx(other), y2 = sy(other);
+        const visited = station.visited && other.visited;
+        const canReach = (station.id === zone.currentStation && zone.canTravelTo(cid)) ||
+                         (other.id === zone.currentStation && zone.canTravelTo(station.id));
+
+        ctx.strokeStyle = visited ? '#6b5a3e' : canReach ? '#5a4a30' : '#3a3020';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        const dx = x2 - x1, dy = y2 - y1;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 1) continue;
+        const nx = -dy / len * 2.5, ny = dx / len * 2.5;
+        ctx.strokeStyle = visited ? '#999' : canReach ? '#777' : '#555';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x1 + nx, y1 + ny); ctx.lineTo(x2 + nx, y2 + ny);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x1 - nx, y1 - ny); ctx.lineTo(x2 - nx, y2 - ny);
+        ctx.stroke();
+
+        const sleeperSpacing = 14;
+        const steps = Math.floor(len / sleeperSpacing);
+        ctx.strokeStyle = visited ? '#7a6a4e' : '#4a3a28';
+        ctx.lineWidth = 2;
+        for (let s = 1; s < steps; s++) {
+          const t = s / steps;
+          const px = x1 + dx * t, py = y1 + dy * t;
+          ctx.beginPath();
+          ctx.moveTo(px + nx * 2, py + ny * 2);
+          ctx.lineTo(px - nx * 2, py - ny * 2);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Draw stations as buildings
+    const hoveredStation = this._findHoveredStation(zone, input, sx, sy);
+
+    for (const station of zone.stations) {
+      const x = sx(station);
+      const y = sy(station);
+      const isCurrent = station.id === zone.currentStation;
+      const isHovered = station.id === hoveredStation || station.id === this._kbHighlightStation;
+      const canTravel = zone.canTravelTo(station.id);
+      const isEnd = station.type === 'exit';
+      const isStart = station.type === 'start';
+
+      const bw = isEnd ? 28 : isStart ? 24 : 20;
+      const bh = isEnd ? 22 : isStart ? 18 : 16;
+
+      if (canTravel && !isCurrent) {
+        ctx.shadowColor = isHovered ? '#f5a623' : '#f5a62366';
+        ctx.shadowBlur = isHovered ? 16 : 8;
+      }
+
+      if (isCurrent) {
+        ctx.fillStyle = '#f5a623';
+      } else if (station.visited) {
+        ctx.fillStyle = '#5a5040';
+      } else {
+        ctx.fillStyle = '#6b5a48';
+      }
+      ctx.fillRect(x - bw / 2, y - bh / 2, bw, bh);
+
+      ctx.fillStyle = isCurrent ? '#c88a1a' : station.visited ? '#4a4030' : '#8b7355';
+      ctx.beginPath();
+      ctx.moveTo(x - bw / 2 - 3, y - bh / 2);
+      ctx.lineTo(x, y - bh / 2 - 8);
+      ctx.lineTo(x + bw / 2 + 3, y - bh / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = isCurrent ? '#fff' : canTravel ? '#f5a623' : '#555';
+      ctx.lineWidth = isCurrent ? 2 : 1;
+      ctx.strokeRect(x - bw / 2, y - bh / 2, bw, bh);
+
+      if (isEnd) {
+        ctx.fillStyle = '#2ecc71';
+        ctx.fillRect(x + bw / 2 + 2, y - bh / 2 - 8, 2, 18);
+        ctx.fillRect(x + bw / 2 + 4, y - bh / 2 - 8, 8, 6);
+      }
+
+      ctx.fillStyle = isCurrent ? '#000' : '#ddd';
+      ctx.font = 'bold 9px monospace';
+      ctx.textAlign = 'center';
+      if (isStart) ctx.fillText('DEP', x, y + 3);
+      else if (isEnd) ctx.fillText('ARR', x, y + 3);
+      else ctx.fillText(`${station.id}`, x, y + 3);
+
+      if (isCurrent) {
+        ctx.fillStyle = '#e74c3c';
+        ctx.font = '12px monospace';
+        ctx.fillText('\uD83D\uDE82', x, y - bh / 2 - 12);
+      }
+    }
+
+    // Shop button
+    const shopBtn = { x: W - 110, y: 44, w: 90, h: 30 };
+    const shopHovered = input.hitRect(shopBtn.x, shopBtn.y, shopBtn.w, shopBtn.h);
+    ctx.fillStyle = shopHovered ? '#c88a1a' : '#8b7355';
+    this.roundRect(shopBtn.x, shopBtn.y, shopBtn.w, shopBtn.h, 5);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('SHOP', shopBtn.x + shopBtn.w / 2, shopBtn.y + shopBtn.h / 2 + 4);
+
+    // Train stats panel
+    if (save) {
+      const u = save.upgrades;
+      const panelX = 12;
+      const panelY = H - 100;
+      const panelW = 180;
+      const panelH = 82;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      this.roundRect(panelX, panelY, panelW, panelH, 6);
+      ctx.fill();
+
+      ctx.fillStyle = '#c8a96e';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('TRAIN STATS', panelX + 8, panelY + 14);
+
+      ctx.fillStyle = '#aaa';
+      ctx.font = '10px monospace';
+      const stats = [
+        `Crew: ${1 + u.crewSlots.level}/3`,
+        `Might: +${u.might.level * 10}%  Armor: ${u.armor.level}`,
+        `Fire Rate: +${u.fireRate.level * 8}%`,
+        `Hull: +${u.maxHull.level * 10}  Greed: +${u.greed.level * 20}%`,
+      ];
+      stats.forEach((s, i) => {
+        ctx.fillText(s, panelX + 8, panelY + 28 + i * 14);
+      });
+    }
+
+    // Instructions
+    ctx.fillStyle = '#88785a';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Select a station to travel  \u2022  Each hop costs 1 coal', W / 2, H - 16);
+
+    return hoveredStation;
+  }
+
+  _findHoveredStation(zone, input, sx, sy) {
+    for (const s of zone.stations) {
+      const dx = input.mouseX - sx(s);
+      const dy = input.mouseY - sy(s);
+      if (dx * dx + dy * dy <= 20 * 20) return s.id;
+    }
+    return -1;
+  }
+
+  drawStationArrival(arrival) {
+    const ctx = this.ctx;
+    const W = CANVAS_WIDTH;
+    const H = CANVAS_HEIGHT;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+
+    const colors = {
+      combat: '#e74c3c',
+      trade: '#3498db',
+      empty: '#888',
+      exit: '#2ecc71',
+    };
+    ctx.fillStyle = colors[arrival.type] || '#fff';
+    ctx.font = 'bold 32px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(arrival.label, W / 2, H / 2);
+
+    ctx.fillStyle = '#aaa';
+    ctx.font = '14px monospace';
+    const subtitles = {
+      combat: 'Prepare for battle...',
+      trade: 'Opening shop...',
+      empty: 'Nothing here...',
+      exit: 'Moving to next zone...',
+    };
+    ctx.fillText(subtitles[arrival.type] || '', W / 2, H / 2 + 30);
+  }
+
+  // =============================================
+  // CONFETTI
+  // =============================================
+  spawnConfetti() {
+    const colors = ['#f5a623', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#fff', '#ff69b4'];
+    for (let i = 0; i < 60; i++) {
+      this.confetti.push({
+        x: CANVAS_WIDTH / 2 + (Math.random() - 0.5) * 400,
+        y: -10 - Math.random() * 40,
+        vx: (Math.random() - 0.5) * 200,
+        vy: 80 + Math.random() * 150,
+        rot: Math.random() * Math.PI * 2,
+        rotV: (Math.random() - 0.5) * 8,
+        w: 4 + Math.random() * 6,
+        h: 3 + Math.random() * 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        life: 2 + Math.random() * 1.5,
+      });
+    }
+  }
+
+  updateAndDrawConfetti(dt) {
+    const ctx = this.ctx;
+    for (let i = this.confetti.length - 1; i >= 0; i--) {
+      const c = this.confetti[i];
+      c.x += c.vx * dt;
+      c.vy += 60 * dt;
+      c.y += c.vy * dt;
+      c.rot += c.rotV * dt;
+      c.life -= dt;
+      if (c.life <= 0 || c.y > CANVAS_HEIGHT + 20) {
+        this.confetti.splice(i, 1);
+        continue;
+      }
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.rot);
+      ctx.globalAlpha = Math.min(1, c.life);
+      ctx.fillStyle = c.color;
+      ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+  }
+
+  // =============================================
+  // MISC
+  // =============================================
+  setZoneGold(gold) { this._zoneGold = gold; }
+
+  drawCone(x, y, angle, halfAngle, range, color) {
+    const ctx = this.ctx;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.arc(x, y, range, angle - halfAngle, angle + halfAngle);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  roundRect(x, y, w, h, r) {
+    const ctx = this.ctx;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+}

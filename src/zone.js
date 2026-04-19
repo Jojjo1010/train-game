@@ -63,11 +63,7 @@ export class Zone {
         const yBase = (n + 0.5) / count;
         const y = yBase + (Math.random() - 0.5) * 0.30;
 
-        let type;
-        const roll = Math.random();
-        if (roll < 0.55) type = STATION_TYPES.COMBAT;
-        else if (roll < 0.80) type = STATION_TYPES.TRADE;
-        else type = STATION_TYPES.EMPTY;
+        const type = STATION_TYPES.COMBAT;
 
         const station = new Station(id++,
           Math.max(0.08, Math.min(0.88, x)),

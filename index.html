@@ -9,7 +9,7 @@
     html, body {
       width: 100%;
       height: 100%;
-      background: #111;
+      background: #000;
       overflow: hidden;
     }
     body {
@@ -17,14 +17,42 @@
       align-items: center;
       justify-content: center;
     }
-    canvas {
-      display: block;
+    #container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
       cursor: crosshair;
     }
+    #game3d, #gameUI {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #game3d {
+      z-index: 0;
+    }
+    #gameUI {
+      z-index: 1;
+      background: transparent;
+    }
   </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.164.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.164.0/examples/jsm/"
+      }
+    }
+  </script>
 </head>
 <body>
-  <canvas id="game"></canvas>
+  <div id="container">
+    <canvas id="game3d"></canvas>
+    <canvas id="gameUI"></canvas>
+  </div>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>

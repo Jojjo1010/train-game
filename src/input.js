@@ -103,7 +103,10 @@ export class InputManager {
   findSlotAtMouse(train) {
     for (const slot of train.allSlots) {
       const r = slot.isDriverSeat ? CREW_RADIUS + 4 : MOUNT_RADIUS + 6;
-      if (this.hitCircle(slot.worldX, slot.worldY, r)) return slot;
+      // Use projected screen coords if available (3D mode), otherwise pixel coords (2D mode)
+      const sx = slot.screenX !== undefined ? slot.screenX : slot.worldX;
+      const sy = slot.screenY !== undefined ? slot.screenY : slot.worldY;
+      if (this.hitCircle(sx, sy, r)) return slot;
     }
     return null;
   }
