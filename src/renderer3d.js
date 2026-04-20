@@ -31,6 +31,9 @@ export class Renderer3D {
     // --- Scene ---
     this.scene = new THREE.Scene();
     this._projVec = new THREE.Vector3();
+    this._unprojNear = new THREE.Vector3();
+    this._unprojFar = new THREE.Vector3();
+    this._unprojDir = new THREE.Vector3();
     this.scene.background = new THREE.Color(0x2d3a1e);
 
     // --- Camera (isometric view matching Blender reference) ---
@@ -303,18 +306,32 @@ export class Renderer3D {
   }
 
   // Convert screen coords (canvas pixels) back to 2D game pixel coords
-  // Inverts the _project transform at a given worldY height
-  screenToPixel(screenX, screenY, worldY = 16) {
+  // For orthographic camera: unproject two points to get a ray, intersect with Y=worldY plane
+  screenToPixel(screenX, screenY, worldY = 0) {
     const ndcX = (screenX / CANVAS_WIDTH) * 2 - 1;
     const ndcY = -(screenY / CANVAS_HEIGHT) * 2 + 1;
-    const v = this._projVec.set(ndcX, ndcY, 0);
-    v.unproject(this.camera);
-    // After unprojecting, v.x = worldX, v.z = worldZ at the given depth
-    // But unproject gives a point on the near plane. For orthographic camera,
-    // x and z are what we need directly.
+
+    // Near and far points on the ray
+    const near = this._unprojNear.set(ndcX, ndcY, -1);
+    near.unproject(this.camera);
+    const far = this._unprojFar.set(ndcX, ndcY, 1);
+    far.unproject(this.camera);
+
+    // Ray direction
+    const dir = this._unprojDir.copy(far).sub(near);
+
+    // Intersect with Y = worldY plane
+    if (Math.abs(dir.y) < 0.0001) {
+      // Ray parallel to plane — fallback
+      return { x: near.x + CANVAS_WIDTH / 2, y: near.z + CANVAS_HEIGHT / 2 };
+    }
+    const t = (worldY - near.y) / dir.y;
+    const hitX = near.x + dir.x * t;
+    const hitZ = near.z + dir.z * t;
+
     return {
-      x: v.x + CANVAS_WIDTH / 2,
-      y: v.z + CANVAS_HEIGHT / 2,
+      x: hitX + CANVAS_WIDTH / 2,
+      y: hitZ + CANVAS_HEIGHT / 2,
     };
   }
 
@@ -1280,49 +1297,186 @@ export class Renderer3D {
   // =============================================
   // GAME OVER
   // =============================================
-  drawGameOver(won, train, goldEarned, buttons, input) {
+  drawGameOver(won, train, goldEarned, buttons, input, gameOverType = 'death') {
     const ctx = this.ctx;
-    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    const cx = CANVAS_WIDTH / 2;
+    const cy = CANVAS_HEIGHT / 2;
+    const t = performance.now() * 0.001;
+
+    // Background
+    if (gameOverType === 'world') {
+      // Golden gradient background for world complete
+      const grad = ctx.createRadialGradient(cx, cy, 50, cx, cy, 400);
+      grad.addColorStop(0, 'rgba(80, 50, 0, 0.95)');
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    }
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    ctx.fillStyle = won ? '#2ecc71' : '#e74c3c';
-    ctx.font = 'bold 44px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(won ? 'DELIVERED!' : 'TRAIN DESTROYED', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 70);
+    if (gameOverType === 'world') {
+      // === WORLD COMPLETE — treasure celebration ===
 
-    ctx.fillStyle = '#fff';
-    ctx.font = '18px monospace';
-    const pct = Math.floor(train.distance / TARGET_DISTANCE * 100);
-    ctx.fillText(`Distance: ${pct}%  |  Level: ${train.level}`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 25);
+      // Animated golden glow
+      const glowR = 120 + Math.sin(t * 2) * 20;
+      const glow = ctx.createRadialGradient(cx, cy - 60, 10, cx, cy - 60, glowR);
+      glow.addColorStop(0, 'rgba(245, 166, 35, 0.3)');
+      glow.addColorStop(1, 'rgba(245, 166, 35, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    const mult = 1.0 + train.cargoBoxes * 0.25;
-    ctx.fillStyle = '#ccc';
-    ctx.font = '16px monospace';
-    if (won) {
-      ctx.fillText(`Gold collected: ${train.runGold}  x  ${mult.toFixed(1)} cargo bonus`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 5);
-    } else {
-      ctx.fillText(`Gold collected: ${train.runGold}  (no cargo bonus)`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 5);
-    }
-
-    ctx.fillStyle = '#f5a623';
-    ctx.font = 'bold 24px monospace';
-    ctx.fillText(`+${goldEarned} Gold`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 38);
-
-    for (const [key, btn] of Object.entries(buttons)) {
-      const hovered = input.hitRect(btn.x, btn.y, btn.w, btn.h);
-      ctx.fillStyle = hovered ? '#3a3a5a' : '#2a2a3a';
-      ctx.strokeStyle = hovered ? '#f5a623' : '#555';
-      ctx.lineWidth = hovered ? 2 : 1;
-      this.roundRect(btn.x, btn.y, btn.w, btn.h, 8);
+      // Treasure chest
+      const chestX = cx, chestY = cy - 40;
+      // Chest body
+      ctx.fillStyle = '#8B4513';
+      this.roundRect(chestX - 40, chestY - 10, 80, 50, 6);
       ctx.fill();
+      ctx.strokeStyle = '#5a2d0c';
+      ctx.lineWidth = 2;
+      this.roundRect(chestX - 40, chestY - 10, 80, 50, 6);
       ctx.stroke();
+      // Chest lid
+      ctx.fillStyle = '#a0522d';
+      ctx.beginPath();
+      ctx.moveTo(chestX - 42, chestY - 10);
+      ctx.quadraticCurveTo(chestX, chestY - 35, chestX + 42, chestY - 10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#5a2d0c';
+      ctx.stroke();
+      // Gold clasp
+      ctx.fillStyle = '#f5a623';
+      ctx.fillRect(chestX - 8, chestY - 5, 16, 12);
+      ctx.strokeStyle = '#c88a1a';
+      ctx.strokeRect(chestX - 8, chestY - 5, 16, 12);
+      // Gold coins spilling out
+      for (let i = 0; i < 8; i++) {
+        const coinX = chestX - 30 + i * 9 + Math.sin(t * 2 + i) * 3;
+        const coinY = chestY - 18 - Math.abs(Math.sin(t * 1.5 + i * 0.8)) * 6;
+        ctx.beginPath();
+        ctx.arc(coinX, coinY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#f5a623';
+        ctx.fill();
+        ctx.strokeStyle = '#c88a1a';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
 
-      ctx.fillStyle = hovered ? '#f5a623' : '#ccc';
-      ctx.font = 'bold 16px monospace';
+      // Title
+      const pulse = 1 + Math.sin(t * 3) * 0.05;
+      ctx.save();
+      ctx.translate(cx, cy - 100);
+      ctx.scale(pulse, pulse);
+      ctx.fillStyle = '#f5a623';
+      ctx.font = 'bold 48px monospace';
       ctx.textAlign = 'center';
-      const label = key === 'continue' ? 'CONTINUE' : key.toUpperCase();
-      ctx.fillText(label, btn.x + btn.w / 2, btn.y + btn.h / 2 + 5);
+      ctx.fillText('WORLD COMPLETE!', 0, 0);
+      ctx.strokeStyle = '#c88a1a';
+      ctx.lineWidth = 1;
+      ctx.strokeText('WORLD COMPLETE!', 0, 0);
+      ctx.restore();
+
+      // Subtitle
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 20px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('All zones conquered!', cx, cy + 30);
+
+      // Total gold
+      ctx.fillStyle = '#f5a623';
+      ctx.font = 'bold 28px monospace';
+      ctx.fillText(`Treasury: ${input._totalGold ?? 0} Gold`, cx, cy + 65);
+
+    } else if (gameOverType === 'zone') {
+      // === ZONE WIN — delivered celebration ===
+
+      // Star burst behind title
+      ctx.save();
+      ctx.translate(cx, cy - 70);
+      ctx.globalAlpha = 0.15;
+      const rays = 12;
+      for (let i = 0; i < rays; i++) {
+        const angle = (i / rays) * Math.PI * 2 + t * 0.3;
+        ctx.fillStyle = '#f5a623';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(angle - 0.08) * 200, Math.sin(angle - 0.08) * 200);
+        ctx.lineTo(Math.cos(angle + 0.08) * 200, Math.sin(angle + 0.08) * 200);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      ctx.restore();
+
+      // Title
+      ctx.fillStyle = '#2ecc71';
+      ctx.font = 'bold 44px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('DELIVERED!', cx, cy - 70);
+
+      // Stats
+      ctx.fillStyle = '#fff';
+      ctx.font = '18px monospace';
+      ctx.fillText(`Level: ${train.level}`, cx, cy - 30);
+
+      // Gold breakdown with animated counter effect
+      const mult = train.cargoMultiplier;
+      ctx.fillStyle = '#aaa';
+      ctx.font = '14px monospace';
+      ctx.fillText(`Gold collected: ${train.runGold}`, cx, cy + 0);
+      ctx.fillText(`Cargo bonus: x${mult.toFixed(1)}`, cx, cy + 20);
+
+      ctx.fillStyle = '#f5a623';
+      ctx.font = 'bold 28px monospace';
+      ctx.fillText(`+${goldEarned} Gold`, cx, cy + 55);
+
+      // Coal reward
+      ctx.fillStyle = '#8B6914';
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText('+2 Coal', cx, cy + 78);
+
+    } else {
+      // === DEATH ===
+      ctx.fillStyle = '#e74c3c';
+      ctx.font = 'bold 44px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('TRAIN DESTROYED', cx, cy - 70);
+
+      ctx.fillStyle = '#fff';
+      ctx.font = '18px monospace';
+      const pct = Math.floor(train.distance / TARGET_DISTANCE * 100);
+      ctx.fillText(`Distance: ${pct}%  |  Level: ${train.level}`, cx, cy - 25);
+
+      ctx.fillStyle = '#ccc';
+      ctx.font = '16px monospace';
+      ctx.fillText(`Gold salvaged: ${train.runGold}  (no cargo bonus)`, cx, cy + 5);
+
+      ctx.fillStyle = '#f5a623';
+      ctx.font = 'bold 24px monospace';
+      ctx.fillText(`+${goldEarned} Gold`, cx, cy + 38);
     }
+
+    // Continue button (moved down for world complete)
+    const btnY = gameOverType === 'world' ? cy + 100 : cy + 70;
+    const btn = buttons.continue;
+    const adjustedBtn = { ...btn, y: btnY };
+    const hovered = input.hitRect(adjustedBtn.x, adjustedBtn.y, adjustedBtn.w, adjustedBtn.h);
+    // Store adjusted position for hit testing
+    buttons.continue.y = btnY;
+
+    ctx.fillStyle = hovered ? '#3a3a5a' : '#2a2a3a';
+    ctx.strokeStyle = hovered ? '#f5a623' : '#555';
+    ctx.lineWidth = hovered ? 2 : 1;
+    this.roundRect(adjustedBtn.x, adjustedBtn.y, adjustedBtn.w, adjustedBtn.h, 8);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = hovered ? '#f5a623' : '#ccc';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    const btnLabel = gameOverType === 'world' ? 'NEW WORLD' : gameOverType === 'zone' ? 'CONTINUE' : 'TRY AGAIN';
+    ctx.fillText(btnLabel, adjustedBtn.x + adjustedBtn.w / 2, adjustedBtn.y + adjustedBtn.h / 2 + 5);
   }
 
   // =============================================
@@ -1610,7 +1764,6 @@ export class Renderer3D {
       ctx.textAlign = 'center';
       if (isStart) ctx.fillText('DEP', x, y + 3);
       else if (isEnd) ctx.fillText('ARR', x, y + 3);
-      else ctx.fillText(`${station.id}`, x, y + 3);
 
       if (isCurrent) {
         ctx.fillStyle = '#e74c3c';
@@ -1682,28 +1835,53 @@ export class Renderer3D {
     const ctx = this.ctx;
     const W = CANVAS_WIDTH;
     const H = CANVAS_HEIGHT;
+    const cx = W / 2, cy = H / 2;
 
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(0, 0, W, H);
+    if (arrival.isPreBoss) {
+      // Boss fight — ominous red overlay
+      const t = performance.now() * 0.003;
+      const pulse = 0.6 + Math.sin(t) * 0.15;
+      ctx.fillStyle = `rgba(60, 0, 0, ${pulse})`;
+      ctx.fillRect(0, 0, W, H);
 
-    const colors = {
-      combat: '#e74c3c',
-      empty: '#888',
-      exit: '#2ecc71',
-    };
-    ctx.fillStyle = colors[arrival.type] || '#fff';
-    ctx.font = 'bold 32px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(arrival.label, W / 2, H / 2);
+      // Vignette
+      const grad = ctx.createRadialGradient(cx, cy, 50, cx, cy, 400);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(1, 'rgba(0,0,0,0.5)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
 
-    ctx.fillStyle = '#aaa';
-    ctx.font = '14px monospace';
-    const subtitles = {
-      combat: 'Zombies incoming...',
-      empty: 'Nothing here...',
-      exit: 'Shop time!',
-    };
-    ctx.fillText(subtitles[arrival.type] || '', W / 2, H / 2 + 30);
+      ctx.fillStyle = '#e74c3c';
+      ctx.font = 'bold 40px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(arrival.label, cx, cy - 10);
+
+      ctx.fillStyle = '#ff6b6b';
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText('The horde is stronger here...', cx, cy + 25);
+    } else {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0, 0, W, H);
+
+      const colors = {
+        combat: '#e74c3c',
+        empty: '#888',
+        exit: '#2ecc71',
+      };
+      ctx.fillStyle = colors[arrival.type] || '#fff';
+      ctx.font = 'bold 32px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(arrival.label, cx, cy);
+
+      ctx.fillStyle = '#aaa';
+      ctx.font = '14px monospace';
+      const subtitles = {
+        combat: 'Zombies incoming...',
+        empty: 'Nothing here...',
+        exit: 'Shop time!',
+      };
+      ctx.fillText(subtitles[arrival.type] || '', cx, cy + 30);
+    }
   }
 
   // =============================================

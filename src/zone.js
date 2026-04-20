@@ -41,89 +41,107 @@ export class Zone {
   }
 
   generate() {
-    const layers = 2 + Math.floor(Math.random() * 2); // 2-3 layers
-    const nodesPerLayer = () => 1 + Math.floor(Math.random() * 2); // 1-2
+    // Create 2-3 distinct routes of different lengths:
+    //   Short route: 2 stations (fast but fewer level-ups)
+    //   Medium route: 3-4 stations
+    //   Long route: 4-5 stations (more XP/gold but costs more coal)
+    // Routes can share some stations, creating decision points
 
     let id = 0;
 
-    // Start station (left side, random Y)
-    this.stations.push(new Station(id++, 0.06, 0.35 + Math.random() * 0.3, STATION_TYPES.START));
+    // Start
+    const startY = 0.4 + Math.random() * 0.2;
+    this.stations.push(new Station(id++, 0.06, startY, STATION_TYPES.START));
 
-    const layerStations = [];
-    for (let l = 0; l < layers; l++) {
-      const count = nodesPerLayer();
-      const layer = [];
-      for (let n = 0; n < count; n++) {
-        // X: spread across the layer zone with significant jitter
-        const layerX = 0.15 + (l / Math.max(1, layers - 1)) * 0.65;
-        const x = layerX + (Math.random() - 0.5) * 0.10;
+    // Exit
+    const exitY = 0.35 + Math.random() * 0.3;
+    this.stations.push(new Station(id++, 0.94, exitY, STATION_TYPES.EXIT));
+    const exitId = 1;
 
-        // Y: spread across full height with randomness
-        const yBase = (n + 0.5) / count;
-        const y = yBase + (Math.random() - 0.5) * 0.30;
+    // Define routes with different lengths
+    const numRoutes = 2 + (Math.random() < 0.5 ? 1 : 0); // 2-3 routes
+    const routeLengths = [];
 
-        const type = STATION_TYPES.COMBAT;
+    // Always have a short and a long route
+    routeLengths.push(2); // short: 2 combat stations
+    routeLengths.push(4 + Math.floor(Math.random() * 2)); // long: 4-5 stations
+
+    // Optional medium route
+    if (numRoutes === 3) {
+      routeLengths.push(3); // medium: 3 stations
+    }
+
+    // Sort by length so short is on top, long on bottom
+    routeLengths.sort((a, b) => a - b);
+
+    // Generate stations for each route
+    const routes = []; // array of arrays of station IDs
+    const ySpread = 0.7; // total vertical spread
+    const yStart = 0.15; // top margin
+
+    for (let r = 0; r < routeLengths.length; r++) {
+      const len = routeLengths[r];
+      const route = [];
+
+      // Y band for this route
+      const bandY = yStart + (r / Math.max(1, routeLengths.length - 1)) * ySpread;
+
+      for (let s = 0; s < len; s++) {
+        // X: evenly spread across the map
+        const x = 0.14 + ((s + 0.5) / len) * 0.72;
+        // Y: within the route's band with some jitter
+        const y = bandY + (Math.random() - 0.5) * 0.15;
 
         const station = new Station(id++,
-          Math.max(0.08, Math.min(0.88, x)),
+          Math.max(0.10, Math.min(0.88, x + (Math.random() - 0.5) * 0.04)),
           Math.max(0.08, Math.min(0.92, y)),
-          type);
+          STATION_TYPES.COMBAT);
         this.stations.push(station);
-        layer.push(station.id);
+        route.push(station.id);
       }
-      layerStations.push(layer);
+      routes.push(route);
     }
 
-    // Exit station (right side, random Y)
-    this.stations.push(new Station(id++, 0.94, 0.3 + Math.random() * 0.4, STATION_TYPES.EXIT));
-    const exitId = id - 1;
-
-    // Connect start to first layer
-    const firstLayer = layerStations[0];
-    for (const nid of firstLayer) {
-      this.stations[0].connections.push(nid);
-      this.stations[nid].connections.push(0);
+    // Connect start to first station of each route
+    for (const route of routes) {
+      this.addConnection(0, route[0]);
     }
 
-    // Connect adjacent layers
-    for (let l = 0; l < layerStations.length - 1; l++) {
-      const current = layerStations[l];
-      const next = layerStations[l + 1];
-
-      // Each node connects to 1-2 nodes in next layer
-      for (const cid of current) {
-        // Connect to closest node in next layer
-        const cStation = this.stations[cid];
-        const sorted = [...next].sort((a, b) => {
-          return Math.abs(this.stations[a].y - cStation.y) - Math.abs(this.stations[b].y - cStation.y);
-        });
-        // Always connect to closest
-        this.addConnection(cid, sorted[0]);
-        // 60% chance to also connect to second closest
-        if (sorted.length > 1 && Math.random() < 0.6) {
-          this.addConnection(cid, sorted[1]);
-        }
+    // Connect stations within each route sequentially
+    for (const route of routes) {
+      for (let i = 0; i < route.length - 1; i++) {
+        this.addConnection(route[i], route[i + 1]);
       }
+      // Connect last station of route to exit
+      this.addConnection(route[route.length - 1], exitId);
+    }
 
-      // Ensure every node in next layer has at least one connection
-      for (const nid of next) {
-        const hasIncoming = current.some(cid => this.stations[cid].connections.includes(nid));
-        if (!hasIncoming) {
-          // Connect to closest in current layer
-          const nStation = this.stations[nid];
-          const closest = current.reduce((best, cid) => {
-            const dist = Math.abs(this.stations[cid].y - nStation.y);
-            return dist < best.dist ? { id: cid, dist } : best;
-          }, { id: current[0], dist: Infinity });
-          this.addConnection(closest.id, nid);
+    // Add some cross-connections between routes at similar X positions
+    // This creates decision points mid-route
+    for (let r = 0; r < routes.length - 1; r++) {
+      const routeA = routes[r];
+      const routeB = routes[r + 1];
+
+      for (const aId of routeA) {
+        const aStation = this.stations[aId];
+        for (const bId of routeB) {
+          const bStation = this.stations[bId];
+          // Connect if X positions are close (within 0.12)
+          const xDist = Math.abs(aStation.x - bStation.x);
+          if (xDist < 0.12 && Math.random() < 0.35) {
+            this.addConnection(aId, bId);
+          }
         }
       }
     }
 
-    // Connect last layer to exit
-    const lastLayer = layerStations[layerStations.length - 1];
-    for (const nid of lastLayer) {
-      this.addConnection(nid, exitId);
+    // Occasionally add an empty/rest station on the long route
+    if (routes.length >= 2) {
+      const longRoute = routes[routes.length - 1];
+      if (longRoute.length >= 4 && Math.random() < 0.6) {
+        const restIdx = 1 + Math.floor(Math.random() * (longRoute.length - 2));
+        this.stations[longRoute[restIdx]].type = STATION_TYPES.EMPTY;
+      }
     }
   }
 

@@ -89,11 +89,7 @@ let combatDifficulty = 1;
 function newZone() {
   zoneNumber++;
   if (zoneNumber > ZONES_PER_WORLD) {
-    // World complete!
-    won = true;
-    goldEarned = 0;
-    state = STATES.GAMEOVER;
-    playVictory();
+    enterWorldComplete();
     return;
   }
   zone = new Zone(zoneNumber);
@@ -439,9 +435,9 @@ function renderRun() {
   renderer.drawBandits(banditSystem.pool);
   renderer.drawFlyingCoins(coinSystem.flyingCoins);
   renderer.drawDamageFlash(train);
-  // Show crew panel if any crew is unassigned (so they're never invisible)
+  // Show crew panel if any crew is unassigned (at bottom of screen, away from train)
   if (train.crew.some(c => !c.assignment && !c.isMoving)) {
-    renderer.drawCrewPanel(train.crew, crewPanelY);
+    renderer.drawCrewPanel(train.crew, CANVAS_HEIGHT - 70);
   }
   renderer.drawHUD(train);
   renderer.drawAutoWeaponHUD(train);
@@ -712,20 +708,37 @@ function renderPlaceWeapon() {
 
 // --- GAMEOVER ---
 let goldEarned = 0;
+let gameOverType = 'death'; // 'death' | 'zone' | 'world'
+
 function enterGameOver() {
-  // Gold calculation
-  // Cargo multiplier: 1.0 + (boxes * 0.25), so 4 boxes = 2.0x
   const cargoMultiplier = train.cargoMultiplier;
   if (won) {
-    // Win: multiply collected gold by cargo
     goldEarned = Math.floor(train.runGold * cargoMultiplier);
   } else {
-    // Lose: just get the gold you shot (no multiplier)
     goldEarned = train.runGold;
   }
   save.gold += goldEarned;
   state = STATES.GAMEOVER;
-  if (won) playVictory(); else playDefeat();
+  gameOverType = won ? 'zone' : 'death';
+  if (won) {
+    playVictory();
+    renderer.spawnConfetti();
+    renderer.spawnConfetti(); // double confetti for zone win
+  } else {
+    playDefeat();
+  }
+}
+
+function enterWorldComplete() {
+  won = true;
+  goldEarned = 0;
+  gameOverType = 'world';
+  state = STATES.GAMEOVER;
+  playVictory();
+  // Massive confetti burst
+  for (let i = 0; i < 6; i++) {
+    setTimeout(() => renderer.spawnConfetti(), i * 200);
+  }
 }
 
 const gameOverBtns = {
@@ -767,7 +780,9 @@ function renderGameOver() {
   renderer.drawTrain(train);
   renderer.drawWeaponMounts(train, null);
   renderer.drawMovingCrew(train.crew);
-  renderer.drawGameOver(won, train, goldEarned, gameOverBtns, input);
+  input._totalGold = save.gold; // pass total gold for world complete screen
+  renderer.drawGameOver(won, train, goldEarned, gameOverBtns, input, gameOverType);
+  renderer.updateAndDrawConfetti(0.016);
   renderer.flush();
 }
 
@@ -1128,14 +1143,17 @@ function updateZoneMap() {
 let stationArrival = null; // { type, timer } — brief overlay showing what you found
 
 function enterStation(station) {
+  if (station.type === STATION_TYPES.START) return;
+
+  const isPreBoss = station.type === STATION_TYPES.COMBAT &&
+    station.connections.some(id => zone.stations[id].type === STATION_TYPES.EXIT);
+
   const typeLabels = {
-    combat: '⚔ ZOMBIES AHEAD! ⚔',
+    combat: isPreBoss ? '💀 FINAL BATTLE! 💀' : '⚔ ZOMBIES AHEAD! ⚔',
     empty: '— Quiet Stop —',
     start: '',
     exit: '★ ZONE COMPLETE! ★',
   };
-
-  if (station.type === STATION_TYPES.START) return;
 
   stationArrival = {
     type: station.type,
@@ -1143,6 +1161,7 @@ function enterStation(station) {
     timer: station.type === STATION_TYPES.EMPTY ? 1.0 : 1.5,
     station,
     acted: false,
+    isPreBoss,
   };
 }
 
@@ -1154,10 +1173,14 @@ function updateStationArrival(dt) {
     stationArrival.acted = true;
     const s = stationArrival.station;
     switch (s.type) {
-      case STATION_TYPES.COMBAT:
+      case STATION_TYPES.COMBAT: {
         combatDifficulty = 1 + (zoneNumber - 1) * ZONE_DIFFICULTY_SCALE;
+        // Last station before exit is harder
+        const isPreBoss = s.connections.some(id => zone.stations[id].type === STATION_TYPES.EXIT);
+        if (isPreBoss) combatDifficulty *= 1.6;
         prepareForCombat();
         break;
+      }
       case STATION_TYPES.EXIT:
         save.gold += zone.stationsVisited * GOLD_PER_STATION;
         state = STATES.SHOP;
