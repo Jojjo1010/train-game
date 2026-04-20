@@ -33,8 +33,8 @@ const combat = new CombatSystem();
 const coinSystem = new CoinSystem();
 
 let state = STATES.ZONE_MAP;
-let train = new Train();
-let zone = new Zone();
+let train = null;
+let zone = null;
 let lastTime = performance.now();
 let won = false;
 let debugMode = false;
@@ -86,33 +86,38 @@ function newZone() {
   state = STATES.ZONE_MAP;
 }
 
-function resetForCombat() {
-  state = STATES.SETUP;
+// Full world reset — new train with shop upgrades applied
+function startNewWorld() {
+  zoneNumber = 1;
+  zone = new Zone(zoneNumber);
+  combatDifficulty = 1;
   train = new Train();
+  selectedCrew = null;
+
+  // Apply persistent shop upgrades to fresh train
+  const u = save.upgrades;
+  const crewCount = 1 + u.crewSlots.level;
+  while (train.crew.length < crewCount) train.recruitCrew();
+  train.mightMultiplier = 1 + u.might.level * 0.1;
+  train.shopFireRateMult = 1 + u.fireRate.level * 0.08;
+  train.armorReduction = u.armor.level;
+  train.maxHp += u.maxHull.level * 10;
+  train.hp = train.maxHp;
+  train.greedMultiplier = 1 + u.greed.level * 0.2;
+}
+
+// Prepare for a combat station — keep train, reset enemies
+function prepareForCombat() {
+  state = STATES.SETUP;
   train.combatDifficulty = combatDifficulty;
+  train.distance = 0;
+  train.runGold = 0;
+  train.damageFlash = 0;
+  train.shakeTimer = 0;
   spawner.reset();
   combat.reset();
   coinSystem.reset();
   won = false;
-  selectedCrew = null;
-
-  // Apply persistent tiered upgrades
-  const u = save.upgrades;
-  // Crew slots
-  const crewCount = 1 + u.crewSlots.level;
-  while (train.crew.length < crewCount) train.recruitCrew();
-  // Might + fire rate multipliers (applied in combat via train.totalDamageMultiplier/totalCooldownMultiplier)
-  train.mightMultiplier = 1 + u.might.level * 0.1;
-  train.shopFireRateMult = 1 + u.fireRate.level * 0.08;
-  // Armor
-  train.armorReduction = u.armor.level;
-  // Max Hull
-  train.maxHp += u.maxHull.level * 10;
-  train.hp = train.maxHp;
-  // Greed
-  train.greedMultiplier = 1 + u.greed.level * 0.2;
-
-  // No starter auto-weapon — crew fires their own guns
 }
 
 const MAX_POWERUP_TYPES = 6;
@@ -735,13 +740,11 @@ function updateGameOver() {
 
 function afterGameOver() {
   if (won) {
-    // Won the combat — continue in current zone
+    // Won the combat — continue in current zone with same train
     state = STATES.ZONE_MAP;
   } else {
-    // Died — restart from zone 1 (keep gold & shop upgrades)
-    zoneNumber = 1;
-    zone = new Zone(zoneNumber);
-    combatDifficulty = 1;
+    // Died — restart entire world (zone 1, fresh train, keep shop upgrades)
+    startNewWorld();
     state = STATES.ZONE_MAP;
   }
 }
@@ -974,7 +977,8 @@ function updatePaused() {
     state = stateBeforePause;
     lastTime = performance.now();
   } else if (clickedBtn('restart') || (confirmKey && kbPauseIndex === 1)) {
-    resetForCombat();
+    startNewWorld();
+    state = STATES.ZONE_MAP;
   } else if (clickedBtn('quit') || (confirmKey && kbPauseIndex === 2)) {
     state = STATES.ZONE_MAP;
   }
@@ -1151,7 +1155,7 @@ function updateStationArrival(dt) {
     switch (s.type) {
       case STATION_TYPES.COMBAT:
         combatDifficulty = zoneNumber;
-        resetForCombat();
+        prepareForCombat();
         break;
       case STATION_TYPES.TRADE:
         state = STATES.SHOP;
@@ -1213,5 +1217,6 @@ function loop(timestamp) {
   requestAnimationFrame(loop);
 }
 
+startNewWorld();
 train.updateWorldPositions(trainScreenX, trainScreenY);
 requestAnimationFrame(loop);
