@@ -394,6 +394,7 @@ function updateRun(dt) {
   };
   spawner.update(dt, train.distance, carBounds, train.combatDifficulty || 1);
   for (const e of spawner.pool) e.update(dt);
+  combat._selectedCrew = selectedCrew;
   combat.update(dt, train, spawner.pool);
 
   // Bandits

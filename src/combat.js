@@ -161,7 +161,7 @@ export class CombatSystem {
     // Update damage numbers
     for (const d of this.damageNumbers) d.update(dt);
 
-    // Manned weapons — auto-fire in facing direction, auto-aim at enemies in cone
+    // Manned weapons — selected crew aims manually, unselected crew auto-targets
     const hasDriver = train.hasDriver;
     const areaMult = train.totalAreaMultiplier;
     for (const mount of train.allMounts) {
@@ -170,17 +170,37 @@ export class CombatSystem {
       mount.cooldownTimer -= dt;
       if (mount.cooldownTimer > 0) continue;
 
-      // Fire in cone direction — aim at target if one is in cone
+      const isSelected = mount.crew === this._selectedCrew;
       let angle = mount.coneDirection;
-      const target = this.findTarget(mount, enemies, areaMult);
-      if (target) {
-        const dx = target.x - mount.worldX;
-        const dy = target.y - mount.worldY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const t = dist / PROJECTILE_SPEED;
-        const lx = target.x + (target.vx || 0) * t;
-        const ly = target.y + (target.vy || 0) * t;
-        angle = Math.atan2(ly - mount.worldY, lx - mount.worldX);
+
+      if (isSelected) {
+        // Selected crew: aim in cone direction, auto-aim at enemies in cone
+        const target = this.findTarget(mount, enemies, areaMult);
+        if (target) {
+          const dx = target.x - mount.worldX;
+          const dy = target.y - mount.worldY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const t = dist / PROJECTILE_SPEED;
+          const lx = target.x + (target.vx || 0) * t;
+          const ly = target.y + (target.vy || 0) * t;
+          angle = Math.atan2(ly - mount.worldY, lx - mount.worldX);
+        }
+      } else {
+        // Unselected crew: auto-target nearest enemy in full 360°
+        const target = this.findClosestEnemy(mount, enemies, areaMult);
+        if (target) {
+          const dx = target.x - mount.worldX;
+          const dy = target.y - mount.worldY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const t = dist / PROJECTILE_SPEED;
+          const lx = target.x + (target.vx || 0) * t;
+          const ly = target.y + (target.vy || 0) * t;
+          angle = Math.atan2(ly - mount.worldY, lx - mount.worldX);
+          // Rotate to face target
+          mount.coneDirection = angle;
+        } else {
+          continue; // no target, don't waste ammo
+        }
       }
 
       let damage = mount.damage * train.totalDamageMultiplier;
@@ -199,6 +219,25 @@ export class CombatSystem {
 
     // Enemy-train collision
     this.checkEnemyTrainCollision(enemies, train);
+  }
+
+  // Find nearest enemy in range, no cone restriction (for auto-aiming crew)
+  findClosestEnemy(mount, enemies, areaMult = 1) {
+    let closest = null;
+    const range = mount.range * areaMult;
+    let closestDist = range * range;
+
+    for (const e of enemies) {
+      if (!e.active) continue;
+      const dx = e.x - mount.worldX;
+      const dy = e.y - mount.worldY;
+      const distSq = dx * dx + dy * dy;
+      if (distSq < closestDist) {
+        closest = e;
+        closestDist = distSq;
+      }
+    }
+    return closest;
   }
 
   findTarget(mount, enemies, areaMult = 1) {
