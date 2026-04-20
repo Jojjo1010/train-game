@@ -1043,42 +1043,13 @@ export class Renderer {
     const startX = 16;
     const y = CANVAS_HEIGHT - 36;
 
-    // Build list of all powerup slots (weapons + passives)
-    const slots = [];
-
-    // Offence: auto-weapons
-    for (const [id, def] of Object.entries(AUTO_WEAPONS)) {
-      const hasIt = train.hasAutoWeapon(id);
-      const level = train.autoWeaponLevel(id);
-      slots.push({ icon: def.icon, color: def.color, hasIt, level, maxLevel: 5 });
-    }
-
-    // Defence passives
-    const passiveDefs = [
-      { key: 'shield',  icon: '🛡', color: '#3498db', name: 'Shield' },
-      { key: 'maxHp',   icon: '❤', color: '#e74c3c', name: 'Max HP' },
-    ];
-    for (const p of passiveDefs) {
-      const level = train.passives[p.key];
-      slots.push({ icon: p.icon, color: p.color, hasIt: level > 0, level, maxLevel: 5 });
-    }
-
-    // Modifier passives
-    const modDefs = [
-      { key: 'coolOff',  icon: '❄', color: '#00bcd4', name: 'Cool-off' },
-      { key: 'baseArea', icon: '🎯', color: '#9b59b6', name: 'Base Area' },
-      { key: 'damage',   icon: '💥', color: '#ff5722', name: 'Damage' },
-    ];
-    for (const m of modDefs) {
-      const level = train.passives[m.key];
-      slots.push({ icon: m.icon, color: m.color, hasIt: level > 0, level, maxLevel: 5 });
-    }
-
-    // Draw: active ones first, then dim empty slots up to 6
-    const active = slots.filter(s => s.hasIt);
-    const inactive = slots.filter(s => !s.hasIt);
-    const maxSlots = 6;
-    const display = [...active, ...inactive.slice(0, maxSlots - active.length)];
+    // Weapon slots only (passives are now shop upgrades)
+    const weaponIds = Object.keys(AUTO_WEAPONS);
+    const maxSlots = weaponIds.length;
+    const display = weaponIds.map(id => {
+      const def = AUTO_WEAPONS[id];
+      return { icon: def.icon, color: def.color, hasIt: train.hasAutoWeapon(id), level: train.autoWeaponLevel(id), maxLevel: 5 };
+    });
 
     for (let i = 0; i < maxSlots; i++) {
       const x = startX + i * 50;

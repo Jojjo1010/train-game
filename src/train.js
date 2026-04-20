@@ -296,8 +296,8 @@ export class Train {
   get centerY() { return this.cars[1].worldY + CAR_HEIGHT / 2; }
 
   // Passive modifier multipliers (stack with shop upgrades)
-  get totalDamageMultiplier() { return this.mightMultiplier * (1 + this.passives.damage * 0.15); }
-  get totalCooldownMultiplier() { return (1 - this.passives.coolOff * 0.10) / this.shopFireRateMult; }
+  get totalDamageMultiplier() { return 1 + this.passives.damage * 0.15; }
+  get totalCooldownMultiplier() { return 1 - this.passives.coolOff * 0.10; }
   get totalAreaMultiplier() { return 1 + this.passives.baseArea * 0.15; }
   get totalShieldReduction() { return this.armorReduction + this.passives.shield * 2; }
 

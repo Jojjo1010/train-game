@@ -1433,19 +1433,8 @@ export class Renderer3D {
       }
     }
 
-    // Shop button
-    const shopBtn = { x: W - 110, y: 44, w: 90, h: 30 };
-    const shopHovered = input.hitRect(shopBtn.x, shopBtn.y, shopBtn.w, shopBtn.h);
-    ctx.fillStyle = shopHovered ? '#c88a1a' : '#8b7355';
-    this.roundRect(shopBtn.x, shopBtn.y, shopBtn.w, shopBtn.h, 5);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 12px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('SHOP', shopBtn.x + shopBtn.w / 2, shopBtn.y + shopBtn.h / 2 + 4);
-
     // Settings button
-    const settingsBtn = { x: W - 110, y: 80, w: 90, h: 30 };
+    const settingsBtn = { x: W - 110, y: 44, w: 90, h: 30 };
     const settingsHovered = input.hitRect(settingsBtn.x, settingsBtn.y, settingsBtn.w, settingsBtn.h);
     ctx.fillStyle = settingsHovered ? '#777' : '#555';
     this.roundRect(settingsBtn.x, settingsBtn.y, settingsBtn.w, settingsBtn.h, 5);
@@ -1513,7 +1502,6 @@ export class Renderer3D {
 
     const colors = {
       combat: '#e74c3c',
-      trade: '#3498db',
       empty: '#888',
       exit: '#2ecc71',
     };
@@ -1526,9 +1514,8 @@ export class Renderer3D {
     ctx.font = '14px monospace';
     const subtitles = {
       combat: 'Prepare for battle...',
-      trade: 'Opening shop...',
       empty: 'Nothing here...',
-      exit: 'Moving to next zone...',
+      exit: 'Shop time!',
     };
     ctx.fillText(subtitles[arrival.type] || '', W / 2, H / 2 + 30);
   }

@@ -1,7 +1,8 @@
 import {
   CANVAS_WIDTH, CANVAS_HEIGHT, CAMERA_TRAIN_X,
   CAR_WIDTH, CAR_HEIGHT, CAR_GAP, TRAIN_SPEED,
-  TARGET_DISTANCE, AUTO_WEAPONS, MAX_AUTO_WEAPON_LEVEL, MOUNT_RADIUS
+  TARGET_DISTANCE, AUTO_WEAPONS, MAX_AUTO_WEAPON_LEVEL, MOUNT_RADIUS,
+  ZONES_PER_WORLD, GOLD_PER_STATION, COAL_PER_WIN
 } from './constants.js';
 import { Train } from './train.js';
 import { Renderer3D } from './renderer3d.js';
@@ -48,14 +49,15 @@ let levelUpChoices = [];
 let hoveredPowerup = -1;
 let pendingWeaponId = null; // weapon waiting to be placed on a mount
 
-// === PERSISTENT UPGRADES (tiered, VS-style) ===
+// === PERSISTENT UPGRADES (shop, kept across worlds) ===
 const save = {
   gold: 0,
   upgrades: {
-    might:     { level: 0, maxLevel: 5, cost: 40,  icon: '🗡', color: '#e74c3c', name: 'Might',      desc: '+10% weapon damage' },
-    armor:     { level: 0, maxLevel: 5, cost: 35,  icon: '🛡', color: '#3498db', name: 'Armor',      desc: '-1 damage taken per hit' },
-    fireRate:  { level: 0, maxLevel: 5, cost: 45,  icon: '⚡', color: '#f39c12', name: 'Fire Rate',  desc: '+8% attack speed' },
-    maxHull:   { level: 0, maxLevel: 5, cost: 30,  icon: '❤', color: '#e74c3c', name: 'Max Hull',   desc: '+10 max HP' },
+    damage:    { level: 0, maxLevel: 5, cost: 40,  icon: '💥', color: '#ff5722', name: 'Damage',     desc: '+15% weapon damage' },
+    shield:    { level: 0, maxLevel: 5, cost: 35,  icon: '🛡', color: '#3498db', name: 'Shield',     desc: '-2 damage per hit' },
+    coolOff:   { level: 0, maxLevel: 5, cost: 45,  icon: '❄', color: '#00bcd4', name: 'Cool-off',   desc: '-10% cooldown' },
+    maxHp:     { level: 0, maxLevel: 5, cost: 30,  icon: '❤', color: '#e74c3c', name: 'Max Hull',   desc: '+15 max HP' },
+    baseArea:  { level: 0, maxLevel: 5, cost: 40,  icon: '🎯', color: '#9b59b6', name: 'Range',      desc: '+15% weapon range' },
     greed:     { level: 0, maxLevel: 3, cost: 60,  icon: '💰', color: '#f5a623', name: 'Greed',      desc: '+20% gold from coins' },
     crewSlots: { level: 0, maxLevel: 2, cost: 100, icon: '👤', color: '#2ecc71', name: 'Crew Slots', desc: 'Unlock crew member' },
   },
@@ -82,8 +84,24 @@ let combatDifficulty = 1;
 
 function newZone() {
   zoneNumber++;
+  if (zoneNumber > ZONES_PER_WORLD) {
+    // World complete!
+    won = true;
+    goldEarned = 0;
+    state = STATES.GAMEOVER;
+    playVictory();
+    return;
+  }
   zone = new Zone(zoneNumber);
   state = STATES.ZONE_MAP;
+}
+
+function leaveShop() {
+  if (zone.completed) {
+    newZone();
+  } else {
+    state = STATES.ZONE_MAP;
+  }
 }
 
 // Full world reset — new train with shop upgrades applied
@@ -98,10 +116,13 @@ function startNewWorld() {
   const u = save.upgrades;
   const crewCount = 1 + u.crewSlots.level;
   while (train.crew.length < crewCount) train.recruitCrew();
-  train.mightMultiplier = 1 + u.might.level * 0.1;
-  train.shopFireRateMult = 1 + u.fireRate.level * 0.08;
-  train.armorReduction = u.armor.level;
-  train.maxHp += u.maxHull.level * 10;
+  // Passives from shop (these are the only source now)
+  train.passives.damage = u.damage.level;
+  train.passives.shield = u.shield.level;
+  train.passives.coolOff = u.coolOff.level;
+  train.passives.baseArea = u.baseArea.level;
+  train.passives.maxHp = u.maxHp.level;
+  train.maxHp += u.maxHp.level * 15;
   train.hp = train.maxHp;
   train.greedMultiplier = 1 + u.greed.level * 0.2;
 }
@@ -120,34 +141,12 @@ function prepareForCombat() {
   won = false;
 }
 
-const MAX_POWERUP_TYPES = 6;
-
-// All powerup type definitions for the HUD (defence + modifier passives)
-const PASSIVE_DEFS = {
-  shield:   { icon: '🛡', color: '#3498db', name: 'Shield' },
-  maxHp:    { icon: '❤', color: '#e74c3c', name: 'Max HP' },
-  coolOff:  { icon: '❄', color: '#00bcd4', name: 'Cool-off' },
-  baseArea: { icon: '🎯', color: '#9b59b6', name: 'Base Area' },
-  damage:   { icon: '💥', color: '#ff5722', name: 'Damage' },
-};
-
-function countPowerupTypes(train) {
-  let count = Object.keys(train.autoWeapons).length;
-  for (const key of Object.keys(PASSIVE_DEFS)) {
-    if (train.passives[key] > 0) count++;
-  }
-  return count;
-}
-
 function generateLevelUpCards(train) {
   const cards = [];
-  const typeCount = countPowerupTypes(train);
-  const canAddNew = typeCount < MAX_POWERUP_TYPES;
 
-  // Weapon cards: new or upgrade
+  // Weapon cards: new or upgrade (only in-run upgrades now)
   for (const [id, def] of Object.entries(AUTO_WEAPONS)) {
     if (!train.hasAutoWeapon(id) && train.hasEmptyMount) {
-      if (!canAddNew) continue; // at cap, can't add new types
       const wid = id;
       cards.push({
         type: 'newWeapon', weaponId: wid,
@@ -166,43 +165,10 @@ function generateLevelUpCards(train) {
     }
   }
 
-  // === DEFENCE CARDS ===
-  if (train.passives.shield < 5 && (train.passives.shield > 0 || canAddNew)) {
-    const lv = train.passives.shield + 1;
-    cards.push({ type: 'defence', name: `Shield Lv${lv}`, icon: '🛡', color: '#3498db',
-      desc: `-2 damage per hit (total: -${lv * 2})`,
-      apply(t) { t.passives.shield++; } });
-  }
-  if (train.passives.maxHp < 5 && (train.passives.maxHp > 0 || canAddNew)) {
-    const lv = train.passives.maxHp + 1;
-    cards.push({ type: 'defence', name: `Max HP Lv${lv}`, icon: '❤', color: '#e74c3c',
-      desc: `+15 max hull (total: +${lv * 15})`,
-      apply(t) { t.passives.maxHp++; t.maxHp += 15; t.hp = Math.min(t.hp + 15, t.maxHp); } });
-  }
-  // Repair is always available (repeatable, doesn't count as a type)
+  // Repair is always available
   cards.push({ type: 'defence', name: 'Repair', icon: '🔧', color: '#1abc9c',
     desc: 'Restore 30 hull points',
     apply(t) { t.hp = Math.min(t.hp + 30, t.maxHp); } });
-
-  // === MODIFIER CARDS ===
-  if (train.passives.coolOff < 5 && (train.passives.coolOff > 0 || canAddNew)) {
-    const lv = train.passives.coolOff + 1;
-    cards.push({ type: 'modifier', name: `Cool-off Lv${lv}`, icon: '❄', color: '#00bcd4',
-      desc: `-10% cooldown (total: -${lv * 10}%)`,
-      apply(t) { t.passives.coolOff++; } });
-  }
-  if (train.passives.baseArea < 5 && (train.passives.baseArea > 0 || canAddNew)) {
-    const lv = train.passives.baseArea + 1;
-    cards.push({ type: 'modifier', name: `Base Area Lv${lv}`, icon: '🎯', color: '#9b59b6',
-      desc: `+15% weapon range (total: +${lv * 15}%)`,
-      apply(t) { t.passives.baseArea++; } });
-  }
-  if (train.passives.damage < 5 && (train.passives.damage > 0 || canAddNew)) {
-    const lv = train.passives.damage + 1;
-    cards.push({ type: 'modifier', name: `Damage Lv${lv}`, icon: '💥', color: '#ff5722',
-      desc: `+15% weapon damage (total: +${lv * 15}%)`,
-      apply(t) { t.passives.damage++; } });
-  }
 
   // Shuffle and pick 3
   const shuffled = cards.sort(() => Math.random() - 0.5);
@@ -740,7 +706,8 @@ function updateGameOver() {
 
 function afterGameOver() {
   if (won) {
-    // Won the combat — continue in current zone with same train
+    // Won the combat — refuel and continue
+    zone.addCoal(COAL_PER_WIN);
     state = STATES.ZONE_MAP;
   } else {
     // Died — restart entire world (zone 1, fresh train, keep shop upgrades)
@@ -796,7 +763,7 @@ function updateShop() {
   const confirmKey = input.keyPressed('Space') || input.keyPressed('Enter');
 
   if (input.clicked || confirmKey) {
-    if (kbShopOnDepart && confirmKey) { state = STATES.ZONE_MAP; return; }
+    if (kbShopOnDepart && confirmKey) { leaveShop(); return; }
 
     const idx = confirmKey ? kbShopIndex : hoveredShopItem;
     if (idx >= 0 && idx < UPGRADE_KEYS.length) {
@@ -810,11 +777,11 @@ function updateShop() {
       }
     }
     if (input.clicked && input.hitRect(departBtn.x, departBtn.y, departBtn.w, departBtn.h)) {
-      state = STATES.ZONE_MAP;
+      leaveShop();
     }
   }
 
-  if (input.keyPressed('Escape')) { state = STATES.ZONE_MAP; }
+  if (input.keyPressed('Escape')) { leaveShop(); }
 }
 
 function renderShop() {
@@ -1086,16 +1053,8 @@ function updateZoneMap() {
     return;
   }
 
-  // Shop button (top-right area)
-  const shopBtn = { x: CANVAS_WIDTH - 110, y: 44, w: 90, h: 30 };
-  if (input.clicked && input.hitRect(shopBtn.x, shopBtn.y, shopBtn.w, shopBtn.h)) {
-    state = STATES.SHOP;
-    hoveredShopItem = -1;
-    return;
-  }
-
-  // Settings button
-  const settingsBtn = { x: CANVAS_WIDTH - 110, y: 80, w: 90, h: 30 };
+  // Settings button (top-right area)
+  const settingsBtn = { x: CANVAS_WIDTH - 110, y: 44, w: 90, h: 30 };
   if (input.clicked && input.hitRect(settingsBtn.x, settingsBtn.y, settingsBtn.w, settingsBtn.h)) {
     state = STATES.SETTINGS;
     return;
@@ -1128,7 +1087,6 @@ let stationArrival = null; // { type, timer } — brief overlay showing what you
 function enterStation(station) {
   const typeLabels = {
     combat: '⚔ BANDITS AHEAD! ⚔',
-    trade: '🏪 TRADING POST',
     empty: '— Quiet Stop —',
     start: '',
     exit: '★ ZONE COMPLETE! ★',
@@ -1157,13 +1115,10 @@ function updateStationArrival(dt) {
         combatDifficulty = zoneNumber;
         prepareForCombat();
         break;
-      case STATION_TYPES.TRADE:
+      case STATION_TYPES.EXIT:
+        save.gold += zone.stationsVisited * GOLD_PER_STATION;
         state = STATES.SHOP;
         hoveredShopItem = -1;
-        break;
-      case STATION_TYPES.EXIT:
-        save.gold += 50;
-        newZone();
         break;
       case STATION_TYPES.EMPTY:
         // Stay on zone map

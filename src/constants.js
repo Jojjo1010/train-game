@@ -42,7 +42,12 @@ export const ENEMY_SPAWN_INTERVAL_MIN = 0.25;
 
 // XP / Levels
 export const XP_PER_KILL = 12;
-export const XP_PER_LEVEL = 30;
+export const XP_PER_LEVEL = 80;
+
+// World structure
+export const ZONES_PER_WORLD = 3;
+export const GOLD_PER_STATION = 25;
+export const COAL_PER_WIN = 2;
 
 // Coins
 export const COIN_RADIUS = 8;

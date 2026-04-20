@@ -3,14 +3,13 @@
 
 export const STATION_TYPES = {
   COMBAT: 'combat',
-  TRADE: 'trade',
   EMPTY: 'empty',
   START: 'start',
   EXIT: 'exit',
 };
 
 const COAL_PER_HOP = 1;
-const STARTING_COAL = 8;
+const STARTING_COAL = 6;
 
 export class Station {
   constructor(id, x, y, type) {
@@ -42,8 +41,8 @@ export class Zone {
   }
 
   generate() {
-    const layers = 4 + Math.floor(Math.random() * 3); // 4-6 layers
-    const nodesPerLayer = () => 2 + Math.floor(Math.random() * 2); // 2-3
+    const layers = 2 + Math.floor(Math.random() * 2); // 2-3 layers
+    const nodesPerLayer = () => 1 + Math.floor(Math.random() * 2); // 1-2
 
     let id = 0;
 
@@ -167,6 +166,10 @@ export class Zone {
     for (const nid of this.stations[stationId].connections) {
       this.stations[nid].revealed = true;
     }
+  }
+
+  addCoal(amount) {
+    this.coal = Math.min(this.coal + amount, this.maxCoal);
   }
 
   get currentStationData() {
