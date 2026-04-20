@@ -63,6 +63,14 @@
       if (xhr.status === 200) window.__tuning = JSON.parse(xhr.responseText);
     } catch(e) { console.warn('Could not load tuning.json'); }
   </script>
-  <script type="module" src="src/main.js"></script>
+  <script type="module">
+    try {
+      await import('./src/main.js');
+    } catch(e) {
+      document.body.style.background = '#300';
+      document.body.innerHTML = '<pre style="color:#f88;padding:20px;font-size:14px">' + e.message + '\n' + e.stack + '</pre>';
+      console.error(e);
+    }
+  </script>
 </body>
 </html>
