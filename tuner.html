@@ -63,7 +63,7 @@
     @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
 
     /* Cards */
-    .card { background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; transition: border-color 0.15s; }
+    .card { background: #1c1c20; border: 1px solid #404048; border-radius: var(--radius-lg); overflow: hidden; transition: border-color 0.15s; }
     .card:hover { border-color: var(--border-hover); }
     .card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
     .card-header .icon { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
@@ -74,17 +74,22 @@
     /* Slider rows */
     .slider-row { display: flex; align-items: center; gap: 8px; padding: 6px 16px; transition: background 0.1s; }
     .slider-row:hover { background: rgba(255,255,255,0.02); }
-    .slider-row label { width: 140px; font-size: 12px; color: var(--text-muted); flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .slider-row label { width: 140px; font-size: 12px; color: #d4d4d8; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .slider-row .track-wrap { flex: 1; position: relative; min-width: 60px; height: 28px; display: flex; align-items: center; }
 
     /* Custom range slider */
-    input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; background: var(--bg-2); border-radius: 2px; outline: none; }
-    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--text); border: 2px solid var(--accent); cursor: grab; transition: box-shadow 0.15s; }
-    input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 4px rgba(245,158,11,0.2); }
-    input[type=range]::-webkit-slider-thumb:active { cursor: grabbing; box-shadow: 0 0 0 6px rgba(245,158,11,0.3); }
-    input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--text); border: 2px solid var(--accent); cursor: grab; }
+    input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; background: #3f3f46; border-radius: 3px; outline: none; }
+    input[type=range]::-webkit-slider-runnable-track { height: 6px; background: #3f3f46; border-radius: 3px; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid #fbbf24; cursor: grab; transition: box-shadow 0.15s; margin-top: -6px; }
+    input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(245,158,11,0.25); background: #fbbf24; }
+    input[type=range]::-webkit-slider-thumb:active { cursor: grabbing; box-shadow: 0 0 0 7px rgba(245,158,11,0.35); }
+    input[type=range]::-moz-range-track { height: 6px; background: #3f3f46; border-radius: 3px; border: none; }
+    input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid #fbbf24; cursor: grab; }
+    input[type=range]::-moz-range-progress { background: var(--accent-dim); height: 6px; border-radius: 3px; }
 
-    .slider-row .val { width: 52px; text-align: right; font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--accent); flex-shrink: 0; }
+    .slider-row .val { width: 62px; text-align: right; font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--accent); flex-shrink: 0; background: var(--bg-2); border: 1px solid transparent; border-radius: 4px; padding: 2px 6px; outline: none; -moz-appearance: textfield; }
+    .slider-row .val:focus { border-color: var(--accent); background: var(--bg-0); }
+    .slider-row .val::-webkit-inner-spin-button, .slider-row .val::-webkit-outer-spin-button { -webkit-appearance: none; }
     .slider-row .def { width: 50px; text-align: right; font-size: 10px; color: var(--text-dim); flex-shrink: 0; font-family: var(--mono); }
 
     /* Section color coding */
@@ -379,18 +384,38 @@
           <div class="track-wrap">
             <input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${values[p.key]}" data-key="${p.key}">
           </div>
-          <span class="val" id="val-${p.key}">${displayVal}</span>
+          <input type="number" class="val" id="val-${p.key}" value="${displayVal}" step="${p.step}" min="${p.min}" max="${p.max}">
           <span class="def">${defVal}</span>
         `;
         sectionEls[p.section].appendChild(row);
 
-        const slider = row.querySelector('input');
-        slider.addEventListener('input', () => {
-          const v = parseFloat(slider.value);
+        const slider = row.querySelector('input[type=range]');
+        const numInput = row.querySelector('input[type=number]');
+
+        function updateValue(v) {
+          v = Math.max(p.min, Math.min(p.max, v));
           values[p.key] = v;
-          document.getElementById(`val-${p.key}`).textContent = isFloat ? v.toFixed(2) : v;
           setDirty(true);
           if (window.updatePreview) window.updatePreview(values);
+        }
+
+        slider.addEventListener('input', () => {
+          const v = parseFloat(slider.value);
+          updateValue(v);
+          numInput.value = isFloat ? v.toFixed(2) : v;
+        });
+
+        numInput.addEventListener('input', () => {
+          const v = parseFloat(numInput.value);
+          if (!isNaN(v)) {
+            updateValue(v);
+            slider.value = v;
+          }
+        });
+
+        numInput.addEventListener('blur', () => {
+          const v = values[p.key];
+          numInput.value = isFloat ? v.toFixed(2) : v;
         });
       }
     }
