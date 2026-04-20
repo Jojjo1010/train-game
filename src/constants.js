@@ -20,8 +20,8 @@ export const CAR_HEIGHT = T('CAR_HEIGHT', 14);
 export const CAR_GAP = T('CAR_GAP', 6);
 export const TRAIN_MAX_HP = T('TRAIN_MAX_HP', 100);
 export const TRAIN_SPEED = T('TRAIN_SPEED', 167);
-export const CARGO_BOXES_START = 4;
-export const CARGO_MULTIPLIER_PER_BOX = 0.25;
+export const CARGO_BOXES_START = T('CARGO_BOXES_START', 4);
+export const CARGO_MULTIPLIER_PER_BOX = T('CARGO_MULTIPLIER_PER_BOX', 0.25);
 
 // Camera: train sits at 30% from left
 export const CAMERA_TRAIN_X = CANVAS_WIDTH * 0.3;
@@ -33,8 +33,8 @@ export const WEAPON_RANGE = T('WEAPON_RANGE', 220);
 export const WEAPON_FIRE_RATE = T('WEAPON_FIRE_RATE', 5);
 export const WEAPON_DAMAGE = T('WEAPON_DAMAGE', 12);
 export const PROJECTILE_SPEED = T('PROJECTILE_SPEED', 350);
-export const PROJECTILE_LIFETIME = 2;
-export const PROJECTILE_RADIUS = 3;
+export const PROJECTILE_LIFETIME = T('PROJECTILE_LIFETIME', 2);
+export const PROJECTILE_RADIUS = T('PROJECTILE_RADIUS', 3);
 
 // Driver buff
 export const DRIVER_DAMAGE_BUFF = T('DRIVER_DAMAGE_BUFF', 1.5);

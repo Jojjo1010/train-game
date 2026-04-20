@@ -71,6 +71,10 @@
     .card-header .count { margin-left: auto; font-size: 11px; color: var(--text-dim); font-family: var(--mono); }
     .card-body { padding: 8px 0; }
 
+    /* Subgroups */
+    .subgroup { margin: 4px 12px 8px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .subgroup-header { padding: 4px 12px; background: rgba(255,255,255,0.02); font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
+
     /* Slider rows */
     .slider-row { display: flex; align-items: center; gap: 8px; padding: 6px 16px; transition: background 0.1s; }
     .slider-row:hover { background: rgba(255,255,255,0.02); }
@@ -243,7 +247,8 @@
       { section: 'Train', key: 'TRAIN_SPEED', label: 'Speed (px/sec)', default: 167, min: 50, max: 400, step: 1 },
       { section: 'Train', key: 'CAR_WIDTH', label: 'Hitbox Width', default: 32, min: 10, max: 100, step: 1 },
       { section: 'Train', key: 'CAR_HEIGHT', label: 'Hitbox Height', default: 14, min: 5, max: 60, step: 1 },
-      { section: 'Train', key: 'CAR_GAP', label: 'Car Gap', default: 6, min: 0, max: 20, step: 1 },
+      { section: 'Train', key: 'CARGO_BOXES_START', label: 'Cargo Boxes', default: 4, min: 0, max: 8, step: 1 },
+      { section: 'Train', key: 'CARGO_MULTIPLIER_PER_BOX', label: 'Cargo Mult/Box', default: 0.25, min: 0.05, max: 1, step: 0.05 },
 
       { section: 'Enemies', key: 'ENEMY_BASE_HP', label: 'Base HP', default: 20, min: 5, max: 200, step: 5 },
       { section: 'Enemies', key: 'ENEMY_BASE_SPEED', label: 'Base Speed', default: 50, min: 10, max: 200, step: 5 },
@@ -261,6 +266,8 @@
       { section: 'Weapons', key: 'WEAPON_FIRE_RATE', label: 'Crew Fire Rate', default: 5, min: 1, max: 20, step: 0.5 },
       { section: 'Weapons', key: 'WEAPON_RANGE', label: 'Crew Range', default: 220, min: 50, max: 500, step: 10 },
       { section: 'Weapons', key: 'PROJECTILE_SPEED', label: 'Projectile Speed', default: 350, min: 100, max: 800, step: 10 },
+      { section: 'Weapons', key: 'PROJECTILE_LIFETIME', label: 'Projectile Lifetime', default: 2, min: 0.5, max: 5, step: 0.25 },
+      { section: 'Weapons', key: 'PROJECTILE_RADIUS', label: 'Projectile Radius', default: 3, min: 1, max: 10, step: 1 },
       { section: 'Weapons', key: 'DRIVER_DAMAGE_BUFF', label: 'Driver Buff', default: 1.5, min: 1, max: 3, step: 0.1 },
 
       { section: 'Progression', key: 'XP_PER_KILL', label: 'XP per Kill', default: 12, min: 1, max: 50, step: 1 },
@@ -277,29 +284,29 @@
       ...[1,2,3,4,5].flatMap((lv,i) => {
         const d = [{s:1,d:10,f:1.2,r:250},{s:2,d:12,f:1.1,r:270},{s:3,d:14,f:1.0,r:290},{s:4,d:16,f:0.9,r:310},{s:5,d:18,f:0.8,r:340}][i];
         return [
-          { section: 'Turret', key: `TURRET_LV${lv}_SHOTS`, label: `Lv${lv} Shots`, default: d.s, min: 1, max: 10, step: 1 },
-          { section: 'Turret', key: `TURRET_LV${lv}_DAMAGE`, label: `Lv${lv} Dmg`, default: d.d, min: 1, max: 50, step: 1 },
-          { section: 'Turret', key: `TURRET_LV${lv}_FIRE_INTERVAL`, label: `Lv${lv} Interval`, default: d.f, min: 0.2, max: 3, step: 0.05 },
-          { section: 'Turret', key: `TURRET_LV${lv}_RANGE`, label: `Lv${lv} Range`, default: d.r, min: 100, max: 600, step: 10 },
+          { section: 'Turret', group: `Level ${lv}`, key: `TURRET_LV${lv}_SHOTS`, label: 'Shots/Burst', default: d.s, min: 1, max: 10, step: 1 },
+          { section: 'Turret', group: `Level ${lv}`, key: `TURRET_LV${lv}_DAMAGE`, label: 'Damage', default: d.d, min: 1, max: 50, step: 1 },
+          { section: 'Turret', group: `Level ${lv}`, key: `TURRET_LV${lv}_FIRE_INTERVAL`, label: 'Fire Interval', default: d.f, min: 0.2, max: 3, step: 0.05 },
+          { section: 'Turret', group: `Level ${lv}`, key: `TURRET_LV${lv}_RANGE`, label: 'Range', default: d.r, min: 100, max: 600, step: 10 },
         ];
       }),
 
       ...[1,2,3,4,5].flatMap((lv,i) => {
         const d = [{r:80,d:4,t:0.5},{r:100,d:6,t:0.45},{r:125,d:9,t:0.4},{r:155,d:13,t:0.35},{r:190,d:18,t:0.3}][i];
         return [
-          { section: 'Steam Blast', key: `STEAM_LV${lv}_RADIUS`, label: `Lv${lv} Radius`, default: d.r, min: 20, max: 400, step: 5 },
-          { section: 'Steam Blast', key: `STEAM_LV${lv}_DAMAGE`, label: `Lv${lv} Dmg`, default: d.d, min: 1, max: 50, step: 1 },
-          { section: 'Steam Blast', key: `STEAM_LV${lv}_TICK_RATE`, label: `Lv${lv} Tick`, default: d.t, min: 0.1, max: 2, step: 0.05 },
+          { section: 'Steam Blast', group: `Level ${lv}`, key: `STEAM_LV${lv}_RADIUS`, label: 'Radius', default: d.r, min: 20, max: 400, step: 5 },
+          { section: 'Steam Blast', group: `Level ${lv}`, key: `STEAM_LV${lv}_DAMAGE`, label: 'Damage', default: d.d, min: 1, max: 50, step: 1 },
+          { section: 'Steam Blast', group: `Level ${lv}`, key: `STEAM_LV${lv}_TICK_RATE`, label: 'Tick Rate', default: d.t, min: 0.1, max: 2, step: 0.05 },
         ];
       }),
 
       ...[1,2,3,4,5].flatMap((lv,i) => {
         const d = [{b:2,d:8,f:2.5,s:300},{b:3,d:10,f:2.2,s:320},{b:4,d:13,f:1.9,s:340},{b:5,d:16,f:1.6,s:360},{b:7,d:20,f:1.3,s:400}][i];
         return [
-          { section: 'Laser', key: `LASER_LV${lv}_BOUNCES`, label: `Lv${lv} Bounces`, default: d.b, min: 1, max: 15, step: 1 },
-          { section: 'Laser', key: `LASER_LV${lv}_DAMAGE`, label: `Lv${lv} Dmg`, default: d.d, min: 1, max: 50, step: 1 },
-          { section: 'Laser', key: `LASER_LV${lv}_FIRE_INTERVAL`, label: `Lv${lv} Interval`, default: d.f, min: 0.3, max: 5, step: 0.1 },
-          { section: 'Laser', key: `LASER_LV${lv}_SPEED`, label: `Lv${lv} Speed`, default: d.s, min: 100, max: 800, step: 10 },
+          { section: 'Laser', group: `Level ${lv}`, key: `LASER_LV${lv}_BOUNCES`, label: 'Bounces', default: d.b, min: 1, max: 15, step: 1 },
+          { section: 'Laser', group: `Level ${lv}`, key: `LASER_LV${lv}_DAMAGE`, label: 'Damage', default: d.d, min: 1, max: 50, step: 1 },
+          { section: 'Laser', group: `Level ${lv}`, key: `LASER_LV${lv}_FIRE_INTERVAL`, label: 'Fire Interval', default: d.f, min: 0.3, max: 5, step: 0.1 },
+          { section: 'Laser', group: `Level ${lv}`, key: `LASER_LV${lv}_SPEED`, label: 'Speed', default: d.s, min: 100, max: 800, step: 10 },
         ];
       }),
 
@@ -355,6 +362,7 @@
       const container = document.getElementById('sections');
       container.innerHTML = '';
       const sectionEls = {};
+      const groupEls = {};
 
       for (const p of PARAMS) {
         if (!sectionEls[p.section]) {
@@ -366,12 +374,26 @@
             <div class="card-header">
               <span class="icon">${SECTION_ICONS[p.section] || '⚙'}</span>
               <h2>${p.section}</h2>
-              <span class="count">${count} params</span>
+              <span class="count">${count}</span>
             </div>
             <div class="card-body"></div>
           `;
           container.appendChild(card);
           sectionEls[p.section] = card.querySelector('.card-body');
+        }
+
+        // Determine parent container (subgroup or card body)
+        let parent = sectionEls[p.section];
+        if (p.group) {
+          const groupKey = `${p.section}::${p.group}`;
+          if (!groupEls[groupKey]) {
+            const sub = document.createElement('div');
+            sub.className = 'subgroup';
+            sub.innerHTML = `<div class="subgroup-header">${p.group}</div><div class="subgroup-body"></div>`;
+            sectionEls[p.section].appendChild(sub);
+            groupEls[groupKey] = sub.querySelector('.subgroup-body');
+          }
+          parent = groupEls[groupKey];
         }
 
         const row = document.createElement('div');
@@ -387,7 +409,7 @@
           <input type="number" class="val" id="val-${p.key}" value="${displayVal}" step="${p.step}" min="${p.min}" max="${p.max}">
           <span class="def">${defVal}</span>
         `;
-        sectionEls[p.section].appendChild(row);
+        parent.appendChild(row);
 
         const slider = row.querySelector('input[type=range]');
         const numInput = row.querySelector('input[type=number]');
