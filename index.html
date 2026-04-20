@@ -53,6 +53,16 @@
     <canvas id="game3d"></canvas>
     <canvas id="gameUI"></canvas>
   </div>
+  <script>
+    // Load tuning before modules init (sync to guarantee availability)
+    window.__tuning = {};
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/tuning.json', false);
+      xhr.send();
+      if (xhr.status === 200) window.__tuning = JSON.parse(xhr.responseText);
+    } catch(e) { console.warn('Could not load tuning.json'); }
+  </script>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>
