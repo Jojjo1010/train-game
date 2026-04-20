@@ -35,8 +35,8 @@
 
     .btn { padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; font-weight: 500; font-family: var(--font); cursor: pointer; transition: all 0.15s; background: var(--bg-2); color: var(--text); }
     .btn:hover { border-color: var(--border-hover); background: #333; }
-    .btn-primary { background: var(--green); border-color: var(--green); color: #000; font-weight: 600; }
-    .btn-primary:hover { background: #16a34a; }
+    .btn-primary { background: var(--text); border-color: var(--text); color: var(--bg-0); font-weight: 600; }
+    .btn-primary:hover { background: #d4d4d8; }
     .btn-primary.saved { background: var(--bg-2); border-color: var(--border); color: var(--text-dim); }
     .btn-danger { color: var(--red); }
     .btn-danger:hover { background: rgba(239,68,68,0.1); border-color: var(--red); }
@@ -52,7 +52,7 @@
     .card { background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; transition: border-color 0.15s; }
     .card:hover { border-color: var(--border-hover); }
     .card-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
-    .card-header .icon { font-size: 15px; line-height: 1; }
+    .card-header .icon { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .card-header h2 { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
     .card-header .count { margin-left: auto; font-size: 11px; color: var(--text-dim); font-family: var(--mono); background: var(--bg-2); padding: 2px 8px; border-radius: 10px; }
     .card-body { padding: 8px 0; }
@@ -64,18 +64,18 @@
     .slider-row label { width: 130px; font-size: 13px; font-weight: 500; color: #e4e4e7; flex-shrink: 0; }
     .slider-row .track-wrap { flex: 1; min-width: 80px; padding: 0 4px; }
     .slider-row .val { width: 68px; text-align: right; font-family: var(--mono); font-size: 13px; font-weight: 500; flex-shrink: 0; background: var(--bg-0); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; outline: none; -moz-appearance: textfield; color: var(--text); transition: border-color 0.15s; }
-    .slider-row .val:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(245,158,11,0.15); }
+    .slider-row .val:focus { border-color: var(--text-muted); box-shadow: 0 0 0 2px rgba(255,255,255,0.08); }
     .slider-row .val::-webkit-inner-spin-button, .slider-row .val::-webkit-outer-spin-button { -webkit-appearance: none; }
-    .slider-row .val.changed { color: var(--accent); border-color: var(--accent-dim); }
+    .slider-row .val.changed { color: var(--text); border-color: var(--border-hover); }
     .slider-row .val.default { color: var(--text-muted); }
     .param-desc { font-size: 12px; color: var(--text-dim); padding: 2px 0 6px; line-height: 1.4; }
 
     input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; background: #3f3f46; border-radius: 3px; outline: none; }
-    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid #fbbf24; cursor: grab; transition: box-shadow 0.15s; margin-top: -6px; }
-    input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(245,158,11,0.25); }
-    input[type=range]::-webkit-slider-thumb:active { cursor: grabbing; box-shadow: 0 0 0 7px rgba(245,158,11,0.35); }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--text); border: 2px solid var(--border-hover); cursor: grab; transition: box-shadow 0.15s, border-color 0.15s; margin-top: -5px; }
+    input[type=range]::-webkit-slider-thumb:hover { border-color: var(--text-muted); box-shadow: 0 0 0 4px rgba(255,255,255,0.08); }
+    input[type=range]::-webkit-slider-thumb:active { cursor: grabbing; box-shadow: 0 0 0 6px rgba(255,255,255,0.12); }
     input[type=range]::-moz-range-track { height: 6px; background: #3f3f46; border-radius: 3px; border: none; }
-    input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid #fbbf24; cursor: grab; }
+    input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--text); border: 2px solid var(--border-hover); cursor: grab; }
 
     .card[data-color="green"] .card-header { border-left: 3px solid var(--green); }
     .card[data-color="red"] .card-header { border-left: 3px solid var(--red); }
@@ -177,7 +177,7 @@
     // ======= PARAMS — simplified with descriptions =======
     const PARAMS = [
       // Train
-      { section: 'Your Train', color: 'green', icon: '🚂', key: 'TRAIN_MAX_HP', label: 'Max HP', desc: 'How much damage your train can take before dying', default: 100, min: 20, max: 500, step: 10 },
+      { section: 'Your Train', color: 'green', key: 'TRAIN_MAX_HP', label: 'Max HP', desc: 'How much damage your train can take before dying', default: 100, min: 20, max: 500, step: 10 },
       { section: 'Your Train', key: 'TRAIN_SPEED', label: 'Travel Speed', desc: 'How fast the train moves during combat — higher = shorter fights', default: 167, min: 50, max: 400, step: 1 },
       { section: 'Your Train', key: 'CAR_WIDTH', label: 'Hitbox Width', desc: 'Width of each car\'s collision box — bigger = easier to hit', default: 32, min: 10, max: 100, step: 1 },
       { section: 'Your Train', key: 'CAR_HEIGHT', label: 'Hitbox Depth', desc: 'Depth of each car\'s collision box', default: 14, min: 5, max: 60, step: 1 },
@@ -185,7 +185,7 @@
       { section: 'Your Train', key: 'CARGO_MULTIPLIER_PER_BOX', label: 'Gold Mult/Box', desc: 'How much each cargo box adds to your gold multiplier', default: 0.25, min: 0.05, max: 1, step: 0.05 },
 
       // Enemies
-      { section: 'Enemies', color: 'red', icon: '👾', key: 'ENEMY_BASE_HP', label: 'Base HP', desc: 'Starting health of the weakest enemies', default: 20, min: 5, max: 200, step: 5 },
+      { section: 'Enemies', color: 'red', key: 'ENEMY_BASE_HP', label: 'Base HP', desc: 'Starting health of the weakest enemies', default: 20, min: 5, max: 200, step: 5 },
       { section: 'Enemies', key: 'ENEMY_BASE_SPEED', label: 'Base Speed', desc: 'How fast enemies move toward your train', default: 50, min: 10, max: 200, step: 5 },
       { section: 'Enemies', key: 'ENEMY_RADIUS', label: 'Base Size', desc: 'Collision radius of the smallest enemies', default: 6, min: 2, max: 30, step: 1 },
       { section: 'Enemies', key: 'ENEMY_CONTACT_DAMAGE', label: 'Contact Damage', desc: 'Damage dealt when an enemy reaches your train', default: 6, min: 1, max: 30, step: 1 },
@@ -198,7 +198,7 @@
       { section: 'Enemies', key: 'ENEMY_RED2_HP_MULT', label: 'Red (hard) HP Mult', desc: 'HP multiplier for the toughest red enemies', default: 6, min: 1, max: 20, step: 0.5 },
 
       // Crew Weapons
-      { section: 'Crew Weapons', color: 'blue', icon: '🎯', key: 'WEAPON_DAMAGE', label: 'Damage', desc: 'Damage per shot from crew-manned weapons', default: 12, min: 1, max: 50, step: 1 },
+      { section: 'Crew Weapons', color: 'blue', key: 'WEAPON_DAMAGE', label: 'Damage', desc: 'Damage per shot from crew-manned weapons', default: 12, min: 1, max: 50, step: 1 },
       { section: 'Crew Weapons', key: 'WEAPON_FIRE_RATE', label: 'Fire Rate', desc: 'Shots per second for crew weapons', default: 5, min: 1, max: 20, step: 0.5 },
       { section: 'Crew Weapons', key: 'WEAPON_RANGE', label: 'Range', desc: 'How far crew weapons can shoot', default: 220, min: 50, max: 500, step: 10 },
       { section: 'Crew Weapons', key: 'PROJECTILE_SPEED', label: 'Bullet Speed', desc: 'How fast bullets travel', default: 350, min: 100, max: 800, step: 10 },
@@ -207,7 +207,7 @@
       { section: 'Crew Weapons', key: 'DRIVER_DAMAGE_BUFF', label: 'Driver Bonus', desc: 'Damage multiplier when someone is driving the train', default: 1.5, min: 1, max: 3, step: 0.1 },
 
       // Turret (base + scaling)
-      { section: 'Turret', color: 'orange', icon: '🔫', key: 'TURRET_LV1_DAMAGE', label: 'Base Damage', desc: 'Damage at level 1', default: 10, min: 1, max: 50, step: 1 },
+      { section: 'Turret', color: 'orange', key: 'TURRET_LV1_DAMAGE', label: 'Base Damage', desc: 'Damage at level 1', default: 10, min: 1, max: 50, step: 1 },
       { section: 'Turret', key: 'TURRET_DAMAGE_GROWTH', label: 'Damage/Level', desc: 'Extra damage per level', default: 2, min: 0, max: 10, step: 1 },
       { section: 'Turret', key: 'TURRET_LV1_FIRE_INTERVAL', label: 'Base Fire Interval', desc: 'Seconds between shots at level 1 — lower = faster', default: 1.2, min: 0.2, max: 3, step: 0.05 },
       { section: 'Turret', key: 'TURRET_INTERVAL_REDUCTION', label: 'Interval Reduction/Lv', desc: 'How much faster per level', default: 0.1, min: 0, max: 0.5, step: 0.025 },
@@ -217,7 +217,7 @@
       { section: 'Turret', key: 'TURRET_SHOT_GROWTH', label: 'Extra Shot/Level', desc: 'Additional projectiles per level', default: 1, min: 0, max: 3, step: 1 },
 
       // Steam Blast (base + scaling)
-      { section: 'Steam Blast', color: 'sky', icon: '💨', key: 'STEAM_LV1_RADIUS', label: 'Base Radius', desc: 'Damage aura size at level 1', default: 80, min: 20, max: 400, step: 5 },
+      { section: 'Steam Blast', color: 'sky', key: 'STEAM_LV1_RADIUS', label: 'Base Radius', desc: 'Damage aura size at level 1', default: 80, min: 20, max: 400, step: 5 },
       { section: 'Steam Blast', key: 'STEAM_RADIUS_GROWTH', label: 'Radius/Level', desc: 'Extra aura size per level', default: 25, min: 0, max: 50, step: 5 },
       { section: 'Steam Blast', key: 'STEAM_LV1_DAMAGE', label: 'Base Damage', desc: 'Damage per tick at level 1', default: 4, min: 1, max: 50, step: 1 },
       { section: 'Steam Blast', key: 'STEAM_DAMAGE_GROWTH', label: 'Damage/Level', desc: 'Extra damage per level', default: 3, min: 0, max: 10, step: 1 },
@@ -225,7 +225,7 @@
       { section: 'Steam Blast', key: 'STEAM_TICK_REDUCTION', label: 'Tick Reduction/Lv', desc: 'How much faster ticks get per level', default: 0.05, min: 0, max: 0.2, step: 0.01 },
 
       // Laser (base + scaling)
-      { section: 'Laser', color: 'violet', icon: '⚡', key: 'LASER_LV1_BOUNCES', label: 'Base Bounces', desc: 'Number of enemy bounces at level 1', default: 2, min: 1, max: 15, step: 1 },
+      { section: 'Laser', color: 'violet', key: 'LASER_LV1_BOUNCES', label: 'Base Bounces', desc: 'Number of enemy bounces at level 1', default: 2, min: 1, max: 15, step: 1 },
       { section: 'Laser', key: 'LASER_BOUNCE_GROWTH', label: 'Bounces/Level', desc: 'Extra bounces per level', default: 1, min: 0, max: 3, step: 1 },
       { section: 'Laser', key: 'LASER_LV1_DAMAGE', label: 'Base Damage', desc: 'Damage per hit at level 1', default: 8, min: 1, max: 50, step: 1 },
       { section: 'Laser', key: 'LASER_DAMAGE_GROWTH', label: 'Damage/Level', desc: 'Extra damage per level', default: 3, min: 0, max: 10, step: 1 },
@@ -235,19 +235,19 @@
       { section: 'Laser', key: 'LASER_SPEED_GROWTH', label: 'Speed/Level', desc: 'Extra bolt speed per level', default: 25, min: 0, max: 50, step: 5 },
 
       // Progression
-      { section: 'Progression', color: 'cyan', icon: '📈', key: 'XP_PER_KILL', label: 'XP per Kill', desc: 'Experience gained from each enemy killed', default: 12, min: 1, max: 50, step: 1 },
+      { section: 'Progression', color: 'cyan', key: 'XP_PER_KILL', label: 'XP per Kill', desc: 'Experience gained from each enemy killed', default: 12, min: 1, max: 50, step: 1 },
       { section: 'Progression', key: 'XP_PER_LEVEL', label: 'XP per Level', desc: 'XP needed to level up — higher = slower progression', default: 80, min: 10, max: 300, step: 5 },
       { section: 'Progression', key: 'TARGET_DISTANCE', label: 'Run Distance', desc: 'How far the train travels per combat — higher = longer fights', default: 10000, min: 2000, max: 30000, step: 500 },
 
       // World
-      { section: 'World', color: 'cyan', icon: '🗺', key: 'ZONES_PER_WORLD', label: 'Zones per World', desc: 'Number of zones to complete before winning', default: 3, min: 1, max: 10, step: 1 },
+      { section: 'World', color: 'cyan', key: 'ZONES_PER_WORLD', label: 'Zones per World', desc: 'Number of zones to complete before winning', default: 3, min: 1, max: 10, step: 1 },
       { section: 'World', key: 'GOLD_PER_STATION', label: 'Gold per Station', desc: 'Bonus gold for each station visited when completing a zone', default: 25, min: 5, max: 100, step: 5 },
       { section: 'World', key: 'COAL_PER_WIN', label: 'Coal per Win', desc: 'Coal refueled after winning a combat', default: 2, min: 0, max: 5, step: 1 },
       { section: 'World', key: 'COIN_VALUE', label: 'Coin Value', desc: 'Gold earned per coin collected', default: 10, min: 1, max: 50, step: 1 },
       { section: 'World', key: 'COIN_SPAWN_INTERVAL', label: 'Coin Spawn Rate', desc: 'Seconds between coin spawns — lower = more coins', default: 3, min: 0.5, max: 10, step: 0.5 },
 
       // Shop upgrades
-      { section: 'Shop Upgrades', color: 'purple', icon: '🏪', key: 'SHOP_DAMAGE_COST', label: 'Damage Cost', desc: 'Base gold cost for weapon damage upgrade', default: 40, min: 5, max: 200, step: 5 },
+      { section: 'Shop Upgrades', color: 'purple', key: 'SHOP_DAMAGE_COST', label: 'Damage Cost', desc: 'Base gold cost for weapon damage upgrade', default: 40, min: 5, max: 200, step: 5 },
       { section: 'Shop Upgrades', key: 'SHOP_DAMAGE_PER_LEVEL', label: 'Damage %/Lv', desc: 'Percentage damage increase per shop level', default: 15, min: 5, max: 50, step: 1 },
       { section: 'Shop Upgrades', key: 'SHOP_SHIELD_COST', label: 'Shield Cost', desc: 'Base gold cost for shield upgrade', default: 35, min: 5, max: 200, step: 5 },
       { section: 'Shop Upgrades', key: 'SHOP_SHIELD_PER_LEVEL', label: 'Shield Reduction/Lv', desc: 'Damage reduced per hit per shop level', default: 2, min: 1, max: 10, step: 1 },
@@ -264,7 +264,7 @@
 
     const sectionMeta = {};
     for (const p of PARAMS) {
-      if (p.color && !sectionMeta[p.section]) sectionMeta[p.section] = { color: p.color, icon: p.icon };
+      if (p.color && !sectionMeta[p.section]) sectionMeta[p.section] = { color: p.color };
     }
 
     let values = {};
@@ -283,14 +283,16 @@
       const sectionEls = {};
 
       for (const p of PARAMS) {
-        const meta = sectionMeta[p.section] || { color: 'cyan', icon: '⚙' };
+        const meta = sectionMeta[p.section] || { color: 'cyan' };
         if (!sectionEls[p.section]) {
           const card = document.createElement('div');
           card.className = 'card';
           card.dataset.color = meta.color;
           const count = PARAMS.filter(pp => pp.section === p.section).length;
           const hasModel = SECTION_MODELS[p.section];
-          card.innerHTML = `<div class="card-header"><span class="icon">${meta.icon}</span><h2>${p.section}</h2><span class="count">${count}</span>${hasModel ? '<canvas class="card-preview"></canvas>' : ''}</div><div class="card-body"></div>`;
+          const colorMap = { green:'#22c55e', red:'#ef4444', blue:'#3b82f6', cyan:'#06b6d4', amber:'#f59e0b', purple:'#a855f7', orange:'#ffb74d', sky:'#8ecae6', violet:'#b388ff' };
+          const dotColor = colorMap[meta.color] || '#71717a';
+          card.innerHTML = `<div class="card-header"><span class="icon" style="background:${dotColor}"></span><h2>${p.section}</h2><span class="count">${count}</span>${hasModel ? '<canvas class="card-preview"></canvas>' : ''}</div><div class="card-body"></div>`;
           container.appendChild(card);
           sectionEls[p.section] = card.querySelector('.card-body');
 
