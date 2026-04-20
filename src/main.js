@@ -292,7 +292,9 @@ function updateSetup(dt) {
           const fromY = fromSlot.worldY;
           const fromCar = train.findCarForSlot(fromSlot);
           train.unassignCrew(selectedCrew);
+          selectedCrew.moveScreenX = undefined; // ensure path-based rendering
           train.startCrewMove(selectedCrew, fromX, fromY, fromCar, slot);
+          console.log('WALK START', { isMoving: selectedCrew.isMoving, moveX: selectedCrew.moveX, moveY: selectedCrew.moveY, pathLen: selectedCrew.movePath.length, fromX, fromY });
         } else {
           train.assignCrew(selectedCrew, slot);
         }
