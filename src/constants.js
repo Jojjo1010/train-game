@@ -1,5 +1,13 @@
-// Game tuning — reads overrides from localStorage (set by tuner.html)
-const _t = JSON.parse(localStorage.getItem('gameTuning') || '{}');
+// Game tuning — loaded synchronously from tuning.json on module init
+let _t = {};
+try {
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', '/tuning.json', false); // synchronous
+  xhr.send();
+  if (xhr.status === 200) _t = JSON.parse(xhr.responseText);
+} catch (e) {
+  console.warn('Could not load tuning.json, using defaults');
+}
 const T = (key, fallback) => _t[key] ?? fallback;
 
 // Canvas
