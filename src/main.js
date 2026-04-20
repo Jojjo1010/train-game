@@ -64,8 +64,8 @@ const UPGRADE_KEYS = Object.keys(save.upgrades);
 let hoveredShopItem = -1;
 
 const trainTotalWidth = 4 * CAR_WIDTH + 3 * CAR_GAP;
-// Offset to align 2D hitboxes with 3D model (model center is ~10 units behind pixel center)
-const trainScreenX = CANVAS_WIDTH / 2 - trainTotalWidth / 2 - 15;
+const TRAIN_3D_OFFSET = -15; // align 2D hitboxes with 3D model position
+const trainScreenX = CANVAS_WIDTH / 2 - trainTotalWidth / 2 + TRAIN_3D_OFFSET;
 const trainScreenY = CANVAS_HEIGHT / 2 - CAR_HEIGHT / 2;
 const crewPanelY = trainScreenY + CAR_HEIGHT + 80;
 const departBtn = { x: CANVAS_WIDTH / 2 - 70, y: CANVAS_HEIGHT - 80, w: 140, h: 48 };
@@ -820,50 +820,48 @@ function renderShop() {
   renderer.flush();
 }
 
+// --- VOLUME SLIDER LOGIC (shared between settings & pause) ---
+let activeSliderDrag = null; // 'music' | 'sfx' | null
+const SLIDER_X = CANVAS_WIDTH / 2 - 100;
+const SLIDER_W = 200;
+
+function updateVolumeSliders(musicY, sfxY) {
+  if (input.clicked) {
+    if (input.hitRect(SLIDER_X - 10, musicY - 10, SLIDER_W + 20, 20)) activeSliderDrag = 'music';
+    else if (input.hitRect(SLIDER_X - 10, sfxY - 10, SLIDER_W + 20, 20)) activeSliderDrag = 'sfx';
+  }
+  if (!input.mouseDown) activeSliderDrag = null;
+  if (activeSliderDrag) {
+    const val = Math.max(0, Math.min(1, (input.mouseX - SLIDER_X) / SLIDER_W));
+    if (activeSliderDrag === 'music') setMusicVolume(val);
+    else setSfxVolume(val);
+    return true; // dragging
+  }
+  return false;
+}
+
 // --- SETTINGS ---
-let draggingSlider = null; // 'music' or 'sfx' or null
+const settingsDebugBtn = { x: CANVAS_WIDTH / 2 - 80, y: 390, w: 160, h: 36 };
+const settingsBackBtn = { x: CANVAS_WIDTH / 2 - 60, y: 440, w: 120, h: 40 };
 
 function updateSettings() {
   if (input.keyPressed('Escape')) {
     state = STATES.ZONE_MAP;
-    draggingSlider = null;
+    activeSliderDrag = null;
     return;
   }
 
-  const sliderX = CANVAS_WIDTH / 2 - 100;
-  const sliderW = 200;
-  const musicSliderY = 260;
-  const sfxSliderY = 330;
-
-  // Debug toggle
-  const debugBtn = { x: CANVAS_WIDTH / 2 - 80, y: 390, w: 160, h: 36 };
-  if (input.clicked && input.hitRect(debugBtn.x, debugBtn.y, debugBtn.w, debugBtn.h)) {
+  if (input.clicked && input.hitRect(settingsDebugBtn.x, settingsDebugBtn.y, settingsDebugBtn.w, settingsDebugBtn.h)) {
     debugMode = !debugMode;
   }
 
-  // Back button
-  const backBtn = { x: CANVAS_WIDTH / 2 - 60, y: 440, w: 120, h: 40 };
-  if (input.clicked && input.hitRect(backBtn.x, backBtn.y, backBtn.w, backBtn.h)) {
+  if (input.clicked && input.hitRect(settingsBackBtn.x, settingsBackBtn.y, settingsBackBtn.w, settingsBackBtn.h)) {
     state = STATES.ZONE_MAP;
-    draggingSlider = null;
+    activeSliderDrag = null;
     return;
   }
 
-  // Start dragging
-  if (input.clicked) {
-    if (input.hitRect(sliderX - 10, musicSliderY - 10, sliderW + 20, 20)) draggingSlider = 'music';
-    else if (input.hitRect(sliderX - 10, sfxSliderY - 10, sliderW + 20, 20)) draggingSlider = 'sfx';
-  }
-
-  // Stop dragging
-  if (!input.mouseDown) draggingSlider = null;
-
-  // Update volume while dragging
-  if (draggingSlider) {
-    const val = Math.max(0, Math.min(1, (input.mouseX - sliderX) / sliderW));
-    if (draggingSlider === 'music') setMusicVolume(val);
-    else setSfxVolume(val);
-  }
+  updateVolumeSliders(260, 330);
 }
 
 function renderSettings() {
@@ -880,40 +878,35 @@ function renderSettings() {
   ctx.textAlign = 'center';
   ctx.fillText('SETTINGS', CANVAS_WIDTH / 2, 200);
 
-  const sliderX = CANVAS_WIDTH / 2 - 100;
-  const sliderW = 200;
-
-  // Music slider
-  drawSlider(ctx, 'Music', sliderX, 260, sliderW, getMusicVolume());
-  // SFX slider
-  drawSlider(ctx, 'SFX', sliderX, 330, sliderW, getSfxVolume());
+  drawSlider(ctx, 'Music', SLIDER_X, 260, SLIDER_W, getMusicVolume());
+  drawSlider(ctx, 'SFX', SLIDER_X, 330, SLIDER_W, getSfxVolume());
 
   // Debug toggle button
-  const debugBtn = { x: CANVAS_WIDTH / 2 - 80, y: 390, w: 160, h: 36 };
-  const debugHovered = input.hitRect(debugBtn.x, debugBtn.y, debugBtn.w, debugBtn.h);
+  const db = settingsDebugBtn;
+  const debugHovered = input.hitRect(db.x, db.y, db.w, db.h);
   ctx.fillStyle = debugMode ? '#2a5e1e' : (debugHovered ? '#555' : '#333');
   ctx.beginPath();
-  renderer.roundRect(debugBtn.x, debugBtn.y, debugBtn.w, debugBtn.h, 6);
+  renderer.roundRect(db.x, db.y, db.w, db.h, 6);
   ctx.fill();
   ctx.strokeStyle = debugMode ? '#4a4' : '#555';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  renderer.roundRect(debugBtn.x, debugBtn.y, debugBtn.w, debugBtn.h, 6);
+  renderer.roundRect(db.x, db.y, db.w, db.h, 6);
   ctx.stroke();
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 14px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(debugMode ? 'Hitboxes: ON' : 'Hitboxes: OFF', CANVAS_WIDTH / 2, debugBtn.y + 23);
-  // Back button
-  const backBtn = { x: CANVAS_WIDTH / 2 - 60, y: 440, w: 120, h: 40 };
-  const hovered = input.hitRect(backBtn.x, backBtn.y, backBtn.w, backBtn.h);
+  ctx.fillText(debugMode ? 'Hitboxes: ON' : 'Hitboxes: OFF', CANVAS_WIDTH / 2, db.y + 23);
+
+  const bb = settingsBackBtn;
+  const hovered = input.hitRect(bb.x, bb.y, bb.w, bb.h);
   ctx.fillStyle = hovered ? '#555' : '#333';
   ctx.beginPath();
-  renderer.roundRect(backBtn.x, backBtn.y, backBtn.w, backBtn.h, 6);
+  renderer.roundRect(bb.x, bb.y, bb.w, bb.h, 6);
   ctx.fill();
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 16px monospace';
-  ctx.fillText('Back', CANVAS_WIDTH / 2, backBtn.y + 26);
+  ctx.fillText('Back', CANVAS_WIDTH / 2, bb.y + 26);
 
   renderer.flush();
 }
@@ -954,33 +947,15 @@ function drawSlider(ctx, label, x, y, w, value) {
 let kbPauseIndex = 0;
 const pauseKeys = ['resume', 'restart', 'quit'];
 
-let pauseDraggingSlider = null;
-
 function updatePaused() {
   if (input.keyPressed('Escape')) {
     state = stateBeforePause;
     lastTime = performance.now();
-    pauseDraggingSlider = null;
+    activeSliderDrag = null;
     return;
   }
 
-  // Volume sliders in pause menu
-  const sliderX = CANVAS_WIDTH / 2 - 100;
-  const sliderW = 200;
-  const musicSliderY = 460;
-  const sfxSliderY = 500;
-
-  if (input.clicked) {
-    if (input.hitRect(sliderX - 10, musicSliderY - 10, sliderW + 20, 20)) pauseDraggingSlider = 'music';
-    else if (input.hitRect(sliderX - 10, sfxSliderY - 10, sliderW + 20, 20)) pauseDraggingSlider = 'sfx';
-  }
-  if (!input.mouseDown) pauseDraggingSlider = null;
-  if (pauseDraggingSlider) {
-    const val = Math.max(0, Math.min(1, (input.mouseX - sliderX) / sliderW));
-    if (pauseDraggingSlider === 'music') setMusicVolume(val);
-    else setSfxVolume(val);
-    return; // don't process button clicks while dragging
-  }
+  if (updateVolumeSliders(460, 500)) return;
 
   if (input.keyPressed('ArrowDown') || input.keyPressed('KeyS')) {
     kbPauseIndex = Math.min(pauseKeys.length - 1, kbPauseIndex + 1);
@@ -1020,10 +995,8 @@ function renderPaused() {
 
   // Volume sliders below pause buttons
   const ctx = renderer.ctx;
-  const sliderX = CANVAS_WIDTH / 2 - 100;
-  const sliderW = 200;
-  drawSlider(ctx, 'Music', sliderX, 460, sliderW, getMusicVolume());
-  drawSlider(ctx, 'SFX', sliderX, 500, sliderW, getSfxVolume());
+  drawSlider(ctx, 'Music', SLIDER_X, 460, SLIDER_W, getMusicVolume());
+  drawSlider(ctx, 'SFX', SLIDER_X, 500, SLIDER_W, getSfxVolume());
 
   renderer.flush();
 }

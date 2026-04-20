@@ -95,6 +95,10 @@ export class Spawner {
     }
   }
 
+  static COLORS = ['#8e44ad', '#c0392b', '#e74c3c'];
+  static RADIUS_MULT = [1.5, 5, 5];
+  static HP_MULT = [1, 4, 6];
+
   spawnEnemy(difficulty, carBounds) {
     const enemy = this.pool.find(e => !e.active);
     if (!enemy) return;
@@ -127,12 +131,9 @@ export class Spawner {
 
     // Color, size and HP based on difficulty
     const colorIdx = Math.min(Math.floor(difficulty / 2), 2);
-    const colors = ['#8e44ad', '#c0392b', '#e74c3c'];
-    const radiusMult = [1.5, 5, 5]; // purple=1.5x, reds=5x
-    const hpMult = [1, 4, 6]; // reds are much tankier
-    enemy.color = colors[colorIdx];
-    enemy.radius = ENEMY_RADIUS * radiusMult[colorIdx];
-    enemy.hp = hp * hpMult[colorIdx];
+    enemy.color = Spawner.COLORS[colorIdx];
+    enemy.radius = ENEMY_RADIUS * Spawner.RADIUS_MULT[colorIdx];
+    enemy.hp = hp * Spawner.HP_MULT[colorIdx];
     enemy.maxHp = enemy.hp;
 
     // Pick target: 70% cargo, 15% rear weapon, 15% front weapon

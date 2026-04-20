@@ -30,6 +30,7 @@ export class Renderer3D {
 
     // --- Scene ---
     this.scene = new THREE.Scene();
+    this._projVec = new THREE.Vector3();
     this.scene.background = new THREE.Color(0x2d3a1e);
 
     // --- Camera (isometric view matching Blender reference) ---
@@ -293,7 +294,7 @@ export class Renderer3D {
   // COORDINATE HELPER — project 3D pos to 2D overlay
   // =============================================
   _project(worldX, worldZ, worldY = 16) {
-    const v = new THREE.Vector3(worldX, worldY, worldZ);
+    const v = this._projVec.set(worldX, worldY, worldZ);
     v.project(this.camera);
     return {
       x: (v.x * 0.5 + 0.5) * CANVAS_WIDTH,
@@ -459,8 +460,6 @@ export class Renderer3D {
         ctx.closePath();
         ctx.fill();
       }
-
-      // (Auto-weapon icon removed — 3D models are visible)
 
       // Screen coords for input hit-testing + overlay drawing
       mount.screenX = sx;

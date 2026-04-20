@@ -8,11 +8,8 @@ let musicPlaying = false;
 let musicSource = null;
 let musicBuffer = null;
 
-// Persisted volume settings (0-1)
-const savedMusic = parseFloat(localStorage.getItem('vol_music') ?? '0.5');
-const savedSfx = parseFloat(localStorage.getItem('vol_sfx') ?? '0.5');
-let musicVolume = savedMusic;
-let sfxVolume = savedSfx;
+let musicVolume = parseFloat(localStorage.getItem('vol_music') ?? '0.5');
+let sfxVolume = parseFloat(localStorage.getItem('vol_sfx') ?? '0.5');
 
 function getCtx() {
   if (!ctx) {
