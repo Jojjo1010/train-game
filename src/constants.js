@@ -3,11 +3,11 @@ export const CANVAS_WIDTH = 960;
 export const CANVAS_HEIGHT = 640;
 
 // Train
-export const CAR_WIDTH = 100;
-export const CAR_HEIGHT = 60;
+export const CAR_WIDTH = 32;
+export const CAR_HEIGHT = 14;
 export const CAR_GAP = 6;
 export const TRAIN_MAX_HP = 100;
-export const TRAIN_SPEED = 80; // px/sec
+export const TRAIN_SPEED = 167; // px/sec (~60s to cover 10000)
 export const CARGO_BOXES_START = 4; // starting cargo boxes
 export const CARGO_MULTIPLIER_PER_BOX = 0.25; // each box = +0.25x multiplier
 
@@ -15,7 +15,7 @@ export const CARGO_MULTIPLIER_PER_BOX = 0.25; // each box = +0.25x multiplier
 export const CAMERA_TRAIN_X = CANVAS_WIDTH * 0.3;
 
 // Weapon mounts
-export const MOUNT_RADIUS = 14;
+export const MOUNT_RADIUS = 8;
 export const WEAPON_CONE_HALF_ANGLE = Math.PI / 4;
 export const WEAPON_RANGE = 220;
 export const WEAPON_FIRE_RATE = 5;
@@ -29,16 +29,16 @@ export const DRIVER_DAMAGE_BUFF = 1.5;
 
 // Crew
 export const CREW_REASSIGN_COOLDOWN = 1;
-export const CREW_RADIUS = 14;
+export const CREW_RADIUS = 8;
 export const CREW_COLORS = ['#e74c3c', '#3498db', '#2ecc71'];
 
 // Enemies
 export const ENEMY_BASE_HP = 20;
-export const ENEMY_BASE_SPEED = 45;
-export const ENEMY_RADIUS = 12;
+export const ENEMY_BASE_SPEED = 50;
+export const ENEMY_RADIUS = 6;
 export const ENEMY_CONTACT_DAMAGE = 6;
-export const ENEMY_SPAWN_INTERVAL_START = 2.5;
-export const ENEMY_SPAWN_INTERVAL_MIN = 0.4;
+export const ENEMY_SPAWN_INTERVAL_START = 1.5;
+export const ENEMY_SPAWN_INTERVAL_MIN = 0.25;
 
 // XP / Levels
 export const XP_PER_KILL = 12;
@@ -78,8 +78,8 @@ export const AUTO_WEAPONS = {
     ],
   },
   ricochetShot: {
-    id: 'ricochetShot', name: 'Ricochet Shot', icon: '⚡', color: '#b388ff',
-    desc: 'Bolt that bounces between enemies',
+    id: 'ricochetShot', name: 'Laser', icon: '⚡', color: '#b388ff',
+    desc: 'Laser that bounces between enemies',
     levels: [
       { bounces: 2, damage: 8,  fireInterval: 2.5, speed: 300 },
       { bounces: 3, damage: 10, fireInterval: 2.2, speed: 320 },

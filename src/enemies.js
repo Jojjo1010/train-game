@@ -125,9 +125,15 @@ export class Spawner {
       y = Math.random() * CANVAS_HEIGHT;
     }
 
-    // Color based on difficulty
+    // Color, size and HP based on difficulty
+    const colorIdx = Math.min(Math.floor(difficulty / 2), 2);
     const colors = ['#8e44ad', '#c0392b', '#e74c3c'];
-    enemy.color = colors[Math.min(Math.floor(difficulty / 2), colors.length - 1)];
+    const radiusMult = [1.5, 5, 5]; // purple=1.5x, reds=5x
+    const hpMult = [1, 4, 6]; // reds are much tankier
+    enemy.color = colors[colorIdx];
+    enemy.radius = ENEMY_RADIUS * radiusMult[colorIdx];
+    enemy.hp = hp * hpMult[colorIdx];
+    enemy.maxHp = enemy.hp;
 
     // Pick target: 70% cargo, 15% rear weapon, 15% front weapon
     let targetBounds = carBounds.cargo; // default

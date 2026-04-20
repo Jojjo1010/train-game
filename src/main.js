@@ -10,9 +10,9 @@ import { Spawner } from './enemies.js';
 import { CombatSystem } from './combat.js';
 import { CoinSystem } from './coins.js';
 import { Zone, STATION_TYPES } from './zone.js';
-import { playLevelUp, playPowerup, playVictory, playDefeat, startMusic, stopMusic } from './audio.js';
+import { playLevelUp, playPowerup, playVictory, playDefeat, startMusic, stopMusic, getMusicVolume, getSfxVolume, setMusicVolume, setSfxVolume } from './audio.js';
 
-const STATES = { ZONE_MAP: 0, SETUP: 1, RUNNING: 2, LEVELUP: 3, PLACE_WEAPON: 4, GAMEOVER: 5, PAUSED: 6, SHOP: 7 };
+const STATES = { ZONE_MAP: 0, SETUP: 1, RUNNING: 2, LEVELUP: 3, PLACE_WEAPON: 4, GAMEOVER: 5, PAUSED: 6, SHOP: 7, SETTINGS: 8 };
 
 const threeCanvas = document.getElementById('game3d');
 const uiCanvas = document.getElementById('gameUI');
@@ -37,6 +37,7 @@ let train = new Train();
 let zone = new Zone();
 let lastTime = performance.now();
 let won = false;
+let debugMode = false;
 
 // Selection state
 let selectedCrew = null; // currently selected crew member
@@ -63,8 +64,8 @@ const UPGRADE_KEYS = Object.keys(save.upgrades);
 let hoveredShopItem = -1;
 
 const trainTotalWidth = 4 * CAR_WIDTH + 3 * CAR_GAP;
-// Center train in the pixel grid so toWorld() maps it near 3D origin
-const trainScreenX = CANVAS_WIDTH / 2 - trainTotalWidth / 2;
+// Offset to align 2D hitboxes with 3D model (model center is ~10 units behind pixel center)
+const trainScreenX = CANVAS_WIDTH / 2 - trainTotalWidth / 2 - 15;
 const trainScreenY = CANVAS_HEIGHT / 2 - CAR_HEIGHT / 2;
 const crewPanelY = trainScreenY + CAR_HEIGHT + 80;
 const departBtn = { x: CANVAS_WIDTH / 2 - 70, y: CANVAS_HEIGHT - 80, w: 140, h: 48 };
@@ -114,13 +115,35 @@ function resetForCombat() {
   // No starter auto-weapon — crew fires their own guns
 }
 
+const MAX_POWERUP_TYPES = 6;
+
+// All powerup type definitions for the HUD (defence + modifier passives)
+const PASSIVE_DEFS = {
+  shield:   { icon: '🛡', color: '#3498db', name: 'Shield' },
+  maxHp:    { icon: '❤', color: '#e74c3c', name: 'Max HP' },
+  coolOff:  { icon: '❄', color: '#00bcd4', name: 'Cool-off' },
+  baseArea: { icon: '🎯', color: '#9b59b6', name: 'Base Area' },
+  damage:   { icon: '💥', color: '#ff5722', name: 'Damage' },
+};
+
+function countPowerupTypes(train) {
+  let count = Object.keys(train.autoWeapons).length;
+  for (const key of Object.keys(PASSIVE_DEFS)) {
+    if (train.passives[key] > 0) count++;
+  }
+  return count;
+}
+
 function generateLevelUpCards(train) {
   const cards = [];
+  const typeCount = countPowerupTypes(train);
+  const canAddNew = typeCount < MAX_POWERUP_TYPES;
 
   // Weapon cards: new or upgrade
   for (const [id, def] of Object.entries(AUTO_WEAPONS)) {
     if (!train.hasAutoWeapon(id) && train.hasEmptyMount) {
-      const wid = id; // capture for closure
+      if (!canAddNew) continue; // at cap, can't add new types
+      const wid = id;
       cards.push({
         type: 'newWeapon', weaponId: wid,
         name: `${def.name} — New!`, icon: def.icon, color: def.color,
@@ -139,37 +162,37 @@ function generateLevelUpCards(train) {
   }
 
   // === DEFENCE CARDS ===
-  if (train.passives.shield < 5) {
+  if (train.passives.shield < 5 && (train.passives.shield > 0 || canAddNew)) {
     const lv = train.passives.shield + 1;
     cards.push({ type: 'defence', name: `Shield Lv${lv}`, icon: '🛡', color: '#3498db',
       desc: `-2 damage per hit (total: -${lv * 2})`,
       apply(t) { t.passives.shield++; } });
   }
-  if (train.passives.maxHp < 5) {
+  if (train.passives.maxHp < 5 && (train.passives.maxHp > 0 || canAddNew)) {
     const lv = train.passives.maxHp + 1;
     cards.push({ type: 'defence', name: `Max HP Lv${lv}`, icon: '❤', color: '#e74c3c',
       desc: `+15 max hull (total: +${lv * 15})`,
       apply(t) { t.passives.maxHp++; t.maxHp += 15; t.hp = Math.min(t.hp + 15, t.maxHp); } });
   }
-  // Repair is always available (repeatable, no levels)
+  // Repair is always available (repeatable, doesn't count as a type)
   cards.push({ type: 'defence', name: 'Repair', icon: '🔧', color: '#1abc9c',
     desc: 'Restore 30 hull points',
     apply(t) { t.hp = Math.min(t.hp + 30, t.maxHp); } });
 
   // === MODIFIER CARDS ===
-  if (train.passives.coolOff < 5) {
+  if (train.passives.coolOff < 5 && (train.passives.coolOff > 0 || canAddNew)) {
     const lv = train.passives.coolOff + 1;
     cards.push({ type: 'modifier', name: `Cool-off Lv${lv}`, icon: '❄', color: '#00bcd4',
       desc: `-10% cooldown (total: -${lv * 10}%)`,
       apply(t) { t.passives.coolOff++; } });
   }
-  if (train.passives.baseArea < 5) {
+  if (train.passives.baseArea < 5 && (train.passives.baseArea > 0 || canAddNew)) {
     const lv = train.passives.baseArea + 1;
     cards.push({ type: 'modifier', name: `Base Area Lv${lv}`, icon: '🎯', color: '#9b59b6',
       desc: `+15% weapon range (total: +${lv * 15}%)`,
       apply(t) { t.passives.baseArea++; } });
   }
-  if (train.passives.damage < 5) {
+  if (train.passives.damage < 5 && (train.passives.damage > 0 || canAddNew)) {
     const lv = train.passives.damage + 1;
     cards.push({ type: 'modifier', name: `Damage Lv${lv}`, icon: '💥', color: '#ff5722',
       desc: `+15% weapon damage (total: +${lv * 15}%)`,
@@ -244,7 +267,6 @@ function updateSetup(dt) {
       state = STATES.RUNNING;
       lastTime = performance.now();
       selectedCrew = null;
-      startMusic();
       return;
     }
 
@@ -290,7 +312,7 @@ function renderSetup() {
   train.updateWorldPositions(trainScreenX, trainScreenY);
   renderer.drawTerrain(0);
   renderer.drawTrain(train);
-  renderer.drawWeaponMounts(train, getSelectedMount());
+  renderer.drawWeaponMounts(train, getSelectedMount(), true);
   renderer.drawCrewPanel(train.crew, crewPanelY);
   renderer.drawSetupOverlay();
   const crewReady = train.crew.some(c => c.assignment && !c.assignment.isDriverSeat);
@@ -301,7 +323,14 @@ function renderSetup() {
 }
 
 // --- RUN PHASE ---
+const debugBtnRun = { x: CANVAS_WIDTH - 70, y: CANVAS_HEIGHT - 80, w: 60, h: 26 };
+
 function updateRun(dt) {
+  // Debug toggle button
+  if (input.clicked && input.hitRect(debugBtnRun.x, debugBtnRun.y, debugBtnRun.w, debugBtnRun.h)) {
+    debugMode = !debugMode;
+  }
+
   train.distance += TRAIN_SPEED * dt;
   if (train.distance >= TARGET_DISTANCE) { won = true; enterGameOver(); return; }
   if (train.hp <= 0) { train.hp = 0; won = false; enterGameOver(); return; }
@@ -433,7 +462,133 @@ function renderRun() {
   renderer.drawHUD(train);
   renderer.drawAutoWeaponHUD(train);
   if (selectedCrew) renderer.drawSelectedIndicator(selectedCrew);
+  if (debugMode) drawDebugHitboxes();
+  // Debug toggle button
+  const dctx = renderer.ctx;
+  const dbHover = input.hitRect(debugBtnRun.x, debugBtnRun.y, debugBtnRun.w, debugBtnRun.h);
+  dctx.fillStyle = debugMode ? 'rgba(40,90,30,0.7)' : (dbHover ? 'rgba(80,80,80,0.7)' : 'rgba(40,40,40,0.5)');
+  dctx.beginPath();
+  renderer.roundRect(debugBtnRun.x, debugBtnRun.y, debugBtnRun.w, debugBtnRun.h, 4);
+  dctx.fill();
+  dctx.fillStyle = debugMode ? '#4f4' : '#888';
+  dctx.font = '10px monospace';
+  dctx.textAlign = 'center';
+  dctx.fillText('DEBUG', debugBtnRun.x + debugBtnRun.w / 2, debugBtnRun.y + 15);
   renderer.flush();
+}
+
+function drawDebugHitboxes() {
+  const ctx = renderer.ctx;
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+
+  // Project helpers at correct 3D Y heights
+  const projAt = (px, py, y3d) => renderer._project(px - CANVAS_WIDTH / 2, py - CANVAS_HEIGHT / 2, y3d);
+
+  // Train car hitboxes — project at y=0 (ground level where model sits)
+  ctx.strokeStyle = '#0f0';
+  ctx.lineWidth = 2;
+  for (const car of train.cars) {
+    const tl = projAt(car.worldX, car.worldY, 0);
+    const tr = projAt(car.worldX + car.width, car.worldY, 0);
+    const br = projAt(car.worldX + car.width, car.worldY + car.height, 0);
+    const bl = projAt(car.worldX, car.worldY + car.height, 0);
+    // Also draw top face at model height (~18)
+    const tl2 = projAt(car.worldX, car.worldY, 18);
+    const tr2 = projAt(car.worldX + car.width, car.worldY, 18);
+    const br2 = projAt(car.worldX + car.width, car.worldY + car.height, 18);
+    const bl2 = projAt(car.worldX, car.worldY + car.height, 18);
+    // Bottom face
+    ctx.beginPath();
+    ctx.moveTo(tl.x, tl.y); ctx.lineTo(tr.x, tr.y);
+    ctx.lineTo(br.x, br.y); ctx.lineTo(bl.x, bl.y);
+    ctx.closePath(); ctx.stroke();
+    // Top face
+    ctx.beginPath();
+    ctx.moveTo(tl2.x, tl2.y); ctx.lineTo(tr2.x, tr2.y);
+    ctx.lineTo(br2.x, br2.y); ctx.lineTo(bl2.x, bl2.y);
+    ctx.closePath(); ctx.stroke();
+    // Vertical edges
+    ctx.beginPath();
+    ctx.moveTo(tl.x, tl.y); ctx.lineTo(tl2.x, tl2.y);
+    ctx.moveTo(tr.x, tr.y); ctx.lineTo(tr2.x, tr2.y);
+    ctx.moveTo(br.x, br.y); ctx.lineTo(br2.x, br2.y);
+    ctx.moveTo(bl.x, bl.y); ctx.lineTo(bl2.x, bl2.y);
+    ctx.stroke();
+  }
+
+  // Enemy hitboxes — project at y=4 (enemy mesh height)
+  ctx.strokeStyle = '#f00';
+  ctx.lineWidth = 1.5;
+  for (const e of spawner.pool) {
+    if (!e.active) continue;
+    const center = projAt(e.x, e.y, 4);
+    const right = projAt(e.x + e.radius, e.y, 4);
+    const screenR = Math.sqrt((right.x - center.x) ** 2 + (right.y - center.y) ** 2);
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, Math.max(screenR, 3), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Projectile hitboxes — project at y=5 (projectile mesh height)
+  ctx.strokeStyle = '#ff0';
+  ctx.lineWidth = 1;
+  for (const p of combat.projectiles) {
+    if (!p.active) continue;
+    const center = projAt(p.x, p.y, 5);
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, 4, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Weapon range and firing cones
+  ctx.globalAlpha = 0.25;
+  for (const mount of train.allMounts) {
+    if (!mount.isManned && !mount.hasAutoWeapon) continue;
+    const center = projAt(mount.worldX, mount.worldY, 16);
+    const range = mount.range || 220;
+    const edgePt = projAt(mount.worldX + range, mount.worldY, 16);
+    const screenRange = Math.sqrt((edgePt.x - center.x) ** 2 + (edgePt.y - center.y) ** 2);
+
+    // Range circle
+    ctx.strokeStyle = mount.hasAutoWeapon ? '#f5a623' : '#0ff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, screenRange, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Firing cone (for crew weapons)
+    if (mount.isManned) {
+      const dir = mount.coneDirection;
+      const half = mount.coneHalfAngle;
+      ctx.fillStyle = 'rgba(0,255,255,0.1)';
+      ctx.beginPath();
+      ctx.moveTo(center.x, center.y);
+      ctx.arc(center.x, center.y, screenRange, dir - half, dir + half);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // Ricochet bolts
+  ctx.strokeStyle = '#b388ff';
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.6;
+  for (const b of combat.ricochetBolts) {
+    if (!b.active) continue;
+    const head = projAt(b.x, b.y, 5);
+    ctx.beginPath();
+    ctx.arc(head.x, head.y, 5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Debug label
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#0f0';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('DEBUG: hitboxes ON', 10, CANVAS_HEIGHT - 50);
+  ctx.restore();
 }
 
 // --- LEVEL UP ---
@@ -515,7 +670,7 @@ function renderPlaceWeapon() {
   renderer.drawTerrain(train.distance);
   renderer.drawEnemies(spawner.pool);
   renderer.drawTrain(train);
-  renderer.drawWeaponMounts(train, null);
+  renderer.drawWeaponMounts(train, null, true);
   renderer.drawMovingCrew(train.crew);
 
   // Highlight empty mounts
@@ -556,7 +711,6 @@ function enterGameOver() {
   }
   save.gold += goldEarned;
   state = STATES.GAMEOVER;
-  stopMusic();
   if (won) playVictory(); else playDefeat();
 }
 
@@ -567,15 +721,28 @@ const gameOverBtns = {
 function updateGameOver() {
   const confirmKey = input.keyPressed('Space') || input.keyPressed('Enter');
   if (confirmKey) {
-    state = STATES.ZONE_MAP;
+    afterGameOver();
     return;
   }
   if (input.clicked) {
     const btn = gameOverBtns.continue;
     if (input.hitRect(btn.x, btn.y, btn.w, btn.h)) {
-      state = STATES.ZONE_MAP;
+      afterGameOver();
       return;
     }
+  }
+}
+
+function afterGameOver() {
+  if (won) {
+    // Won the combat — continue in current zone
+    state = STATES.ZONE_MAP;
+  } else {
+    // Died — restart from zone 1 (keep gold & shop upgrades)
+    zoneNumber = 1;
+    zone = new Zone(zoneNumber);
+    combatDifficulty = 1;
+    state = STATES.ZONE_MAP;
   }
 }
 
@@ -653,15 +820,166 @@ function renderShop() {
   renderer.flush();
 }
 
+// --- SETTINGS ---
+let draggingSlider = null; // 'music' or 'sfx' or null
+
+function updateSettings() {
+  if (input.keyPressed('Escape')) {
+    state = STATES.ZONE_MAP;
+    draggingSlider = null;
+    return;
+  }
+
+  const sliderX = CANVAS_WIDTH / 2 - 100;
+  const sliderW = 200;
+  const musicSliderY = 260;
+  const sfxSliderY = 330;
+
+  // Debug toggle
+  const debugBtn = { x: CANVAS_WIDTH / 2 - 80, y: 390, w: 160, h: 36 };
+  if (input.clicked && input.hitRect(debugBtn.x, debugBtn.y, debugBtn.w, debugBtn.h)) {
+    debugMode = !debugMode;
+  }
+
+  // Back button
+  const backBtn = { x: CANVAS_WIDTH / 2 - 60, y: 440, w: 120, h: 40 };
+  if (input.clicked && input.hitRect(backBtn.x, backBtn.y, backBtn.w, backBtn.h)) {
+    state = STATES.ZONE_MAP;
+    draggingSlider = null;
+    return;
+  }
+
+  // Start dragging
+  if (input.clicked) {
+    if (input.hitRect(sliderX - 10, musicSliderY - 10, sliderW + 20, 20)) draggingSlider = 'music';
+    else if (input.hitRect(sliderX - 10, sfxSliderY - 10, sliderW + 20, 20)) draggingSlider = 'sfx';
+  }
+
+  // Stop dragging
+  if (!input.mouseDown) draggingSlider = null;
+
+  // Update volume while dragging
+  if (draggingSlider) {
+    const val = Math.max(0, Math.min(1, (input.mouseX - sliderX) / sliderW));
+    if (draggingSlider === 'music') setMusicVolume(val);
+    else setSfxVolume(val);
+  }
+}
+
+function renderSettings() {
+  renderer.drawTerrain(0);
+  const ctx = renderer.ctx;
+
+  // Dim overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+  // Title
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 28px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('SETTINGS', CANVAS_WIDTH / 2, 200);
+
+  const sliderX = CANVAS_WIDTH / 2 - 100;
+  const sliderW = 200;
+
+  // Music slider
+  drawSlider(ctx, 'Music', sliderX, 260, sliderW, getMusicVolume());
+  // SFX slider
+  drawSlider(ctx, 'SFX', sliderX, 330, sliderW, getSfxVolume());
+
+  // Debug toggle button
+  const debugBtn = { x: CANVAS_WIDTH / 2 - 80, y: 390, w: 160, h: 36 };
+  const debugHovered = input.hitRect(debugBtn.x, debugBtn.y, debugBtn.w, debugBtn.h);
+  ctx.fillStyle = debugMode ? '#2a5e1e' : (debugHovered ? '#555' : '#333');
+  ctx.beginPath();
+  renderer.roundRect(debugBtn.x, debugBtn.y, debugBtn.w, debugBtn.h, 6);
+  ctx.fill();
+  ctx.strokeStyle = debugMode ? '#4a4' : '#555';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  renderer.roundRect(debugBtn.x, debugBtn.y, debugBtn.w, debugBtn.h, 6);
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(debugMode ? 'Hitboxes: ON' : 'Hitboxes: OFF', CANVAS_WIDTH / 2, debugBtn.y + 23);
+  // Back button
+  const backBtn = { x: CANVAS_WIDTH / 2 - 60, y: 440, w: 120, h: 40 };
+  const hovered = input.hitRect(backBtn.x, backBtn.y, backBtn.w, backBtn.h);
+  ctx.fillStyle = hovered ? '#555' : '#333';
+  ctx.beginPath();
+  renderer.roundRect(backBtn.x, backBtn.y, backBtn.w, backBtn.h, 6);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 16px monospace';
+  ctx.fillText('Back', CANVAS_WIDTH / 2, backBtn.y + 26);
+
+  renderer.flush();
+}
+
+function drawSlider(ctx, label, x, y, w, value) {
+  // Label
+  ctx.fillStyle = '#aaa';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(label, x - 16, y + 5);
+
+  // Track
+  ctx.fillStyle = '#444';
+  ctx.fillRect(x, y - 3, w, 6);
+
+  // Filled portion
+  ctx.fillStyle = '#f5a623';
+  ctx.fillRect(x, y - 3, w * value, 6);
+
+  // Handle
+  const hx = x + w * value;
+  ctx.beginPath();
+  ctx.arc(hx, y, 10, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.strokeStyle = '#f5a623';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Percentage
+  ctx.fillStyle = '#ccc';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`${Math.round(value * 100)}%`, x + w + 16, y + 5);
+}
+
 // --- PAUSED ---
 let kbPauseIndex = 0;
 const pauseKeys = ['resume', 'restart', 'quit'];
+
+let pauseDraggingSlider = null;
 
 function updatePaused() {
   if (input.keyPressed('Escape')) {
     state = stateBeforePause;
     lastTime = performance.now();
+    pauseDraggingSlider = null;
     return;
+  }
+
+  // Volume sliders in pause menu
+  const sliderX = CANVAS_WIDTH / 2 - 100;
+  const sliderW = 200;
+  const musicSliderY = 460;
+  const sfxSliderY = 500;
+
+  if (input.clicked) {
+    if (input.hitRect(sliderX - 10, musicSliderY - 10, sliderW + 20, 20)) pauseDraggingSlider = 'music';
+    else if (input.hitRect(sliderX - 10, sfxSliderY - 10, sliderW + 20, 20)) pauseDraggingSlider = 'sfx';
+  }
+  if (!input.mouseDown) pauseDraggingSlider = null;
+  if (pauseDraggingSlider) {
+    const val = Math.max(0, Math.min(1, (input.mouseX - sliderX) / sliderW));
+    if (pauseDraggingSlider === 'music') setMusicVolume(val);
+    else setSfxVolume(val);
+    return; // don't process button clicks while dragging
   }
 
   if (input.keyPressed('ArrowDown') || input.keyPressed('KeyS')) {
@@ -684,7 +1002,6 @@ function updatePaused() {
     resetForCombat();
   } else if (clickedBtn('quit') || (confirmKey && kbPauseIndex === 2)) {
     state = STATES.ZONE_MAP;
-    stopMusic();
   }
 }
 
@@ -700,6 +1017,14 @@ function renderPaused() {
 
   // Overlay
   renderer.drawPauseMenu(pauseButtons, input, kbPauseIndex);
+
+  // Volume sliders below pause buttons
+  const ctx = renderer.ctx;
+  const sliderX = CANVAS_WIDTH / 2 - 100;
+  const sliderW = 200;
+  drawSlider(ctx, 'Music', sliderX, 460, sliderW, getMusicVolume());
+  drawSlider(ctx, 'SFX', sliderX, 500, sliderW, getSfxVolume());
+
   renderer.flush();
 }
 
@@ -710,8 +1035,15 @@ function getReachableStations() {
   return zone.stations.filter(s => zone.canTravelTo(s.id));
 }
 
+let musicStarted = false;
 function updateZoneMap() {
   renderer.setZoneGold(save.gold);
+
+  // Start music on first interaction
+  if (!musicStarted && input.clicked) {
+    startMusic();
+    musicStarted = true;
+  }
 
   // Station arrival overlay
   if (stationArrival) {
@@ -782,6 +1114,13 @@ function updateZoneMap() {
   if (input.clicked && input.hitRect(shopBtn.x, shopBtn.y, shopBtn.w, shopBtn.h)) {
     state = STATES.SHOP;
     hoveredShopItem = -1;
+    return;
+  }
+
+  // Settings button
+  const settingsBtn = { x: CANVAS_WIDTH - 110, y: 80, w: 90, h: 30 };
+  if (input.clicked && input.hitRect(settingsBtn.x, settingsBtn.y, settingsBtn.w, settingsBtn.h)) {
+    state = STATES.SETTINGS;
     return;
   }
 
@@ -872,6 +1211,9 @@ function loop(timestamp) {
   lastTime = timestamp;
   renderer.clear();
 
+  // F3 toggles debug hitboxes
+  if (input.keyPressed('F3')) debugMode = !debugMode;
+
   // Esc toggles pause (from running, setup, or levelup)
   if (state !== STATES.PAUSED && state !== STATES.GAMEOVER && state !== STATES.SHOP && state !== STATES.ZONE_MAP && input.keyPressed('Escape')) {
     stateBeforePause = state;
@@ -892,6 +1234,7 @@ function loop(timestamp) {
     case STATES.GAMEOVER: updateGameOver(); renderGameOver(); break;
     case STATES.PAUSED:  updatePaused();   renderPaused();   break;
     case STATES.SHOP:    updateShop();     renderShop();     break;
+    case STATES.SETTINGS: updateSettings(); renderSettings(); break;
   }
   input.endFrame();
   requestAnimationFrame(loop);

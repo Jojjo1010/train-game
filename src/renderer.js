@@ -1040,34 +1040,77 @@ export class Renderer {
   // --- Auto-weapon HUD icons ---
   drawAutoWeaponHUD(train) {
     const ctx = this.ctx;
-    const weaponIds = Object.keys(AUTO_WEAPONS);
     const startX = 16;
     const y = CANVAS_HEIGHT - 36;
 
-    for (let i = 0; i < weaponIds.length; i++) {
-      const id = weaponIds[i];
-      const def = AUTO_WEAPONS[id];
-      const x = startX + i * 50;
+    // Build list of all powerup slots (weapons + passives)
+    const slots = [];
+
+    // Offence: auto-weapons
+    for (const [id, def] of Object.entries(AUTO_WEAPONS)) {
       const hasIt = train.hasAutoWeapon(id);
       const level = train.autoWeaponLevel(id);
+      slots.push({ icon: def.icon, color: def.color, hasIt, level, maxLevel: 5 });
+    }
 
-      // Background
-      ctx.fillStyle = hasIt ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.2)';
-      this.roundRect(x, y, 42, 30, 4);
-      ctx.fill();
+    // Defence passives
+    const passiveDefs = [
+      { key: 'shield',  icon: '🛡', color: '#3498db', name: 'Shield' },
+      { key: 'maxHp',   icon: '❤', color: '#e74c3c', name: 'Max HP' },
+    ];
+    for (const p of passiveDefs) {
+      const level = train.passives[p.key];
+      slots.push({ icon: p.icon, color: p.color, hasIt: level > 0, level, maxLevel: 5 });
+    }
 
-      // Icon
-      ctx.font = '14px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = hasIt ? def.color : '#444';
-      ctx.fillText(def.icon, x + 21, y + 15);
+    // Modifier passives
+    const modDefs = [
+      { key: 'coolOff',  icon: '❄', color: '#00bcd4', name: 'Cool-off' },
+      { key: 'baseArea', icon: '🎯', color: '#9b59b6', name: 'Base Area' },
+      { key: 'damage',   icon: '💥', color: '#ff5722', name: 'Damage' },
+    ];
+    for (const m of modDefs) {
+      const level = train.passives[m.key];
+      slots.push({ icon: m.icon, color: m.color, hasIt: level > 0, level, maxLevel: 5 });
+    }
 
-      // Level pips
-      if (hasIt) {
-        for (let l = 0; l < 5; l++) {
-          ctx.fillStyle = l < level ? def.color : '#333';
-          ctx.fillRect(x + 4 + l * 8, y + 22, 6, 3);
+    // Draw: active ones first, then dim empty slots up to 6
+    const active = slots.filter(s => s.hasIt);
+    const inactive = slots.filter(s => !s.hasIt);
+    const maxSlots = 6;
+    const display = [...active, ...inactive.slice(0, maxSlots - active.length)];
+
+    for (let i = 0; i < maxSlots; i++) {
+      const x = startX + i * 50;
+      if (i < display.length) {
+        const s = display[i];
+        // Background
+        ctx.fillStyle = s.hasIt ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.2)';
+        this.roundRect(x, y, 42, 30, 4);
+        ctx.fill();
+
+        // Icon
+        ctx.font = '14px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = s.hasIt ? s.color : '#444';
+        ctx.fillText(s.icon, x + 21, y + 15);
+
+        // Level pips
+        if (s.hasIt) {
+          for (let l = 0; l < s.maxLevel; l++) {
+            ctx.fillStyle = l < s.level ? s.color : '#333';
+            ctx.fillRect(x + 4 + l * 8, y + 22, 6, 3);
+          }
         }
+      } else {
+        // Empty slot
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        this.roundRect(x, y, 42, 30, 4);
+        ctx.fill();
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        this.roundRect(x, y, 42, 30, 4);
+        ctx.stroke();
       }
     }
   }

@@ -109,12 +109,13 @@ export class Renderer3D {
     const assetNames = ['Train', 'Rail', 'enemy', 'Gun', 'AutoGun', 'Garlic', 'Laser'];
     let loaded = 0;
 
+    const scaleOverrides = { AutoGun: 0.15, Laser: 0.15 };
     for (const name of assetNames) {
       loader.load(
         `assets/${name}.fbx`,
         (object) => {
           // Normalise scale — FBX files often come in huge
-          object.scale.setScalar(0.05);
+          object.scale.setScalar(scaleOverrides[name] || 0.05);
           this.models[name] = object;
           loaded++;
           if (loaded === assetNames.length) {
@@ -180,8 +181,9 @@ export class Renderer3D {
     const coinMat = new THREE.MeshLambertMaterial({ color: 0xf5a623 });
     for (let i = 0; i < MAX_COINS; i++) {
       const mesh = new THREE.Mesh(new THREE.CylinderGeometry(COIN_RADIUS * 0.6, COIN_RADIUS * 0.6, 2, 12), coinMat.clone());
+      mesh.rotation.x = Math.PI / 2; // stand upright
       mesh.visible = false;
-      mesh.position.y = 4;
+      mesh.position.y = COIN_RADIUS * 0.6;
       this.scene.add(mesh);
       this.coinPool.push(mesh);
     }
@@ -290,11 +292,9 @@ export class Renderer3D {
   // =============================================
   // COORDINATE HELPER — project 3D pos to 2D overlay
   // =============================================
-  _project(worldX, worldZ) {
-    const v = new THREE.Vector3(worldX, 16, worldZ);
+  _project(worldX, worldZ, worldY = 16) {
+    const v = new THREE.Vector3(worldX, worldY, worldZ);
     v.project(this.camera);
-    // Map NDC (-1..1) to UI canvas coords (0..CANVAS_WIDTH, 0..CANVAS_HEIGHT)
-    // The UI canvas is always 960×640 internal resolution
     return {
       x: (v.x * 0.5 + 0.5) * CANVAS_WIDTH,
       y: (-v.y * 0.5 + 0.5) * CANVAS_HEIGHT,
@@ -362,7 +362,7 @@ export class Renderer3D {
     }
   }
 
-  drawWeaponMounts(train, aimingMount) {
+  drawWeaponMounts(train, aimingMount, showEmptySlots = false) {
     const ctx = this.ctx;
     let mountIdx = 0;
 
@@ -411,23 +411,18 @@ export class Renderer3D {
       const sx = screenPos.x;
       const sy = screenPos.y;
 
-      // Slot circle on overlay
+      // Slot circle on overlay (skip for auto-weapons — 3D model is visible)
       const hasAuto = mount.hasAutoWeapon;
       const active = mount.isManned || hasAuto;
-      ctx.beginPath();
-      ctx.arc(sx, sy, MOUNT_RADIUS, 0, Math.PI * 2);
-      if (hasAuto) {
-        const awDef = AUTO_WEAPONS[mount.autoWeaponId];
-        ctx.fillStyle = awDef ? awDef.color : '#888';
-      } else if (mount.isManned) {
-        ctx.fillStyle = 'rgba(245, 166, 35, 0.7)';
-      } else {
+      if (!hasAuto && !mount.isManned && showEmptySlots) {
+        ctx.beginPath();
+        ctx.arc(sx, sy, MOUNT_RADIUS, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(150,150,150,0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
       }
-      ctx.fill();
-      ctx.strokeStyle = active ? '#fff' : 'rgba(150,150,150,0.6)';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
 
       // Crew dot + direction arrow (projected from 3D to match gun barrel)
       if (mount.crew) {
@@ -465,14 +460,7 @@ export class Renderer3D {
         ctx.fill();
       }
 
-      // Auto-weapon icon
-      if (hasAuto) {
-        const awDef = AUTO_WEAPONS[mount.autoWeaponId];
-        ctx.fillStyle = '#fff';
-        ctx.font = '11px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(awDef ? awDef.icon : '?', sx, sy + 4);
-      }
+      // (Auto-weapon icon removed — 3D models are visible)
 
       // Screen coords for input hit-testing + overlay drawing
       mount.screenX = sx;
@@ -503,10 +491,10 @@ export class Renderer3D {
       mesh.position.z = w.z;
       mesh.visible = true;
 
-      // Subtle size: purple base 0.015, red slightly bigger
-      const baseScale = 0.015;
-      const hpBonus = Math.min(0.006, (e.maxHp - 20) / 80 * 0.006);
-      mesh.scale.setScalar(baseScale + hpBonus);
+      // Scale based on enemy radius (relative to base ENEMY_RADIUS of 6)
+      const radiusRatio = e.radius / 6;
+      const baseScale = 0.045 * radiusRatio;
+      mesh.scale.setScalar(baseScale);
 
       // Flash white on hit
       const color = e.flashTimer > 0 ? '#ffffff' : e.color;
@@ -523,7 +511,7 @@ export class Renderer3D {
       // Draw HP bar on 2D overlay at projected screen position
       const screenPos = this._project(w.x, w.z);
       const ctx = this.ctx;
-      const barW = 20;
+      const barW = Math.max(20, e.radius * 1.5);
       const barH = 3;
       const barX = screenPos.x - barW / 2;
       const barY = screenPos.y - 18;
@@ -1456,6 +1444,17 @@ export class Renderer3D {
     ctx.font = 'bold 12px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('SHOP', shopBtn.x + shopBtn.w / 2, shopBtn.y + shopBtn.h / 2 + 4);
+
+    // Settings button
+    const settingsBtn = { x: W - 110, y: 80, w: 90, h: 30 };
+    const settingsHovered = input.hitRect(settingsBtn.x, settingsBtn.y, settingsBtn.w, settingsBtn.h);
+    ctx.fillStyle = settingsHovered ? '#777' : '#555';
+    this.roundRect(settingsBtn.x, settingsBtn.y, settingsBtn.w, settingsBtn.h, 5);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('SETTINGS', settingsBtn.x + settingsBtn.w / 2, settingsBtn.y + settingsBtn.h / 2 + 4);
 
     // Train stats panel
     if (save) {
