@@ -302,6 +302,22 @@ export class Renderer3D {
     };
   }
 
+  // Convert screen coords (canvas pixels) back to 2D game pixel coords
+  // Inverts the _project transform at a given worldY height
+  screenToPixel(screenX, screenY, worldY = 16) {
+    const ndcX = (screenX / CANVAS_WIDTH) * 2 - 1;
+    const ndcY = -(screenY / CANVAS_HEIGHT) * 2 + 1;
+    const v = this._projVec.set(ndcX, ndcY, 0);
+    v.unproject(this.camera);
+    // After unprojecting, v.x = worldX, v.z = worldZ at the given depth
+    // But unproject gives a point on the near plane. For orthographic camera,
+    // x and z are what we need directly.
+    return {
+      x: v.x + CANVAS_WIDTH / 2,
+      y: v.z + CANVAS_HEIGHT / 2,
+    };
+  }
+
   // =============================================
   // CLEAR + FLUSH
   // =============================================
@@ -697,6 +713,172 @@ export class Renderer3D {
       ctx.textAlign = 'center';
       ctx.fillText('CREW', sx, sy - 16);
       ctx.globalAlpha = 1;
+    }
+  }
+
+  drawBandits(bandits) {
+    const ctx = this.ctx;
+    for (const b of bandits) {
+      if (!b.active) continue;
+
+      // Project bandit position to screen
+      let sx, sy;
+      if (b.state <= 1) {
+        // RUNNING or JUMPING — use world coords
+        const w = toWorld(b.x, b.y);
+        const s = this._project(w.x, w.z);
+        sx = s.x;
+        sy = s.y;
+        // For jumping, apply the arc in screen space
+        if (b.state === 1) {
+          const progress = 1 - Math.max(0, b.timer / 0.4);
+          sy -= Math.sin(progress * Math.PI) * 20;
+        }
+      } else if (b.targetSlot) {
+        // ON_TRAIN, FIGHTING — use slot screen coords
+        sx = b.targetSlot.screenX ?? b.targetSlot.worldX;
+        sy = b.targetSlot.screenY ?? b.targetSlot.worldY;
+      } else {
+        // DEAD — project world coords
+        const w = toWorld(b.x, b.y);
+        const s = this._project(w.x, w.z);
+        sx = s.x;
+        sy = s.y;
+      }
+
+      switch (b.state) {
+        case 0: // RUNNING
+        case 1: { // JUMPING
+          const bobY = b.state === 0 ? Math.sin(performance.now() * 0.015) * 2 : 0;
+          ctx.save();
+          ctx.translate(sx, sy + bobY);
+          // Body
+          ctx.fillStyle = '#4a2a0a';
+          ctx.fillRect(-4, -4, 8, 10);
+          // Head
+          ctx.beginPath();
+          ctx.arc(0, -7, 5, 0, Math.PI * 2);
+          ctx.fillStyle = '#6b3a1a';
+          ctx.fill();
+          // Bandana
+          ctx.fillStyle = '#c0392b';
+          ctx.fillRect(-6, -11, 12, 3);
+          // Mask
+          ctx.fillStyle = '#222';
+          ctx.fillRect(-4, -7, 8, 3);
+          ctx.restore();
+          break;
+        }
+
+        case 2: // ON_TRAIN
+        case 3: { // FIGHTING
+          const fighting = b.state === 3;
+          const flash = fighting && b.flashTimer % 0.3 < 0.15;
+
+          ctx.save();
+          ctx.translate(sx, sy);
+          if (fighting) ctx.translate((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4);
+
+          ctx.fillStyle = flash ? '#fff' : '#4a2a0a';
+          ctx.fillRect(-4, -4, 8, 10);
+          ctx.beginPath();
+          ctx.arc(0, -7, 5, 0, Math.PI * 2);
+          ctx.fillStyle = flash ? '#fff' : '#6b3a1a';
+          ctx.fill();
+          ctx.fillStyle = flash ? '#fff' : '#c0392b';
+          ctx.fillRect(-6, -11, 12, 3);
+          ctx.fillStyle = flash ? '#ddd' : '#222';
+          ctx.fillRect(-4, -7, 8, 3);
+          ctx.restore();
+
+          // Status labels and effects
+          if (!fighting && !b.targetSlot?.autoWeaponId) {
+            // Gold coins flying away
+            const t = performance.now() * 0.004;
+            for (let i = 0; i < 5; i++) {
+              const age = (t + i * 0.7) % 2;
+              if (age > 1.2) continue;
+              const px = sx + Math.sin(i * 2.3) * 8 + Math.sin(t + i) * 4;
+              const py = sy - 10 - age * 30;
+              const alpha = Math.max(0, 1 - age / 1.2);
+              // Gold coin
+              ctx.globalAlpha = alpha;
+              ctx.beginPath();
+              ctx.arc(px, py, 3, 0, Math.PI * 2);
+              ctx.fillStyle = '#f5a623';
+              ctx.fill();
+              ctx.strokeStyle = '#c88a1a';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+
+            // Stolen amount
+            if (b.stealFlash > 0) {
+              ctx.fillStyle = `rgba(231, 76, 60, ${Math.min(1, b.stealFlash * 2)})`;
+              ctx.font = 'bold 12px monospace';
+              ctx.textAlign = 'center';
+              ctx.fillText(`-${b.totalStolen}g`, sx, sy - 34);
+            }
+
+            // "STEALING!" label
+            const pulse = 0.7 + Math.sin(performance.now() * 0.008) * 0.3;
+            ctx.fillStyle = `rgba(245, 166, 35, ${pulse})`;
+            ctx.font = 'bold 9px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('STEALING!', sx, sy - 22);
+          }
+
+          if (!fighting && b.targetSlot?.autoWeaponId) {
+            // Disabled weapon — red pulsing X
+            const pulse = 0.6 + Math.sin(performance.now() * 0.008) * 0.4;
+            ctx.strokeStyle = `rgba(231, 76, 60, ${pulse})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(sx - 8, sy - 8); ctx.lineTo(sx + 8, sy + 8);
+            ctx.moveTo(sx + 8, sy - 8); ctx.lineTo(sx - 8, sy + 8);
+            ctx.stroke();
+
+            ctx.fillStyle = '#e74c3c';
+            ctx.font = 'bold 9px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('DISABLED!', sx, sy - 18);
+          }
+
+          // "Move crew here!" prompt — pulsing arrow
+          if (!fighting) {
+            const bounce = Math.sin(performance.now() * 0.006) * 3;
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 9px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('▼ SEND CREW ▼', sx, sy + 18 + bounce);
+          }
+
+          if (fighting) {
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('⚔ FIGHT!', sx, sy - 20);
+          }
+          break;
+        }
+
+        case 4: { // DEAD
+          const alpha = Math.max(0, b.timer / 0.6);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.translate(sx, sy);
+          ctx.rotate(performance.now() * 0.02);
+          ctx.fillStyle = '#4a2a0a';
+          ctx.fillRect(-4, -4, 8, 10);
+          ctx.beginPath();
+          ctx.arc(0, -7, 5, 0, Math.PI * 2);
+          ctx.fillStyle = '#6b3a1a';
+          ctx.fill();
+          ctx.restore();
+          break;
+        }
+      }
     }
   }
 

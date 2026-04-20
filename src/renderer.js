@@ -1422,6 +1422,162 @@ export class Renderer {
 
   setZoneGold(gold) { this._zoneGold = gold; }
 
+  // --- Bandits ---
+  drawBandits(bandits) {
+    const ctx = this.ctx;
+    for (const b of bandits) {
+      if (!b.active) continue;
+
+      const x = b.x;
+      const y = b.y;
+
+      switch (b.state) {
+        case 0: // RUNNING
+        case 1: { // JUMPING
+          // Running bandit — dark figure with hat
+          const bobY = b.state === 0 ? Math.sin(performance.now() * 0.015) * 2 : 0;
+          ctx.save();
+          ctx.translate(x, y + bobY);
+
+          // Body
+          ctx.fillStyle = '#4a2a0a';
+          ctx.fillRect(-4, -4, 8, 10);
+          // Head
+          ctx.beginPath();
+          ctx.arc(0, -7, 5, 0, Math.PI * 2);
+          ctx.fillStyle = '#6b3a1a';
+          ctx.fill();
+          // Hat (bandana)
+          ctx.fillStyle = '#c0392b';
+          ctx.fillRect(-6, -11, 12, 3);
+          // Mask
+          ctx.fillStyle = '#222';
+          ctx.fillRect(-4, -7, 8, 3);
+
+          ctx.restore();
+          break;
+        }
+
+        case 2: // ON_TRAIN
+        case 3: { // FIGHTING
+          const fighting = b.state === 3;
+          const flash = fighting && b.flashTimer % 0.3 < 0.15;
+
+          // Bandit on slot
+          ctx.save();
+          ctx.translate(x, y);
+
+          // Shaking when fighting
+          if (fighting) {
+            ctx.translate((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4);
+          }
+
+          // Body
+          ctx.fillStyle = flash ? '#fff' : '#4a2a0a';
+          ctx.fillRect(-4, -4, 8, 10);
+          // Head
+          ctx.beginPath();
+          ctx.arc(0, -7, 5, 0, Math.PI * 2);
+          ctx.fillStyle = flash ? '#fff' : '#6b3a1a';
+          ctx.fill();
+          // Hat
+          ctx.fillStyle = flash ? '#fff' : '#c0392b';
+          ctx.fillRect(-6, -11, 12, 3);
+          // Mask
+          ctx.fillStyle = flash ? '#ddd' : '#222';
+          ctx.fillRect(-4, -7, 8, 3);
+
+          ctx.restore();
+
+          // Gold coins flying away
+          if (!fighting && !b.targetSlot?.autoWeaponId) {
+            const t = performance.now() * 0.004;
+            for (let i = 0; i < 5; i++) {
+              const age = (t + i * 0.7) % 2;
+              if (age > 1.2) continue;
+              const px = x + Math.sin(i * 2.3) * 8 + Math.sin(t + i) * 4;
+              const py = y - 10 - age * 30;
+              const alpha = Math.max(0, 1 - age / 1.2);
+              ctx.globalAlpha = alpha;
+              ctx.beginPath();
+              ctx.arc(px, py, 3, 0, Math.PI * 2);
+              ctx.fillStyle = '#f5a623';
+              ctx.fill();
+              ctx.strokeStyle = '#c88a1a';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+            if (b.stealFlash > 0) {
+              ctx.fillStyle = `rgba(231, 76, 60, ${Math.min(1, b.stealFlash * 2)})`;
+              ctx.font = 'bold 12px monospace';
+              ctx.textAlign = 'center';
+              ctx.fillText(`-${b.totalStolen}g`, x, y - 34);
+            }
+            const pulse = 0.7 + Math.sin(performance.now() * 0.008) * 0.3;
+            ctx.fillStyle = `rgba(245, 166, 35, ${pulse})`;
+            ctx.font = 'bold 9px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('STEALING!', x, y - 22);
+          }
+
+          // Disabled weapon — red X
+          if (!fighting && b.targetSlot?.autoWeaponId) {
+            const pulse = 0.6 + Math.sin(performance.now() * 0.008) * 0.4;
+            ctx.strokeStyle = `rgba(231, 76, 60, ${pulse})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(x - 8, y - 8); ctx.lineTo(x + 8, y + 8);
+            ctx.moveTo(x + 8, y - 8); ctx.lineTo(x - 8, y + 8);
+            ctx.stroke();
+            ctx.fillStyle = '#e74c3c';
+            ctx.font = 'bold 9px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('DISABLED!', x, y - 18);
+          }
+
+          // "Send crew" prompt
+          if (!fighting) {
+            const bounce = Math.sin(performance.now() * 0.006) * 3;
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 9px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('▼ SEND CREW ▼', x, y + 18 + bounce);
+          }
+
+          // Fight effect
+          if (fighting) {
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('⚔ FIGHT!', x, y - 20);
+          }
+          break;
+        }
+
+        case 4: { // DEAD
+          const alpha = Math.max(0, b.timer / 0.6);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.translate(x, y);
+          ctx.rotate(performance.now() * 0.02); // spinning
+
+          // Body
+          ctx.fillStyle = '#4a2a0a';
+          ctx.fillRect(-4, -4, 8, 10);
+          // Head
+          ctx.beginPath();
+          ctx.arc(0, -7, 5, 0, Math.PI * 2);
+          ctx.fillStyle = '#6b3a1a';
+          ctx.fill();
+
+          ctx.restore();
+          break;
+        }
+      }
+    }
+  }
+
   // --- Utility ---
   roundRect(x, y, w, h, r) {
     const ctx = this.ctx;

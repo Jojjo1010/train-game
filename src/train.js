@@ -394,8 +394,8 @@ export class Train {
 
   // Instant assign (setup phase)
   assignCrew(crew, slot) {
-    // Can't place crew on a mount with an auto-weapon
-    if (slot.autoWeaponId) return false;
+    // Can't place crew on a mount with an auto-weapon (unless bandit is there)
+    if (slot.autoWeaponId && !slot._bandit) return false;
     if (crew.assignment) {
       crew.assignment.crew = null;
     }

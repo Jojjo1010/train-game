@@ -11,6 +11,7 @@ import { InputManager } from './input.js';
 import { Spawner } from './enemies.js';
 import { CombatSystem } from './combat.js';
 import { CoinSystem } from './coins.js';
+import { BanditSystem } from './bandits.js';
 import { Zone, STATION_TYPES } from './zone.js';
 import { playLevelUp, playPowerup, playVictory, playDefeat, startMusic, stopMusic, getMusicVolume, getSfxVolume, setMusicVolume, setSfxVolume } from './audio.js';
 
@@ -33,6 +34,7 @@ const input = new InputManager(uiCanvas); // input on top canvas
 const spawner = new Spawner();
 const combat = new CombatSystem();
 const coinSystem = new CoinSystem();
+const banditSystem = new BanditSystem();
 
 let state = STATES.ZONE_MAP;
 let train = null;
@@ -139,6 +141,7 @@ function prepareForCombat() {
   spawner.reset();
   combat.reset();
   coinSystem.reset();
+  banditSystem.reset();
   won = false;
   applyShopUpgrades();
   train.hp = Math.min(train.hp, train.maxHp);
@@ -280,7 +283,7 @@ function updateSetup(dt) {
   // Right click: move selected crew to slot
   if (input.rightClicked && selectedCrew && !selectedCrew.isMoving) {
     const slot = findSlotAtMouse();
-    if (slot && !slot.autoWeaponId) {
+    if (slot && (!slot.autoWeaponId || slot._bandit)) {
       const fromSlot = selectedCrew.assignment;
       if (fromSlot) {
         const fromX = fromSlot.worldX;
@@ -299,9 +302,12 @@ function updateSetup(dt) {
   if (selectedCrew && input.rightDown && !input.rightClicked) {
     const mount = getSelectedMount();
     if (mount) {
+      const mouseWorld = renderer.screenToPixel
+        ? renderer.screenToPixel(input.mouseX, input.mouseY)
+        : { x: input.mouseX, y: input.mouseY };
       mount.coneDirection = Math.atan2(
-        input.mouseY - mount.worldY,
-        input.mouseX - mount.worldX
+        mouseWorld.y - mount.worldY,
+        mouseWorld.x - mount.worldX
       );
     }
   }
@@ -355,7 +361,7 @@ function updateRun(dt) {
   // Right click: move selected crew to slot
   if (input.rightClicked && selectedCrew && !selectedCrew.isMoving) {
     const slot = findSlotAtMouse();
-    if (slot && !slot.autoWeaponId) {
+    if (slot && (!slot.autoWeaponId || slot._bandit)) {
       const fromSlot = selectedCrew.assignment;
       if (fromSlot) {
         const fromX = fromSlot.worldX;
@@ -370,13 +376,16 @@ function updateRun(dt) {
     }
   }
 
-  // Hold right click: aim selected crew's weapon
-  if (selectedCrew && input.rightDown && !input.rightClicked) {
+  // Aim selected crew's weapon — always follows mouse (convert mouse to world space)
+  if (selectedCrew) {
     const mount = getSelectedMount();
     if (mount) {
+      const mouseWorld = renderer.screenToPixel
+        ? renderer.screenToPixel(input.mouseX, input.mouseY)
+        : { x: input.mouseX, y: input.mouseY };
       mount.coneDirection = Math.atan2(
-        input.mouseY - mount.worldY,
-        input.mouseX - mount.worldX
+        mouseWorld.y - mount.worldY,
+        mouseWorld.x - mount.worldX
       );
     }
   }
@@ -390,6 +399,9 @@ function updateRun(dt) {
   spawner.update(dt, train.distance, carBounds, train.combatDifficulty || 1);
   for (const e of spawner.pool) e.update(dt);
   combat.update(dt, train, spawner.pool);
+
+  // Bandits
+  banditSystem.update(dt, train, train.combatDifficulty || 1);
 
   // Coins — fly to gold HUD (top-right)
   const goldHudPos = { x: CANVAS_WIDTH - 50, y: 24 };
@@ -424,10 +436,28 @@ function renderRun() {
   renderer.drawTrain(train);
   renderer.drawWeaponMounts(train, getSelectedMount(), selectedCrew !== null);
   renderer.drawMovingCrew(train.crew);
+  renderer.drawBandits(banditSystem.pool);
   renderer.drawFlyingCoins(coinSystem.flyingCoins);
   renderer.drawDamageFlash(train);
+  // Show crew panel if any crew is unassigned (so they're never invisible)
+  if (train.crew.some(c => !c.assignment && !c.isMoving)) {
+    renderer.drawCrewPanel(train.crew, crewPanelY);
+  }
   renderer.drawHUD(train);
   renderer.drawAutoWeaponHUD(train);
+  // Bandit alert banner
+  const banditsOnTrain = banditSystem.pool.filter(b => b.active && (b.state === 2 || b.state === 3));
+  if (banditsOnTrain.length > 0) {
+    const dctx2 = renderer.ctx;
+    const pulse = 0.6 + Math.sin(performance.now() * 0.006) * 0.4;
+    dctx2.fillStyle = `rgba(192, 57, 43, ${0.7 * pulse})`;
+    dctx2.fillRect(CANVAS_WIDTH / 2 - 140, 48, 280, 28);
+    dctx2.fillStyle = '#fff';
+    dctx2.font = 'bold 13px monospace';
+    dctx2.textAlign = 'center';
+    const msg = banditsOnTrain.length === 1 ? 'BANDIT ON BOARD! Move crew to fight!' : `${banditsOnTrain.length} BANDITS ON BOARD! Move crew!`;
+    dctx2.fillText(msg, CANVAS_WIDTH / 2, 67);
+  }
   if (selectedCrew) renderer.drawSelectedIndicator(selectedCrew);
   if (debugMode) drawDebugHitboxes();
   // Debug toggle button
@@ -616,9 +646,9 @@ function updatePlaceWeapon() {
   if (!pendingWeaponId) { state = STATES.RUNNING; lastTime = performance.now(); return; }
 
   if (input.clicked) {
-    // Find which empty mount was clicked
+    // Find which empty mount was clicked (not bandit-occupied)
     for (const mount of train.allMounts) {
-      if (mount.isOccupied) continue;
+      if (mount.isOccupied || mount._bandit) continue;
       if (input.hitCircle(slotScreenX(mount), slotScreenY(mount), 22)) {
         // Place the weapon here
         mount.autoWeaponId = pendingWeaponId;
@@ -640,11 +670,28 @@ function renderPlaceWeapon() {
   renderer.drawWeaponMounts(train, null, true);
   renderer.drawMovingCrew(train.crew);
 
-  // Highlight empty mounts
+  // Highlight empty mounts (not bandit-occupied)
   const ctx = renderer.ctx;
   const def = pendingWeaponId ? AUTO_WEAPONS[pendingWeaponId] : null;
   for (const mount of train.allMounts) {
     if (mount.isOccupied) continue;
+    if (mount._bandit) {
+      // Show as blocked
+      const sx = slotScreenX(mount), sy = slotScreenY(mount);
+      ctx.beginPath();
+      ctx.arc(sx, sy, MOUNT_RADIUS + 6, 0, Math.PI * 2);
+      ctx.strokeStyle = '#e74c3c';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // X mark
+      ctx.strokeStyle = '#e74c3c';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx - 5, sy - 5); ctx.lineTo(sx + 5, sy + 5);
+      ctx.moveTo(sx + 5, sy - 5); ctx.lineTo(sx - 5, sy + 5);
+      ctx.stroke();
+      continue;
+    }
     const hovered = input.hitCircle(slotScreenX(mount), slotScreenY(mount), 22);
     ctx.beginPath();
     ctx.arc(slotScreenX(mount), slotScreenY(mount), MOUNT_RADIUS + 6, 0, Math.PI * 2);

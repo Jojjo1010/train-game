@@ -281,6 +281,7 @@ export class CombatSystem {
     if (train.hasAutoWeapon('turret')) {
       const w = train.autoWeapons.turret;
       const m = w.mount;
+      if (m._bandit) { w.cooldownTimer = 0.5; } else {
       const mx = m.worldX, my = m.worldY;
       const stats = train.getAutoWeaponStats('turret');
       w.cooldownTimer -= dt;
@@ -310,12 +311,14 @@ export class CombatSystem {
           w.cooldownTimer = stats.fireInterval * cdMult;
         }
       }
+      } // end bandit check
     }
 
     // --- STEAM BLAST ---
     if (train.hasAutoWeapon('steamBlast')) {
       const w = train.autoWeapons.steamBlast;
       const m = w.mount;
+      if (m._bandit) { w.tickTimer = 0.5; } else {
       const mx = m.worldX, my = m.worldY;
       const stats = train.getAutoWeaponStats('steamBlast');
       w.tickTimer -= dt;
@@ -334,12 +337,14 @@ export class CombatSystem {
           }
         }
       }
+      } // end bandit check
     }
 
     // --- RICOCHET SHOT ---
     if (train.hasAutoWeapon('ricochetShot')) {
       const w = train.autoWeapons.ricochetShot;
       const m = w.mount;
+      if (m._bandit) { w.cooldownTimer = 0.5; } else {
       const mx = m.worldX, my = m.worldY;
       const stats = train.getAutoWeaponStats('ricochetShot');
       w.cooldownTimer -= dt;
@@ -349,6 +354,7 @@ export class CombatSystem {
         const bolt = this.ricochetBolts.find(b => !b.active);
         if (bolt) bolt.spawn(mx, my, angle, stats.damage * dmgMult, stats.bounces, stats.speed);
       }
+      } // end bandit check
     }
 
     // Update ricochet bolts

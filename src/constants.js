@@ -123,6 +123,14 @@ export const SHOP_TUNING = {
 // Run
 export const TARGET_DISTANCE = T('TARGET_DISTANCE', 10000);
 
+// Bandits
+export const BANDIT_SPEED = T('BANDIT_SPEED', 110);
+export const BANDIT_SPAWN_INTERVAL = T('BANDIT_SPAWN_INTERVAL', 15);
+export const BANDIT_JUMP_DURATION = T('BANDIT_JUMP_DURATION', 0.4);
+export const BANDIT_STEAL_RATE = T('BANDIT_STEAL_RATE', 5); // gold per second
+export const BANDIT_FIGHT_DURATION = T('BANDIT_FIGHT_DURATION', 0.5);
+export const MAX_BANDITS = 10;
+
 // Pools
 export const MAX_ENEMIES = 150;
 export const MAX_PROJECTILES = 300;
