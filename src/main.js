@@ -254,7 +254,7 @@ function updateCrewWalk(dt) {
 
 // --- SETUP PHASE ---
 function updateSetup(dt) {
-  updateCrewWalk(dt);
+  train.updateCrewMovement(dt);
   handleKeyboardRotation(dt);
 
   if (input.clicked) {
@@ -287,18 +287,12 @@ function updateSetup(dt) {
         if (slot.autoWeaponId) return;
         const fromSlot = selectedCrew.assignment;
         if (fromSlot) {
-          // Walk from current slot to target
-          const fromSX = slotScreenX(fromSlot);
-          const fromSY = slotScreenY(fromSlot);
-          const toSX = slotScreenX(slot);
-          const toSY = slotScreenY(slot);
+          // Walk from current slot to target using path-based system
+          const fromX = fromSlot.worldX;
+          const fromY = fromSlot.worldY;
+          const fromCar = train.findCarForSlot(fromSlot);
           train.unassignCrew(selectedCrew);
-          selectedCrew.isMoving = true;
-          selectedCrew.moveScreenX = fromSX;
-          selectedCrew.moveScreenY = fromSY;
-          selectedCrew.moveTargetX = toSX;
-          selectedCrew.moveTargetY = toSY;
-          selectedCrew.moveTargetSlot = slot;
+          train.startCrewMove(selectedCrew, fromX, fromY, fromCar, slot);
         } else {
           train.assignCrew(selectedCrew, slot);
         }
