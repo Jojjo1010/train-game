@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Train Defense — Game Tuner</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script type="importmap">
     { "imports": {
@@ -18,26 +17,22 @@
       --border: #3f3f46; --border-hover: #52525b;
       --text: #fafafa; --text-muted: #a1a1aa; --text-dim: #71717a;
       --accent: #f59e0b; --accent-dim: #92400e;
-      --green: #22c55e; --green-dim: #166534;
-      --red: #ef4444; --blue: #3b82f6; --purple: #a855f7; --cyan: #06b6d4;
+      --green: #22c55e; --red: #ef4444; --blue: #3b82f6; --purple: #a855f7; --cyan: #06b6d4;
       --radius: 8px; --radius-lg: 12px;
       --font: 'Inter', system-ui, sans-serif;
       --mono: 'JetBrains Mono', monospace;
-      --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: var(--font); background: var(--bg-0); color: var(--text); line-height: 1.5; }
 
-    /* Header */
-    .header { position: sticky; top: 0; z-index: 20; background: var(--bg-0); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); }
+    .header { position: sticky; top: 0; z-index: 20; background: var(--bg-0); border-bottom: 1px solid var(--border); }
     .header-inner { max-width: 1440px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
-    .header h1 { font-size: 18px; font-weight: 700; color: var(--text); }
+    .header h1 { font-size: 18px; font-weight: 700; }
     .header h1 span { color: var(--accent); }
     .header .sep { width: 1px; height: 24px; background: var(--border); }
     .header .status { font-size: 13px; color: var(--text-dim); font-family: var(--mono); }
     .header .actions { margin-left: auto; display: flex; gap: 8px; }
 
-    /* Buttons */
     .btn { padding: 8px 16px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; font-weight: 500; font-family: var(--font); cursor: pointer; transition: all 0.15s; background: var(--bg-2); color: var(--text); }
     .btn:hover { border-color: var(--border-hover); background: #333; }
     .btn-primary { background: var(--green); border-color: var(--green); color: #000; font-weight: 600; }
@@ -46,10 +41,8 @@
     .btn-danger { color: var(--red); }
     .btn-danger:hover { background: rgba(239,68,68,0.1); border-color: var(--red); }
 
-    /* Layout */
     .content { max-width: 1440px; margin: 0 auto; padding: 24px; }
 
-    /* 3D Preview */
     .preview-bar { margin-bottom: 24px; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
     .preview-bar h3 { padding: 12px 16px 0; font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .preview-canvas { width: 100%; height: 200px; display: block; }
@@ -57,56 +50,45 @@
     .preview-labels span { display: flex; align-items: center; gap: 6px; }
     .preview-labels .dot { width: 8px; height: 8px; border-radius: 50%; }
 
-    /* Grid */
     .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
     @media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
 
-    /* Cards */
     .card { background: #1c1c20; border: 1px solid #404048; border-radius: var(--radius-lg); overflow: hidden; transition: border-color 0.15s; }
     .card:hover { border-color: var(--border-hover); }
     .card-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
-    .card-header .icon { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+    .card-header .icon { font-size: 14px; }
     .card-header h2 { font-size: 14px; font-weight: 600; }
     .card-header .count { margin-left: auto; font-size: 11px; color: var(--text-dim); font-family: var(--mono); }
-    .card-body { padding: 8px 0; }
+    .card-body { padding: 4px 0; }
 
-    /* Subgroups */
-    .subgroup { margin: 4px 12px 8px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-    .subgroup-header { padding: 4px 12px; background: rgba(255,255,255,0.02); font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
-
-    /* Slider rows */
-    .slider-row { display: flex; align-items: center; gap: 8px; padding: 6px 16px; transition: background 0.1s; }
+    .slider-row { display: flex; align-items: center; gap: 8px; padding: 5px 16px; transition: background 0.1s; }
     .slider-row:hover { background: rgba(255,255,255,0.02); }
-    .slider-row label { width: 140px; font-size: 12px; color: #d4d4d8; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .slider-row .track-wrap { flex: 1; position: relative; min-width: 60px; height: 28px; display: flex; align-items: center; }
-
-    /* Custom range slider */
-    input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; background: #3f3f46; border-radius: 3px; outline: none; }
-    input[type=range]::-webkit-slider-runnable-track { height: 6px; background: #3f3f46; border-radius: 3px; }
-    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid #fbbf24; cursor: grab; transition: box-shadow 0.15s; margin-top: -6px; }
-    input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(245,158,11,0.25); background: #fbbf24; }
-    input[type=range]::-webkit-slider-thumb:active { cursor: grabbing; box-shadow: 0 0 0 7px rgba(245,158,11,0.35); }
-    input[type=range]::-moz-range-track { height: 6px; background: #3f3f46; border-radius: 3px; border: none; }
-    input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid #fbbf24; cursor: grab; }
-    input[type=range]::-moz-range-progress { background: var(--accent-dim); height: 6px; border-radius: 3px; }
-
+    .slider-row label { width: 130px; font-size: 12px; color: #d4d4d8; flex-shrink: 0; cursor: help; }
+    .slider-row .track-wrap { flex: 1; min-width: 60px; }
     .slider-row .val { width: 62px; text-align: right; font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--accent); flex-shrink: 0; background: var(--bg-2); border: 1px solid transparent; border-radius: 4px; padding: 2px 6px; outline: none; -moz-appearance: textfield; }
     .slider-row .val:focus { border-color: var(--accent); background: var(--bg-0); }
     .slider-row .val::-webkit-inner-spin-button, .slider-row .val::-webkit-outer-spin-button { -webkit-appearance: none; }
-    .slider-row .def { width: 50px; text-align: right; font-size: 10px; color: var(--text-dim); flex-shrink: 0; font-family: var(--mono); }
+    .slider-row .val.changed { color: #fbbf24; }
+    .slider-row .val.default { color: var(--text-dim); }
+    .slider-row .desc { font-size: 10px; color: var(--text-dim); padding: 0 16px 6px; line-height: 1.3; }
 
-    /* Section color coding */
-    .card[data-section="Train"] .card-header { border-left: 3px solid var(--green); }
-    .card[data-section="Enemies"] .card-header { border-left: 3px solid var(--red); }
-    .card[data-section="Weapons"] .card-header { border-left: 3px solid var(--blue); }
-    .card[data-section="Turret"] .card-header { border-left: 3px solid #ffb74d; }
-    .card[data-section="Steam Blast"] .card-header { border-left: 3px solid #8ecae6; }
-    .card[data-section="Laser"] .card-header { border-left: 3px solid #b388ff; }
-    .card[data-section="Progression"] .card-header,
-    .card[data-section="World"] .card-header { border-left: 3px solid var(--cyan); }
-    .card[data-section="Coins"] .card-header { border-left: 3px solid var(--accent); }
-    .card[data-section^="Shop"] .card-header { border-left: 3px solid var(--purple); }
+    input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; background: #3f3f46; border-radius: 3px; outline: none; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid #fbbf24; cursor: grab; transition: box-shadow 0.15s; margin-top: -6px; }
+    input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(245,158,11,0.25); }
+    input[type=range]::-webkit-slider-thumb:active { cursor: grabbing; box-shadow: 0 0 0 7px rgba(245,158,11,0.35); }
+    input[type=range]::-moz-range-track { height: 6px; background: #3f3f46; border-radius: 3px; border: none; }
+    input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid #fbbf24; cursor: grab; }
+
+    .card[data-color="green"] .card-header { border-left: 3px solid var(--green); }
+    .card[data-color="red"] .card-header { border-left: 3px solid var(--red); }
+    .card[data-color="blue"] .card-header { border-left: 3px solid var(--blue); }
+    .card[data-color="cyan"] .card-header { border-left: 3px solid var(--cyan); }
+    .card[data-color="amber"] .card-header { border-left: 3px solid var(--accent); }
+    .card[data-color="purple"] .card-header { border-left: 3px solid var(--purple); }
+    .card[data-color="orange"] .card-header { border-left: 3px solid #ffb74d; }
+    .card[data-color="sky"] .card-header { border-left: 3px solid #8ecae6; }
+    .card[data-color="violet"] .card-header { border-left: 3px solid #b388ff; }
   </style>
 </head>
 <body>
@@ -116,7 +98,7 @@
       <div class="sep"></div>
       <span class="status" id="status">Loading...</span>
       <div class="actions">
-        <button class="btn btn-danger" onclick="resetAll()">Reset</button>
+        <button class="btn btn-danger" onclick="resetAll()">Reset All</button>
         <button class="btn btn-primary" id="saveBtn" onclick="save()">Save</button>
       </div>
     </div>
@@ -130,7 +112,6 @@
         <span><span class="dot" style="background:#8e44ad"></span> Purple Enemy</span>
         <span><span class="dot" style="background:#c0392b"></span> Red Enemy</span>
         <span><span class="dot" style="background:#888"></span> Train</span>
-        <span><span class="dot" style="background:#f5a623"></span> Coin</span>
       </div>
     </div>
     <div class="grid" id="sections"></div>
@@ -146,214 +127,143 @@
     previewRenderer.setPixelRatio(window.devicePixelRatio);
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x18181b);
-
     const camera = new THREE.PerspectiveCamera(35, 4, 0.1, 2000);
     camera.position.set(200, 120, 200);
     camera.lookAt(0, 10, 0);
-
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
     dirLight.position.set(100, 150, 100);
     scene.add(dirLight);
+    scene.add(new THREE.GridHelper(400, 40, 0x3f3f46, 0x27272a));
 
-    // Ground grid
-    const grid = new THREE.GridHelper(400, 40, 0x3f3f46, 0x27272a);
-    scene.add(grid);
-
-    // Placeholder objects (replaced by FBX when loaded)
-    const purpleEnemy = new THREE.Mesh(new THREE.ConeGeometry(6, 16, 8), new THREE.MeshLambertMaterial({ color: 0x8e44ad }));
-    purpleEnemy.position.set(-60, 8, 0);
-    scene.add(purpleEnemy);
-
-    const redEnemy = new THREE.Mesh(new THREE.ConeGeometry(6, 16, 8), new THREE.MeshLambertMaterial({ color: 0xc0392b }));
-    redEnemy.position.set(-20, 8, 0);
-    scene.add(redEnemy);
-
-    const coinMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(5, 5, 1.5, 16),
-      new THREE.MeshLambertMaterial({ color: 0xf5a623 })
-    );
-    coinMesh.rotation.x = Math.PI / 2;
-    coinMesh.position.set(30, 5, 0);
-    scene.add(coinMesh);
-
-    let trainModel = null;
-
-    // Load FBX models
     const loader = new FBXLoader();
-    const modelScales = { Train: 0.05, enemy: 0.05, AutoGun: 0.15, Laser: 0.15, Gun: 0.05, Garlic: 0.05 };
-
-    loader.load('/assets/Train.fbx', (obj) => {
-      obj.scale.setScalar(0.05);
-      obj.position.set(60, 0, 0);
-      scene.add(obj);
-      trainModel = obj;
-    });
-
-    loader.load('/assets/enemy.fbx', (obj) => {
-      // Purple
-      const p = obj.clone();
-      p.scale.setScalar(0.045 * 1.5);
-      p.position.copy(purpleEnemy.position);
-      scene.remove(purpleEnemy);
-      scene.add(p);
-      window._purpleModel = p;
-
-      // Red
-      const r = obj.clone();
-      r.scale.setScalar(0.045 * 5);
-      r.position.copy(redEnemy.position);
+    loader.load('/assets/Train.fbx', obj => { obj.scale.setScalar(0.05); obj.position.set(60, 0, 0); scene.add(obj); });
+    loader.load('/assets/enemy.fbx', obj => {
+      const p = obj.clone(); p.scale.setScalar(0.045 * 1.5); p.position.set(-60, 0, 0); scene.add(p); window._pm = p;
+      const r = obj.clone(); r.scale.setScalar(0.045 * 5); r.position.set(-20, 0, 0);
       r.traverse(c => { if (c.isMesh && c.material) { c.material = c.material.clone(); c.material.color.set(0xc0392b); } });
-      scene.remove(redEnemy);
-      scene.add(r);
-      window._redModel = r;
+      scene.add(r); window._rm = r;
     });
 
     function resizePreview() {
-      const rect = previewCanvas.parentElement.getBoundingClientRect();
-      const w = rect.width;
-      const h = 200;
-      previewRenderer.setSize(w, h);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+      const w = previewCanvas.parentElement.getBoundingClientRect().width;
+      previewRenderer.setSize(w, 200); camera.aspect = w / 200; camera.updateProjectionMatrix();
     }
-    window.addEventListener('resize', resizePreview);
-    resizePreview();
+    window.addEventListener('resize', resizePreview); resizePreview();
 
     let angle = 0;
-    function animatePreview() {
+    (function animate() {
       angle += 0.003;
-      camera.position.x = Math.cos(angle) * 280;
-      camera.position.z = Math.sin(angle) * 280;
-      camera.position.y = 120;
+      camera.position.set(Math.cos(angle) * 280, 120, Math.sin(angle) * 280);
       camera.lookAt(0, 10, 0);
       previewRenderer.render(scene, camera);
-      requestAnimationFrame(animatePreview);
-    }
-    animatePreview();
+      requestAnimationFrame(animate);
+    })();
 
-    // Update preview when sliders change
-    window.updatePreview = function(values) {
-      const baseR = values.ENEMY_RADIUS || 6;
-      const purpleMult = values.ENEMY_PURPLE_RADIUS_MULT || 1.5;
-      const redMult = values.ENEMY_RED_RADIUS_MULT || 5;
-      if (window._purpleModel) window._purpleModel.scale.setScalar(0.045 * purpleMult);
-      if (window._redModel) window._redModel.scale.setScalar(0.045 * redMult);
+    window.updatePreview = function(v) {
+      if (window._pm) window._pm.scale.setScalar(0.045 * (v.ENEMY_PURPLE_RADIUS_MULT || 1.5));
+      if (window._rm) window._rm.scale.setScalar(0.045 * (v.ENEMY_RED_RADIUS_MULT || 5));
     };
 
-    // ======= TUNER PARAMS =======
+    // ======= PARAMS — simplified with descriptions =======
     const PARAMS = [
-      { section: 'Train', key: 'TRAIN_MAX_HP', label: 'Max HP', default: 100, min: 20, max: 500, step: 10 },
-      { section: 'Train', key: 'TRAIN_SPEED', label: 'Speed (px/sec)', default: 167, min: 50, max: 400, step: 1 },
-      { section: 'Train', key: 'CAR_WIDTH', label: 'Hitbox Width', default: 32, min: 10, max: 100, step: 1 },
-      { section: 'Train', key: 'CAR_HEIGHT', label: 'Hitbox Height', default: 14, min: 5, max: 60, step: 1 },
-      { section: 'Train', key: 'CARGO_BOXES_START', label: 'Cargo Boxes', default: 4, min: 0, max: 8, step: 1 },
-      { section: 'Train', key: 'CARGO_MULTIPLIER_PER_BOX', label: 'Cargo Mult/Box', default: 0.25, min: 0.05, max: 1, step: 0.05 },
+      // Train
+      { section: 'Your Train', color: 'green', icon: '🚂', key: 'TRAIN_MAX_HP', label: 'Max HP', desc: 'How much damage your train can take before dying', default: 100, min: 20, max: 500, step: 10 },
+      { section: 'Your Train', key: 'TRAIN_SPEED', label: 'Travel Speed', desc: 'How fast the train moves during combat — higher = shorter fights', default: 167, min: 50, max: 400, step: 1 },
+      { section: 'Your Train', key: 'CAR_WIDTH', label: 'Hitbox Width', desc: 'Width of each car\'s collision box — bigger = easier to hit', default: 32, min: 10, max: 100, step: 1 },
+      { section: 'Your Train', key: 'CAR_HEIGHT', label: 'Hitbox Depth', desc: 'Depth of each car\'s collision box', default: 14, min: 5, max: 60, step: 1 },
+      { section: 'Your Train', key: 'CARGO_BOXES_START', label: 'Cargo Boxes', desc: 'Starting cargo — each box adds to your gold multiplier on win', default: 4, min: 0, max: 8, step: 1 },
+      { section: 'Your Train', key: 'CARGO_MULTIPLIER_PER_BOX', label: 'Gold Mult/Box', desc: 'How much each cargo box adds to your gold multiplier', default: 0.25, min: 0.05, max: 1, step: 0.05 },
 
-      { section: 'Enemies', key: 'ENEMY_BASE_HP', label: 'Base HP', default: 20, min: 5, max: 200, step: 5 },
-      { section: 'Enemies', key: 'ENEMY_BASE_SPEED', label: 'Base Speed', default: 50, min: 10, max: 200, step: 5 },
-      { section: 'Enemies', key: 'ENEMY_RADIUS', label: 'Base Radius', default: 6, min: 2, max: 30, step: 1 },
-      { section: 'Enemies', key: 'ENEMY_CONTACT_DAMAGE', label: 'Contact Damage', default: 6, min: 1, max: 30, step: 1 },
-      { section: 'Enemies', key: 'ENEMY_SPAWN_INTERVAL_START', label: 'Spawn Interval (start)', default: 1.5, min: 0.2, max: 5, step: 0.1 },
-      { section: 'Enemies', key: 'ENEMY_SPAWN_INTERVAL_MIN', label: 'Spawn Interval (min)', default: 0.25, min: 0.05, max: 2, step: 0.05 },
-      { section: 'Enemies', key: 'ENEMY_PURPLE_RADIUS_MULT', label: 'Purple Size Mult', default: 1.5, min: 0.5, max: 5, step: 0.25 },
-      { section: 'Enemies', key: 'ENEMY_RED_RADIUS_MULT', label: 'Red Size Mult', default: 5, min: 1, max: 10, step: 0.5 },
-      { section: 'Enemies', key: 'ENEMY_PURPLE_HP_MULT', label: 'Purple HP Mult', default: 1, min: 0.5, max: 5, step: 0.5 },
-      { section: 'Enemies', key: 'ENEMY_RED1_HP_MULT', label: 'Red (mid) HP Mult', default: 4, min: 1, max: 15, step: 0.5 },
-      { section: 'Enemies', key: 'ENEMY_RED2_HP_MULT', label: 'Red (hard) HP Mult', default: 6, min: 1, max: 20, step: 0.5 },
+      // Enemies
+      { section: 'Enemies', color: 'red', icon: '👾', key: 'ENEMY_BASE_HP', label: 'Base HP', desc: 'Starting health of the weakest enemies', default: 20, min: 5, max: 200, step: 5 },
+      { section: 'Enemies', key: 'ENEMY_BASE_SPEED', label: 'Base Speed', desc: 'How fast enemies move toward your train', default: 50, min: 10, max: 200, step: 5 },
+      { section: 'Enemies', key: 'ENEMY_RADIUS', label: 'Base Size', desc: 'Collision radius of the smallest enemies', default: 6, min: 2, max: 30, step: 1 },
+      { section: 'Enemies', key: 'ENEMY_CONTACT_DAMAGE', label: 'Contact Damage', desc: 'Damage dealt when an enemy reaches your train', default: 6, min: 1, max: 30, step: 1 },
+      { section: 'Enemies', key: 'ENEMY_SPAWN_INTERVAL_START', label: 'Spawn Rate (start)', desc: 'Seconds between spawns at the start — lower = more enemies', default: 1.5, min: 0.2, max: 5, step: 0.1 },
+      { section: 'Enemies', key: 'ENEMY_SPAWN_INTERVAL_MIN', label: 'Spawn Rate (fastest)', desc: 'Minimum spawn interval at max difficulty', default: 0.25, min: 0.05, max: 2, step: 0.05 },
+      { section: 'Enemies', key: 'ENEMY_PURPLE_RADIUS_MULT', label: 'Purple Size', desc: 'How big purple (easy) enemies are relative to base', default: 1.5, min: 0.5, max: 5, step: 0.25 },
+      { section: 'Enemies', key: 'ENEMY_RED_RADIUS_MULT', label: 'Red Size', desc: 'How big red (hard) enemies are relative to base', default: 5, min: 1, max: 10, step: 0.5 },
+      { section: 'Enemies', key: 'ENEMY_PURPLE_HP_MULT', label: 'Purple HP Mult', desc: 'HP multiplier for purple enemies', default: 1, min: 0.5, max: 5, step: 0.5 },
+      { section: 'Enemies', key: 'ENEMY_RED1_HP_MULT', label: 'Red (mid) HP Mult', desc: 'HP multiplier for medium-difficulty red enemies', default: 4, min: 1, max: 15, step: 0.5 },
+      { section: 'Enemies', key: 'ENEMY_RED2_HP_MULT', label: 'Red (hard) HP Mult', desc: 'HP multiplier for the toughest red enemies', default: 6, min: 1, max: 20, step: 0.5 },
 
-      { section: 'Weapons', key: 'WEAPON_DAMAGE', label: 'Crew Damage', default: 12, min: 1, max: 50, step: 1 },
-      { section: 'Weapons', key: 'WEAPON_FIRE_RATE', label: 'Crew Fire Rate', default: 5, min: 1, max: 20, step: 0.5 },
-      { section: 'Weapons', key: 'WEAPON_RANGE', label: 'Crew Range', default: 220, min: 50, max: 500, step: 10 },
-      { section: 'Weapons', key: 'PROJECTILE_SPEED', label: 'Projectile Speed', default: 350, min: 100, max: 800, step: 10 },
-      { section: 'Weapons', key: 'PROJECTILE_LIFETIME', label: 'Projectile Lifetime', default: 2, min: 0.5, max: 5, step: 0.25 },
-      { section: 'Weapons', key: 'PROJECTILE_RADIUS', label: 'Projectile Radius', default: 3, min: 1, max: 10, step: 1 },
-      { section: 'Weapons', key: 'DRIVER_DAMAGE_BUFF', label: 'Driver Buff', default: 1.5, min: 1, max: 3, step: 0.1 },
+      // Crew Weapons
+      { section: 'Crew Weapons', color: 'blue', icon: '🎯', key: 'WEAPON_DAMAGE', label: 'Damage', desc: 'Damage per shot from crew-manned weapons', default: 12, min: 1, max: 50, step: 1 },
+      { section: 'Crew Weapons', key: 'WEAPON_FIRE_RATE', label: 'Fire Rate', desc: 'Shots per second for crew weapons', default: 5, min: 1, max: 20, step: 0.5 },
+      { section: 'Crew Weapons', key: 'WEAPON_RANGE', label: 'Range', desc: 'How far crew weapons can shoot', default: 220, min: 50, max: 500, step: 10 },
+      { section: 'Crew Weapons', key: 'PROJECTILE_SPEED', label: 'Bullet Speed', desc: 'How fast bullets travel', default: 350, min: 100, max: 800, step: 10 },
+      { section: 'Crew Weapons', key: 'PROJECTILE_LIFETIME', label: 'Bullet Lifetime', desc: 'How long bullets exist (seconds) before vanishing', default: 2, min: 0.5, max: 5, step: 0.25 },
+      { section: 'Crew Weapons', key: 'PROJECTILE_RADIUS', label: 'Bullet Size', desc: 'Collision radius of bullets — bigger = easier to hit', default: 3, min: 1, max: 10, step: 1 },
+      { section: 'Crew Weapons', key: 'DRIVER_DAMAGE_BUFF', label: 'Driver Bonus', desc: 'Damage multiplier when someone is driving the train', default: 1.5, min: 1, max: 3, step: 0.1 },
 
-      { section: 'Progression', key: 'XP_PER_KILL', label: 'XP per Kill', default: 12, min: 1, max: 50, step: 1 },
-      { section: 'Progression', key: 'XP_PER_LEVEL', label: 'XP per Level', default: 80, min: 10, max: 300, step: 5 },
-      { section: 'Progression', key: 'TARGET_DISTANCE', label: 'Run Distance', default: 10000, min: 2000, max: 30000, step: 500 },
+      // Turret (base + scaling)
+      { section: 'Turret', color: 'orange', icon: '🔫', key: 'TURRET_LV1_DAMAGE', label: 'Base Damage', desc: 'Damage at level 1', default: 10, min: 1, max: 50, step: 1 },
+      { section: 'Turret', key: 'TURRET_DAMAGE_GROWTH', label: 'Damage/Level', desc: 'Extra damage per level', default: 2, min: 0, max: 10, step: 1 },
+      { section: 'Turret', key: 'TURRET_LV1_FIRE_INTERVAL', label: 'Base Fire Interval', desc: 'Seconds between shots at level 1 — lower = faster', default: 1.2, min: 0.2, max: 3, step: 0.05 },
+      { section: 'Turret', key: 'TURRET_INTERVAL_REDUCTION', label: 'Interval Reduction/Lv', desc: 'How much faster per level', default: 0.1, min: 0, max: 0.5, step: 0.025 },
+      { section: 'Turret', key: 'TURRET_LV1_RANGE', label: 'Base Range', desc: 'Targeting range at level 1', default: 250, min: 100, max: 600, step: 10 },
+      { section: 'Turret', key: 'TURRET_RANGE_GROWTH', label: 'Range/Level', desc: 'Extra range per level', default: 20, min: 0, max: 50, step: 5 },
+      { section: 'Turret', key: 'TURRET_LV1_SHOTS', label: 'Base Shots/Burst', desc: 'Projectiles per burst at level 1', default: 1, min: 1, max: 10, step: 1 },
+      { section: 'Turret', key: 'TURRET_SHOT_GROWTH', label: 'Extra Shot/Level', desc: 'Additional projectiles per level', default: 1, min: 0, max: 3, step: 1 },
 
-      { section: 'World', key: 'ZONES_PER_WORLD', label: 'Zones per World', default: 3, min: 1, max: 10, step: 1 },
-      { section: 'World', key: 'GOLD_PER_STATION', label: 'Gold/Station (exit)', default: 25, min: 5, max: 100, step: 5 },
-      { section: 'World', key: 'COAL_PER_WIN', label: 'Coal per Win', default: 2, min: 0, max: 5, step: 1 },
+      // Steam Blast (base + scaling)
+      { section: 'Steam Blast', color: 'sky', icon: '💨', key: 'STEAM_LV1_RADIUS', label: 'Base Radius', desc: 'Damage aura size at level 1', default: 80, min: 20, max: 400, step: 5 },
+      { section: 'Steam Blast', key: 'STEAM_RADIUS_GROWTH', label: 'Radius/Level', desc: 'Extra aura size per level', default: 25, min: 0, max: 50, step: 5 },
+      { section: 'Steam Blast', key: 'STEAM_LV1_DAMAGE', label: 'Base Damage', desc: 'Damage per tick at level 1', default: 4, min: 1, max: 50, step: 1 },
+      { section: 'Steam Blast', key: 'STEAM_DAMAGE_GROWTH', label: 'Damage/Level', desc: 'Extra damage per level', default: 3, min: 0, max: 10, step: 1 },
+      { section: 'Steam Blast', key: 'STEAM_LV1_TICK_RATE', label: 'Base Tick Rate', desc: 'Seconds between damage ticks — lower = more DPS', default: 0.5, min: 0.1, max: 2, step: 0.05 },
+      { section: 'Steam Blast', key: 'STEAM_TICK_REDUCTION', label: 'Tick Reduction/Lv', desc: 'How much faster ticks get per level', default: 0.05, min: 0, max: 0.2, step: 0.01 },
 
-      { section: 'Coins', key: 'COIN_VALUE', label: 'Coin Value', default: 10, min: 1, max: 50, step: 1 },
-      { section: 'Coins', key: 'COIN_SPAWN_INTERVAL', label: 'Spawn Interval', default: 3, min: 0.5, max: 10, step: 0.5 },
+      // Laser (base + scaling)
+      { section: 'Laser', color: 'violet', icon: '⚡', key: 'LASER_LV1_BOUNCES', label: 'Base Bounces', desc: 'Number of enemy bounces at level 1', default: 2, min: 1, max: 15, step: 1 },
+      { section: 'Laser', key: 'LASER_BOUNCE_GROWTH', label: 'Bounces/Level', desc: 'Extra bounces per level', default: 1, min: 0, max: 3, step: 1 },
+      { section: 'Laser', key: 'LASER_LV1_DAMAGE', label: 'Base Damage', desc: 'Damage per hit at level 1', default: 8, min: 1, max: 50, step: 1 },
+      { section: 'Laser', key: 'LASER_DAMAGE_GROWTH', label: 'Damage/Level', desc: 'Extra damage per level', default: 3, min: 0, max: 10, step: 1 },
+      { section: 'Laser', key: 'LASER_LV1_FIRE_INTERVAL', label: 'Base Fire Interval', desc: 'Seconds between shots — lower = faster', default: 2.5, min: 0.3, max: 5, step: 0.1 },
+      { section: 'Laser', key: 'LASER_INTERVAL_REDUCTION', label: 'Interval Reduction/Lv', desc: 'How much faster per level', default: 0.3, min: 0, max: 1, step: 0.05 },
+      { section: 'Laser', key: 'LASER_LV1_SPEED', label: 'Base Speed', desc: 'Bolt travel speed at level 1', default: 300, min: 100, max: 800, step: 10 },
+      { section: 'Laser', key: 'LASER_SPEED_GROWTH', label: 'Speed/Level', desc: 'Extra bolt speed per level', default: 25, min: 0, max: 50, step: 5 },
 
-      ...[1,2,3,4,5].flatMap((lv,i) => {
-        const d = [{s:1,d:10,f:1.2,r:250},{s:2,d:12,f:1.1,r:270},{s:3,d:14,f:1.0,r:290},{s:4,d:16,f:0.9,r:310},{s:5,d:18,f:0.8,r:340}][i];
-        return [
-          { section: 'Turret', group: `Level ${lv}`, key: `TURRET_LV${lv}_SHOTS`, label: 'Shots/Burst', default: d.s, min: 1, max: 10, step: 1 },
-          { section: 'Turret', group: `Level ${lv}`, key: `TURRET_LV${lv}_DAMAGE`, label: 'Damage', default: d.d, min: 1, max: 50, step: 1 },
-          { section: 'Turret', group: `Level ${lv}`, key: `TURRET_LV${lv}_FIRE_INTERVAL`, label: 'Fire Interval', default: d.f, min: 0.2, max: 3, step: 0.05 },
-          { section: 'Turret', group: `Level ${lv}`, key: `TURRET_LV${lv}_RANGE`, label: 'Range', default: d.r, min: 100, max: 600, step: 10 },
-        ];
-      }),
+      // Progression
+      { section: 'Progression', color: 'cyan', icon: '📈', key: 'XP_PER_KILL', label: 'XP per Kill', desc: 'Experience gained from each enemy killed', default: 12, min: 1, max: 50, step: 1 },
+      { section: 'Progression', key: 'XP_PER_LEVEL', label: 'XP per Level', desc: 'XP needed to level up — higher = slower progression', default: 80, min: 10, max: 300, step: 5 },
+      { section: 'Progression', key: 'TARGET_DISTANCE', label: 'Run Distance', desc: 'How far the train travels per combat — higher = longer fights', default: 10000, min: 2000, max: 30000, step: 500 },
 
-      ...[1,2,3,4,5].flatMap((lv,i) => {
-        const d = [{r:80,d:4,t:0.5},{r:100,d:6,t:0.45},{r:125,d:9,t:0.4},{r:155,d:13,t:0.35},{r:190,d:18,t:0.3}][i];
-        return [
-          { section: 'Steam Blast', group: `Level ${lv}`, key: `STEAM_LV${lv}_RADIUS`, label: 'Radius', default: d.r, min: 20, max: 400, step: 5 },
-          { section: 'Steam Blast', group: `Level ${lv}`, key: `STEAM_LV${lv}_DAMAGE`, label: 'Damage', default: d.d, min: 1, max: 50, step: 1 },
-          { section: 'Steam Blast', group: `Level ${lv}`, key: `STEAM_LV${lv}_TICK_RATE`, label: 'Tick Rate', default: d.t, min: 0.1, max: 2, step: 0.05 },
-        ];
-      }),
+      // World
+      { section: 'World', color: 'cyan', icon: '🗺', key: 'ZONES_PER_WORLD', label: 'Zones per World', desc: 'Number of zones to complete before winning', default: 3, min: 1, max: 10, step: 1 },
+      { section: 'World', key: 'GOLD_PER_STATION', label: 'Gold per Station', desc: 'Bonus gold for each station visited when completing a zone', default: 25, min: 5, max: 100, step: 5 },
+      { section: 'World', key: 'COAL_PER_WIN', label: 'Coal per Win', desc: 'Coal refueled after winning a combat', default: 2, min: 0, max: 5, step: 1 },
+      { section: 'World', key: 'COIN_VALUE', label: 'Coin Value', desc: 'Gold earned per coin collected', default: 10, min: 1, max: 50, step: 1 },
+      { section: 'World', key: 'COIN_SPAWN_INTERVAL', label: 'Coin Spawn Rate', desc: 'Seconds between coin spawns — lower = more coins', default: 3, min: 0.5, max: 10, step: 0.5 },
 
-      ...[1,2,3,4,5].flatMap((lv,i) => {
-        const d = [{b:2,d:8,f:2.5,s:300},{b:3,d:10,f:2.2,s:320},{b:4,d:13,f:1.9,s:340},{b:5,d:16,f:1.6,s:360},{b:7,d:20,f:1.3,s:400}][i];
-        return [
-          { section: 'Laser', group: `Level ${lv}`, key: `LASER_LV${lv}_BOUNCES`, label: 'Bounces', default: d.b, min: 1, max: 15, step: 1 },
-          { section: 'Laser', group: `Level ${lv}`, key: `LASER_LV${lv}_DAMAGE`, label: 'Damage', default: d.d, min: 1, max: 50, step: 1 },
-          { section: 'Laser', group: `Level ${lv}`, key: `LASER_LV${lv}_FIRE_INTERVAL`, label: 'Fire Interval', default: d.f, min: 0.3, max: 5, step: 0.1 },
-          { section: 'Laser', group: `Level ${lv}`, key: `LASER_LV${lv}_SPEED`, label: 'Speed', default: d.s, min: 100, max: 800, step: 10 },
-        ];
-      }),
-
-      { section: 'Shop: Damage', key: 'SHOP_DAMAGE_COST', label: 'Base Cost', default: 40, min: 5, max: 200, step: 5 },
-      { section: 'Shop: Damage', key: 'SHOP_DAMAGE_PER_LEVEL', label: '% per Level', default: 15, min: 5, max: 50, step: 1 },
-      { section: 'Shop: Damage', key: 'SHOP_DAMAGE_MAX_LEVEL', label: 'Max Level', default: 5, min: 1, max: 10, step: 1 },
-
-      { section: 'Shop: Shield', key: 'SHOP_SHIELD_COST', label: 'Base Cost', default: 35, min: 5, max: 200, step: 5 },
-      { section: 'Shop: Shield', key: 'SHOP_SHIELD_PER_LEVEL', label: 'Reduction/Lv', default: 2, min: 1, max: 10, step: 1 },
-      { section: 'Shop: Shield', key: 'SHOP_SHIELD_MAX_LEVEL', label: 'Max Level', default: 5, min: 1, max: 10, step: 1 },
-
-      { section: 'Shop: Cool-off', key: 'SHOP_COOLOFF_COST', label: 'Base Cost', default: 45, min: 5, max: 200, step: 5 },
-      { section: 'Shop: Cool-off', key: 'SHOP_COOLOFF_PER_LEVEL', label: '% per Level', default: 10, min: 2, max: 30, step: 1 },
-      { section: 'Shop: Cool-off', key: 'SHOP_COOLOFF_MAX_LEVEL', label: 'Max Level', default: 5, min: 1, max: 10, step: 1 },
-
-      { section: 'Shop: Max Hull', key: 'SHOP_MAXHP_COST', label: 'Base Cost', default: 30, min: 5, max: 200, step: 5 },
-      { section: 'Shop: Max Hull', key: 'SHOP_MAXHP_PER_LEVEL', label: 'HP per Level', default: 15, min: 5, max: 50, step: 5 },
-      { section: 'Shop: Max Hull', key: 'SHOP_MAXHP_MAX_LEVEL', label: 'Max Level', default: 5, min: 1, max: 10, step: 1 },
-
-      { section: 'Shop: Range', key: 'SHOP_RANGE_COST', label: 'Base Cost', default: 40, min: 5, max: 200, step: 5 },
-      { section: 'Shop: Range', key: 'SHOP_RANGE_PER_LEVEL', label: '% per Level', default: 15, min: 5, max: 50, step: 1 },
-      { section: 'Shop: Range', key: 'SHOP_RANGE_MAX_LEVEL', label: 'Max Level', default: 5, min: 1, max: 10, step: 1 },
-
-      { section: 'Shop: Greed', key: 'SHOP_GREED_COST', label: 'Base Cost', default: 60, min: 10, max: 300, step: 5 },
-      { section: 'Shop: Greed', key: 'SHOP_GREED_PER_LEVEL', label: '% per Level', default: 20, min: 5, max: 50, step: 5 },
-      { section: 'Shop: Greed', key: 'SHOP_GREED_MAX_LEVEL', label: 'Max Level', default: 3, min: 1, max: 10, step: 1 },
-
-      { section: 'Shop: Crew', key: 'SHOP_CREW_COST', label: 'Base Cost', default: 100, min: 20, max: 500, step: 10 },
-      { section: 'Shop: Crew', key: 'SHOP_CREW_MAX_LEVEL', label: 'Max Slots', default: 2, min: 1, max: 5, step: 1 },
+      // Shop upgrades
+      { section: 'Shop Upgrades', color: 'purple', icon: '🏪', key: 'SHOP_DAMAGE_COST', label: 'Damage Cost', desc: 'Base gold cost for weapon damage upgrade', default: 40, min: 5, max: 200, step: 5 },
+      { section: 'Shop Upgrades', key: 'SHOP_DAMAGE_PER_LEVEL', label: 'Damage %/Lv', desc: 'Percentage damage increase per shop level', default: 15, min: 5, max: 50, step: 1 },
+      { section: 'Shop Upgrades', key: 'SHOP_SHIELD_COST', label: 'Shield Cost', desc: 'Base gold cost for shield upgrade', default: 35, min: 5, max: 200, step: 5 },
+      { section: 'Shop Upgrades', key: 'SHOP_SHIELD_PER_LEVEL', label: 'Shield Reduction/Lv', desc: 'Damage reduced per hit per shop level', default: 2, min: 1, max: 10, step: 1 },
+      { section: 'Shop Upgrades', key: 'SHOP_COOLOFF_COST', label: 'Cool-off Cost', desc: 'Base gold cost for cooldown upgrade', default: 45, min: 5, max: 200, step: 5 },
+      { section: 'Shop Upgrades', key: 'SHOP_COOLOFF_PER_LEVEL', label: 'Cool-off %/Lv', desc: 'Cooldown reduction per shop level', default: 10, min: 2, max: 30, step: 1 },
+      { section: 'Shop Upgrades', key: 'SHOP_MAXHP_COST', label: 'Hull Cost', desc: 'Base gold cost for max HP upgrade', default: 30, min: 5, max: 200, step: 5 },
+      { section: 'Shop Upgrades', key: 'SHOP_MAXHP_PER_LEVEL', label: 'HP/Level', desc: 'Extra max HP per shop level', default: 15, min: 5, max: 50, step: 5 },
+      { section: 'Shop Upgrades', key: 'SHOP_RANGE_COST', label: 'Range Cost', desc: 'Base gold cost for range upgrade', default: 40, min: 5, max: 200, step: 5 },
+      { section: 'Shop Upgrades', key: 'SHOP_RANGE_PER_LEVEL', label: 'Range %/Lv', desc: 'Range increase per shop level', default: 15, min: 5, max: 50, step: 1 },
+      { section: 'Shop Upgrades', key: 'SHOP_GREED_COST', label: 'Greed Cost', desc: 'Base gold cost for greed upgrade', default: 60, min: 10, max: 300, step: 5 },
+      { section: 'Shop Upgrades', key: 'SHOP_GREED_PER_LEVEL', label: 'Greed %/Lv', desc: 'Extra gold from coins per shop level', default: 20, min: 5, max: 50, step: 5 },
+      { section: 'Shop Upgrades', key: 'SHOP_CREW_COST', label: 'Crew Slot Cost', desc: 'Gold to unlock an additional crew member', default: 100, min: 20, max: 500, step: 10 },
     ];
 
-    const SECTION_ICONS = {
-      'Train': '🚂', 'Enemies': '👾', 'Weapons': '🔫', 'Progression': '📈',
-      'World': '🗺', 'Coins': '🪙', 'Turret': '🔫', 'Steam Blast': '💨', 'Laser': '⚡',
-      'Shop: Damage': '💥', 'Shop: Shield': '🛡', 'Shop: Cool-off': '❄',
-      'Shop: Max Hull': '❤', 'Shop: Range': '🎯', 'Shop: Greed': '💰', 'Shop: Crew': '👤',
-    };
+    const sectionMeta = {};
+    for (const p of PARAMS) {
+      if (p.color && !sectionMeta[p.section]) sectionMeta[p.section] = { color: p.color, icon: p.icon };
+    }
 
     let values = {};
     let dirty = false;
 
     async function load() {
       let saved = {};
-      try {
-        const resp = await fetch('/tuning.json');
-        if (resp.ok) saved = await resp.json();
-      } catch (e) {}
+      try { const r = await fetch('/tuning.json'); if (r.ok) saved = await r.json(); } catch(e) {}
       values = {};
       for (const p of PARAMS) values[p.key] = saved[p.key] ?? p.default;
     }
@@ -362,136 +272,80 @@
       const container = document.getElementById('sections');
       container.innerHTML = '';
       const sectionEls = {};
-      const groupEls = {};
 
       for (const p of PARAMS) {
+        const meta = sectionMeta[p.section] || { color: 'cyan', icon: '⚙' };
         if (!sectionEls[p.section]) {
           const card = document.createElement('div');
           card.className = 'card';
-          card.dataset.section = p.section;
+          card.dataset.color = meta.color;
           const count = PARAMS.filter(pp => pp.section === p.section).length;
-          card.innerHTML = `
-            <div class="card-header">
-              <span class="icon">${SECTION_ICONS[p.section] || '⚙'}</span>
-              <h2>${p.section}</h2>
-              <span class="count">${count}</span>
-            </div>
-            <div class="card-body"></div>
-          `;
+          card.innerHTML = `<div class="card-header"><span class="icon">${meta.icon}</span><h2>${p.section}</h2><span class="count">${count}</span></div><div class="card-body"></div>`;
           container.appendChild(card);
           sectionEls[p.section] = card.querySelector('.card-body');
         }
 
-        // Determine parent container (subgroup or card body)
-        let parent = sectionEls[p.section];
-        if (p.group) {
-          const groupKey = `${p.section}::${p.group}`;
-          if (!groupEls[groupKey]) {
-            const sub = document.createElement('div');
-            sub.className = 'subgroup';
-            sub.innerHTML = `<div class="subgroup-header">${p.group}</div><div class="subgroup-body"></div>`;
-            sectionEls[p.section].appendChild(sub);
-            groupEls[groupKey] = sub.querySelector('.subgroup-body');
-          }
-          parent = groupEls[groupKey];
-        }
-
-        const row = document.createElement('div');
-        row.className = 'slider-row';
         const isFloat = p.step < 1;
+        const isChanged = values[p.key] !== p.default;
         const displayVal = isFloat ? values[p.key].toFixed(2) : values[p.key];
-        const defVal = isFloat ? p.default.toFixed(2) : p.default;
-        row.innerHTML = `
-          <label title="${p.key}">${p.label}</label>
-          <div class="track-wrap">
-            <input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${values[p.key]}" data-key="${p.key}">
+
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `
+          <div class="slider-row">
+            <label title="${p.desc}">${p.label}</label>
+            <div class="track-wrap"><input type="range" min="${p.min}" max="${p.max}" step="${p.step}" value="${values[p.key]}"></div>
+            <input type="number" class="val ${isChanged ? 'changed' : 'default'}" id="val-${p.key}" value="${displayVal}" step="${p.step}" min="${p.min}" max="${p.max}">
           </div>
-          <input type="number" class="val" id="val-${p.key}" value="${displayVal}" step="${p.step}" min="${p.min}" max="${p.max}">
-          <span class="def">${defVal}</span>
+          <div class="desc">${p.desc}</div>
         `;
-        parent.appendChild(row);
+        sectionEls[p.section].appendChild(wrapper);
 
-        const slider = row.querySelector('input[type=range]');
-        const numInput = row.querySelector('input[type=number]');
+        const slider = wrapper.querySelector('input[type=range]');
+        const numInput = wrapper.querySelector('input[type=number]');
 
-        function updateValue(v) {
+        function update(v) {
           v = Math.max(p.min, Math.min(p.max, v));
           values[p.key] = v;
+          numInput.className = `val ${v !== p.default ? 'changed' : 'default'}`;
           setDirty(true);
           if (window.updatePreview) window.updatePreview(values);
         }
 
-        slider.addEventListener('input', () => {
-          const v = parseFloat(slider.value);
-          updateValue(v);
-          numInput.value = isFloat ? v.toFixed(2) : v;
-        });
-
-        numInput.addEventListener('input', () => {
-          const v = parseFloat(numInput.value);
-          if (!isNaN(v)) {
-            updateValue(v);
-            slider.value = v;
-          }
-        });
-
-        numInput.addEventListener('blur', () => {
-          const v = values[p.key];
-          numInput.value = isFloat ? v.toFixed(2) : v;
-        });
+        slider.addEventListener('input', () => { const v = parseFloat(slider.value); update(v); numInput.value = isFloat ? v.toFixed(2) : v; });
+        numInput.addEventListener('input', () => { const v = parseFloat(numInput.value); if (!isNaN(v)) { update(v); slider.value = v; } });
+        numInput.addEventListener('blur', () => { numInput.value = isFloat ? values[p.key].toFixed(2) : values[p.key]; });
       }
     }
 
     function setDirty(d) {
       dirty = d;
       const btn = document.getElementById('saveBtn');
-      if (d) {
-        btn.classList.remove('saved');
-        btn.textContent = 'Save';
-        document.getElementById('status').textContent = 'Unsaved changes';
-      } else {
-        btn.classList.add('saved');
-        btn.textContent = 'Saved';
-        document.getElementById('status').textContent = '';
-      }
+      btn.classList.toggle('saved', !d);
+      btn.textContent = d ? 'Save' : 'Saved';
+      document.getElementById('status').textContent = d ? 'Unsaved changes' : '';
     }
 
     window.save = async function() {
       try {
-        const resp = await fetch('/save-tuning', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(values),
-        });
-        if (!resp.ok) throw new Error('Server error');
+        const r = await fetch('/save-tuning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+        if (!r.ok) throw 0;
         setDirty(false);
         document.getElementById('status').textContent = 'Saved! Refresh game to apply.';
         setTimeout(() => { if (!dirty) document.getElementById('status').textContent = ''; }, 3000);
-      } catch (e) {
-        document.getElementById('status').textContent = 'Save failed — is server.js running?';
-      }
+      } catch(e) { document.getElementById('status').textContent = 'Save failed — is server.js running?'; }
     };
 
     window.resetAll = async function() {
       if (!confirm('Reset all values to defaults?')) return;
       for (const p of PARAMS) values[p.key] = p.default;
-      await fetch('/save-tuning', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-      render();
-      setDirty(false);
+      await fetch('/save-tuning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
+      render(); setDirty(false);
       if (window.updatePreview) window.updatePreview(values);
-      document.getElementById('status').textContent = 'Reset to defaults.';
     };
 
-    await load();
-    render();
-    setDirty(false);
+    await load(); render(); setDirty(false);
     if (window.updatePreview) window.updatePreview(values);
-    document.getElementById('status').textContent = 'Loaded from tuning.json';
-    setTimeout(() => document.getElementById('status').textContent = '', 2000);
+    document.getElementById('status').textContent = 'Loaded'; setTimeout(() => document.getElementById('status').textContent = '', 2000);
   </script>
 </body>
 </html>

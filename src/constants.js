@@ -83,34 +83,35 @@ export const COIN_FLY_SPEED = 400;
 
 // Auto-Weapons (VS-style, gained via level-up) — levels read from tuning
 export const MAX_AUTO_WEAPON_LEVEL = 5;
+// Auto-Weapons — levels generated from base + per-level scaling
 export const AUTO_WEAPONS = {
   turret: {
     id: 'turret', name: 'Turret', icon: '\uD83D\uDD2B', color: '#ffb74d',
     desc: 'Auto-targets nearest enemy',
-    levels: [1,2,3,4,5].map(lv => ({
-      shotsPerBurst: T(`TURRET_LV${lv}_SHOTS`, [1,2,3,4,5][lv-1]),
-      damage: T(`TURRET_LV${lv}_DAMAGE`, [10,12,14,16,18][lv-1]),
-      fireInterval: T(`TURRET_LV${lv}_FIRE_INTERVAL`, [1.2,1.1,1.0,0.9,0.8][lv-1]),
-      range: T(`TURRET_LV${lv}_RANGE`, [250,270,290,310,340][lv-1]),
+    levels: [0,1,2,3,4].map(i => ({
+      shotsPerBurst: T('TURRET_LV1_SHOTS', 1) + i * T('TURRET_SHOT_GROWTH', 1),
+      damage: T('TURRET_LV1_DAMAGE', 10) + i * T('TURRET_DAMAGE_GROWTH', 2),
+      fireInterval: Math.max(0.2, T('TURRET_LV1_FIRE_INTERVAL', 1.2) - i * T('TURRET_INTERVAL_REDUCTION', 0.1)),
+      range: T('TURRET_LV1_RANGE', 250) + i * T('TURRET_RANGE_GROWTH', 20),
     })),
   },
   steamBlast: {
     id: 'steamBlast', name: 'Steam Blast', icon: '\uD83D\uDCA8', color: '#8ecae6',
     desc: 'Aura that damages nearby enemies',
-    levels: [1,2,3,4,5].map(lv => ({
-      radius: T(`STEAM_LV${lv}_RADIUS`, [80,100,125,155,190][lv-1]),
-      damage: T(`STEAM_LV${lv}_DAMAGE`, [4,6,9,13,18][lv-1]),
-      tickRate: T(`STEAM_LV${lv}_TICK_RATE`, [0.5,0.45,0.4,0.35,0.3][lv-1]),
+    levels: [0,1,2,3,4].map(i => ({
+      radius: T('STEAM_LV1_RADIUS', 80) + i * T('STEAM_RADIUS_GROWTH', 25),
+      damage: T('STEAM_LV1_DAMAGE', 4) + i * T('STEAM_DAMAGE_GROWTH', 3),
+      tickRate: Math.max(0.1, T('STEAM_LV1_TICK_RATE', 0.5) - i * T('STEAM_TICK_REDUCTION', 0.05)),
     })),
   },
   ricochetShot: {
     id: 'ricochetShot', name: 'Laser', icon: '\u26A1', color: '#b388ff',
     desc: 'Laser that bounces between enemies',
-    levels: [1,2,3,4,5].map(lv => ({
-      bounces: T(`LASER_LV${lv}_BOUNCES`, [2,3,4,5,7][lv-1]),
-      damage: T(`LASER_LV${lv}_DAMAGE`, [8,10,13,16,20][lv-1]),
-      fireInterval: T(`LASER_LV${lv}_FIRE_INTERVAL`, [2.5,2.2,1.9,1.6,1.3][lv-1]),
-      speed: T(`LASER_LV${lv}_SPEED`, [300,320,340,360,400][lv-1]),
+    levels: [0,1,2,3,4].map(i => ({
+      bounces: T('LASER_LV1_BOUNCES', 2) + i * T('LASER_BOUNCE_GROWTH', 1),
+      damage: T('LASER_LV1_DAMAGE', 8) + i * T('LASER_DAMAGE_GROWTH', 3),
+      fireInterval: Math.max(0.3, T('LASER_LV1_FIRE_INTERVAL', 2.5) - i * T('LASER_INTERVAL_REDUCTION', 0.3)),
+      speed: T('LASER_LV1_SPEED', 300) + i * T('LASER_SPEED_GROWTH', 25),
     })),
   },
 };
