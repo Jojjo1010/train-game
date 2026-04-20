@@ -185,17 +185,17 @@
       { section: 'Your Train', key: 'CARGO_MULTIPLIER_PER_BOX', label: 'Gold Mult/Box', desc: 'How much each cargo box adds to your gold multiplier', default: 0.25, min: 0.05, max: 1, step: 0.05 },
 
       // Enemies
-      { section: 'Enemies', color: 'red', key: 'ENEMY_BASE_HP', label: 'Base HP', desc: 'Starting health of the weakest enemies', default: 20, min: 5, max: 200, step: 5 },
-      { section: 'Enemies', key: 'ENEMY_BASE_SPEED', label: 'Base Speed', desc: 'How fast enemies move toward your train', default: 50, min: 10, max: 200, step: 5 },
-      { section: 'Enemies', key: 'ENEMY_RADIUS', label: 'Base Size', desc: 'Collision radius of the smallest enemies', default: 6, min: 2, max: 30, step: 1 },
-      { section: 'Enemies', key: 'ENEMY_CONTACT_DAMAGE', label: 'Contact Damage', desc: 'Damage dealt when an enemy reaches your train', default: 6, min: 1, max: 30, step: 1 },
-      { section: 'Enemies', key: 'ENEMY_SPAWN_INTERVAL_START', label: 'Spawn Rate (start)', desc: 'Seconds between spawns at the start — lower = more enemies', default: 1.5, min: 0.2, max: 5, step: 0.1 },
-      { section: 'Enemies', key: 'ENEMY_SPAWN_INTERVAL_MIN', label: 'Spawn Rate (fastest)', desc: 'Minimum spawn interval at max difficulty', default: 0.25, min: 0.05, max: 2, step: 0.05 },
-      { section: 'Enemies', key: 'ENEMY_PURPLE_RADIUS_MULT', label: 'Purple Size', desc: 'How big purple (easy) enemies are relative to base', default: 1.5, min: 0.5, max: 5, step: 0.25 },
-      { section: 'Enemies', key: 'ENEMY_RED_RADIUS_MULT', label: 'Red Size', desc: 'How big red (hard) enemies are relative to base', default: 5, min: 1, max: 10, step: 0.5 },
-      { section: 'Enemies', key: 'ENEMY_PURPLE_HP_MULT', label: 'Purple HP Mult', desc: 'HP multiplier for purple enemies', default: 1, min: 0.5, max: 5, step: 0.5 },
-      { section: 'Enemies', key: 'ENEMY_RED1_HP_MULT', label: 'Red (mid) HP Mult', desc: 'HP multiplier for medium-difficulty red enemies', default: 4, min: 1, max: 15, step: 0.5 },
-      { section: 'Enemies', key: 'ENEMY_RED2_HP_MULT', label: 'Red (hard) HP Mult', desc: 'HP multiplier for the toughest red enemies', default: 6, min: 1, max: 20, step: 0.5 },
+      { section: 'Enemies', color: 'red', group: 'Shared', key: 'ENEMY_BASE_HP', label: 'Base HP', desc: 'Starting health before tier multipliers', default: 20, min: 5, max: 200, step: 5 },
+      { section: 'Enemies', group: 'Shared', key: 'ENEMY_BASE_SPEED', label: 'Base Speed', desc: 'How fast all enemies move toward your train', default: 50, min: 10, max: 200, step: 5 },
+      { section: 'Enemies', group: 'Shared', key: 'ENEMY_RADIUS', label: 'Base Size', desc: 'Base collision radius before tier multipliers', default: 6, min: 2, max: 30, step: 1 },
+      { section: 'Enemies', group: 'Shared', key: 'ENEMY_CONTACT_DAMAGE', label: 'Contact Damage', desc: 'Damage when an enemy reaches your train', default: 6, min: 1, max: 30, step: 1 },
+      { section: 'Enemies', group: 'Spawning', key: 'ENEMY_SPAWN_INTERVAL_START', label: 'Spawn Rate (start)', desc: 'Seconds between spawns at start — lower = more', default: 1.5, min: 0.2, max: 5, step: 0.1 },
+      { section: 'Enemies', group: 'Spawning', key: 'ENEMY_SPAWN_INTERVAL_MIN', label: 'Spawn Rate (fastest)', desc: 'Minimum interval at max difficulty', default: 0.25, min: 0.05, max: 2, step: 0.05 },
+      { section: 'Enemies', group: 'Purple (easy)', key: 'ENEMY_PURPLE_RADIUS_MULT', label: 'Size Multiplier', desc: 'How big relative to base size', default: 1.5, min: 0.5, max: 5, step: 0.25 },
+      { section: 'Enemies', group: 'Purple (easy)', key: 'ENEMY_PURPLE_HP_MULT', label: 'HP Multiplier', desc: 'HP relative to base HP', default: 1, min: 0.5, max: 5, step: 0.5 },
+      { section: 'Enemies', group: 'Red — medium', key: 'ENEMY_RED_RADIUS_MULT', label: 'Size Multiplier', desc: 'How big relative to base size', default: 5, min: 1, max: 10, step: 0.5 },
+      { section: 'Enemies', group: 'Red — medium', key: 'ENEMY_RED1_HP_MULT', label: 'HP Multiplier', desc: 'HP relative to base HP', default: 4, min: 1, max: 15, step: 0.5 },
+      { section: 'Enemies', group: 'Red — hard', key: 'ENEMY_RED2_HP_MULT', label: 'HP Multiplier', desc: 'HP relative to base HP (same size as medium)', default: 6, min: 1, max: 20, step: 0.5 },
 
       // Crew Weapons
       { section: 'Crew Weapons', color: 'blue', key: 'WEAPON_DAMAGE', label: 'Damage', desc: 'Damage per shot from crew-manned weapons', default: 12, min: 1, max: 50, step: 1 },
