@@ -62,6 +62,7 @@ export const XP_PER_LEVEL = T('XP_PER_LEVEL', 80);
 
 // World structure
 export const ZONES_PER_WORLD = T('ZONES_PER_WORLD', 3);
+export const ZONE_DIFFICULTY_SCALE = T('ZONE_DIFFICULTY_SCALE', 0.3);
 export const GOLD_PER_STATION = T('GOLD_PER_STATION', 25);
 export const COAL_PER_WIN = T('COAL_PER_WIN', 2);
 

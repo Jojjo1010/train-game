@@ -2,7 +2,7 @@ import {
   CANVAS_WIDTH, CANVAS_HEIGHT, CAMERA_TRAIN_X,
   CAR_WIDTH, CAR_HEIGHT, CAR_GAP, TRAIN_SPEED,
   TARGET_DISTANCE, AUTO_WEAPONS, MAX_AUTO_WEAPON_LEVEL, MOUNT_RADIUS,
-  ZONES_PER_WORLD, GOLD_PER_STATION, COAL_PER_WIN, SHOP_TUNING
+  ZONES_PER_WORLD, ZONE_DIFFICULTY_SCALE, GOLD_PER_STATION, COAL_PER_WIN, SHOP_TUNING
 } from './constants.js';
 import { Train } from './train.js';
 import { Renderer3D } from './renderer3d.js';
@@ -1113,7 +1113,7 @@ function updateStationArrival(dt) {
     const s = stationArrival.station;
     switch (s.type) {
       case STATION_TYPES.COMBAT:
-        combatDifficulty = zoneNumber;
+        combatDifficulty = 1 + (zoneNumber - 1) * ZONE_DIFFICULTY_SCALE;
         prepareForCombat();
         break;
       case STATION_TYPES.EXIT:
