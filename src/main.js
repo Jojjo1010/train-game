@@ -286,20 +286,16 @@ function handleKeyboardRotation(dt) {
   if (input.keyDown('KeyA') || input.keyDown('ArrowLeft')) rotate -= ROTATE_SPEED * dt;
   if (input.keyDown('KeyD') || input.keyDown('ArrowRight')) rotate += ROTATE_SPEED * dt;
   if (input.keyDown('KeyW') || input.keyDown('ArrowUp')) {
-    // Snap toward up
-    mount.coneDirection = -Math.PI / 2;
+    mount.coneDirection = mount.clampAngle(-Math.PI / 2);
     return;
   }
   if (input.keyDown('KeyS') || input.keyDown('ArrowDown')) {
-    mount.coneDirection = Math.PI / 2;
+    mount.coneDirection = mount.clampAngle(Math.PI / 2);
     return;
   }
 
   if (rotate !== 0) {
-    mount.coneDirection += rotate;
-    // Normalize
-    while (mount.coneDirection > Math.PI) mount.coneDirection -= Math.PI * 2;
-    while (mount.coneDirection < -Math.PI) mount.coneDirection += Math.PI * 2;
+    mount.coneDirection = mount.clampAngle(mount.coneDirection + rotate);
   }
 }
 
@@ -394,10 +390,10 @@ function updateSetup(dt) {
       const mouseWorld = renderer.screenToPixel
         ? renderer.screenToPixel(input.mouseX, input.mouseY)
         : { x: input.mouseX, y: input.mouseY };
-      mount.coneDirection = Math.atan2(
+      mount.coneDirection = mount.clampAngle(Math.atan2(
         mouseWorld.y - mount.worldY,
         mouseWorld.x - mount.worldX
-      );
+      ));
     }
   }
 }
@@ -488,10 +484,10 @@ function updateRun(dt) {
       const mouseWorld = renderer.screenToPixel
         ? renderer.screenToPixel(input.mouseX, input.mouseY)
         : { x: input.mouseX, y: input.mouseY };
-      mount.coneDirection = Math.atan2(
+      mount.coneDirection = mount.clampAngle(Math.atan2(
         mouseWorld.y - mount.worldY,
         mouseWorld.x - mount.worldX
-      );
+      ));
     }
   }
 
@@ -1233,10 +1229,10 @@ function updateRunPause() {
   // Aim selected mount / auto-weapon in real-time as mouse moves
   if (pauseAimMount) {
     const mouseWorld = renderer.screenToPixel(input.mouseX, input.mouseY);
-    pauseAimMount.coneDirection = Math.atan2(
+    pauseAimMount.coneDirection = pauseAimMount.clampAngle(Math.atan2(
       mouseWorld.y - pauseAimMount.worldY,
       mouseWorld.x - pauseAimMount.worldX
-    );
+    ));
     if (pauseAimMount.hasAutoWeapon) pauseAimMount.directionLocked = true;
   }
 

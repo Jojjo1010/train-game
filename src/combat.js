@@ -185,7 +185,7 @@ export class CombatSystem {
     const hasDriver = train.hasDriver;
     const areaMult = train.totalAreaMultiplier;
 
-    // Phase 1: rotate all non-player-aimed cones every frame
+    // Phase 1: rotate all non-player-aimed cones every frame (clamped to allowed arc)
     for (const mount of train.allMounts) {
       if (mount.crew === selectedCrew) continue; // selected crew aims via mouse
       const isAutoWeapon = mount.hasAutoWeapon && !mount.isManned;
@@ -193,9 +193,11 @@ export class CombatSystem {
       if (!isAutoWeapon && !isCrew) continue;
       const nearest = this.findClosestEnemy(mount, enemies, areaMult);
       if (nearest) {
-        const desiredAngle = Math.atan2(nearest.y - mount.worldY, nearest.x - mount.worldX);
+        const desiredAngle = mount.clampAngle(
+          Math.atan2(nearest.y - mount.worldY, nearest.x - mount.worldX)
+        );
         const diff = normalizeAngle(desiredAngle - mount.coneDirection);
-        const rotSpeed = isAutoWeapon ? 1.5 : 2.0; // auto-weapons rotate slower
+        const rotSpeed = isAutoWeapon ? 1.5 : 2.0;
         const maxRot = rotSpeed * dt;
         if (Math.abs(diff) < maxRot) {
           mount.coneDirection = desiredAngle;
@@ -376,7 +378,7 @@ export class CombatSystem {
               const angle = Math.atan2(ly - my, lx - mx) + (s - (stats.shotsPerBurst - 1) / 2) * 0.08;
               this.fireProjectile(mx, my, angle, dmg, 'auto', '#ff8800');
             }
-            m.coneDirection = Math.atan2(closest.y - my, closest.x - mx);
+            m.coneDirection = m.clampAngle(Math.atan2(closest.y - my, closest.x - mx));
             playShoot();
             w.cooldownTimer = stats.fireInterval * cdMult;
           }

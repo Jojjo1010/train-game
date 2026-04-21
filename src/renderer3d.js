@@ -602,36 +602,50 @@ export class Renderer3D {
       const sx = screenPos.x;
       const sy = screenPos.y;
 
-      // Firing cone visualization
+      // Firing cone visualization — fixed allowed arc + current aim
       const hasAuto = mount.hasAutoWeapon;
       if (mount.isManned || hasAuto) {
         const coneColor = mount.isManned && mount.crew
           ? mount.crew.color
           : (hasAuto && AUTO_WEAPONS[mount.autoWeaponId] ? AUTO_WEAPONS[mount.autoWeaponId].color : '#ffffff');
 
-        // Project center direction to screen space
         const dirDist = 40;
-        const dirX = offset.x + Math.cos(mount.coneDirection) * dirDist;
-        const dirZ = offset.z + Math.sin(mount.coneDirection) * dirDist;
-        const dirScreen = this._project(dirX, dirZ);
-        const screenAngle = Math.atan2(dirScreen.y - sy, dirScreen.x - sx);
+        const coneRadius = 56;
 
-        const coneRadius = 52;
-        const startAngle = screenAngle - mount.coneHalfAngle;
-        const endAngle = screenAngle + mount.coneHalfAngle;
+        // Project base direction (fixed outward angle) to screen space
+        const baseDirX = offset.x + Math.cos(mount.baseDirection) * dirDist;
+        const baseDirZ = offset.z + Math.sin(mount.baseDirection) * dirDist;
+        const baseScreen = this._project(baseDirX, baseDirZ);
+        const baseScreenAngle = Math.atan2(baseScreen.y - sy, baseScreen.x - sx);
 
+        // Full allowed arc (faint)
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(sx, sy);
-        ctx.arc(sx, sy, coneRadius, startAngle, endAngle, false);
+        ctx.arc(sx, sy, coneRadius, baseScreenAngle - mount.coneHalfAngle, baseScreenAngle + mount.coneHalfAngle, false);
         ctx.closePath();
         ctx.fillStyle = coneColor;
-        ctx.globalAlpha = 0.13;
+        ctx.globalAlpha = 0.08;
         ctx.fill();
         ctx.strokeStyle = coneColor;
-        ctx.globalAlpha = 0.45;
+        ctx.globalAlpha = 0.25;
         ctx.lineWidth = 1;
         ctx.stroke();
+
+        // Current aim direction within the arc (brighter wedge)
+        const aimDirX = offset.x + Math.cos(mount.coneDirection) * dirDist;
+        const aimDirZ = offset.z + Math.sin(mount.coneDirection) * dirDist;
+        const aimScreen = this._project(aimDirX, aimDirZ);
+        const aimScreenAngle = Math.atan2(aimScreen.y - sy, aimScreen.x - sx);
+        const aimWedge = 0.15; // small wedge showing current aim
+
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.arc(sx, sy, coneRadius * 0.85, aimScreenAngle - aimWedge, aimScreenAngle + aimWedge, false);
+        ctx.closePath();
+        ctx.fillStyle = coneColor;
+        ctx.globalAlpha = 0.4;
+        ctx.fill();
         ctx.restore();
       }
 

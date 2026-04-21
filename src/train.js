@@ -11,16 +11,28 @@ const CREW_MOVE_SPEED = 120; // px/sec
 const DOOR_PAUSE = 0.35;     // seconds to pass through a door
 
 export class WeaponMount {
-  constructor(localX, localY, defaultAngle) {
+  constructor(localX, localY, baseDirection) {
     this.localX = localX;
     this.localY = localY;
-    this.coneDirection = defaultAngle;
+    this.baseDirection = baseDirection; // fixed outward angle, never changes
+    this.coneDirection = baseDirection; // current aim within allowed arc
     this.coneHalfAngle = WEAPON_CONE_HALF_ANGLE;
     this.cooldownTimer = 0;
     this.crew = null;
     this.worldX = 0;
     this.worldY = 0;
     this.autoWeaponId = null;
+  }
+
+  // Clamp an angle to within the allowed arc (baseDirection ± coneHalfAngle)
+  clampAngle(angle) {
+    let diff = angle - this.baseDirection;
+    // Normalize to [-PI, PI]
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    if (Math.abs(diff) <= this.coneHalfAngle) return angle;
+    // Clamp to nearest edge
+    return this.baseDirection + Math.sign(diff) * this.coneHalfAngle;
   }
 
   get isManned() {
@@ -96,10 +108,11 @@ export class TrainCar {
 
     if (type === 'weapon') {
       const m = MOUNT_RADIUS + 2;
-      this.mounts.push(new WeaponMount(m, m, -Math.PI / 2));
-      this.mounts.push(new WeaponMount(CAR_WIDTH - m, m, -Math.PI / 2));
-      this.mounts.push(new WeaponMount(m, CAR_HEIGHT - m, Math.PI / 2));
-      this.mounts.push(new WeaponMount(CAR_WIDTH - m, CAR_HEIGHT - m, Math.PI / 2));
+      // Base directions face outward from train center
+      this.mounts.push(new WeaponMount(m, m, -Math.PI * 3 / 4));                // top-left → up-left
+      this.mounts.push(new WeaponMount(CAR_WIDTH - m, m, -Math.PI / 4));         // top-right → up-right
+      this.mounts.push(new WeaponMount(m, CAR_HEIGHT - m, Math.PI * 3 / 4));     // bottom-left → down-left
+      this.mounts.push(new WeaponMount(CAR_WIDTH - m, CAR_HEIGHT - m, Math.PI / 4)); // bottom-right → down-right
     } else if (type === 'locomotive') {
       this.driverSeat = new DriverSeat(CAR_WIDTH / 2, CAR_HEIGHT / 2);
     }
