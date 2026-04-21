@@ -203,18 +203,18 @@ export class Renderer3D {
       this.flyingCoinPool.push(mesh);
     }
 
-    // Bandit pool — small red box (car-like)
+    // Bandit pool — red figure (body + head)
     this.banditPool = [];
     const banditMat = new THREE.MeshLambertMaterial({ color: 0xcc3333 });
     for (let i = 0; i < MAX_BANDITS; i++) {
       const group = new THREE.Group();
       // Body
-      const body = new THREE.Mesh(new THREE.BoxGeometry(5, 3, 3), banditMat.clone());
-      body.position.y = 1.5;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(8, 10, 8), banditMat.clone());
+      body.position.y = 5;
       group.add(body);
-      // Roof/head
-      const head = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 2.5), banditMat.clone());
-      head.position.y = 3.5;
+      // Head
+      const head = new THREE.Mesh(new THREE.SphereGeometry(4, 8, 8), banditMat.clone());
+      head.position.y = 14;
       group.add(head);
       group.visible = false;
       this.scene.add(group);
