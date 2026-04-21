@@ -167,9 +167,9 @@ function generateLevelUpCards(train) {
     });
   }
 
-  // Auto-weapon cards
+  // Auto-weapon cards (max 2 auto weapons)
   for (const [id, def] of Object.entries(AUTO_WEAPONS)) {
-    if (!train.hasAutoWeapon(id) && train.hasEmptyMount) {
+    if (!train.hasAutoWeapon(id) && train.canAddAutoWeapon) {
       const wid = id;
       cards.push({
         type: 'newWeapon', weaponId: wid,
@@ -177,7 +177,7 @@ function generateLevelUpCards(train) {
         desc: `${def.desc} (pick a slot)`,
         apply(t) { pendingWeaponId = wid; },
       });
-    } else if (train.autoWeaponLevel(id) < MAX_AUTO_WEAPON_LEVEL) {
+    } else if (train.hasAutoWeapon(id) && train.autoWeaponLevel(id) < MAX_AUTO_WEAPON_LEVEL) {
       const nextLv = train.autoWeaponLevel(id) + 1;
       cards.push({
         type: 'upgradeWeapon', weaponId: id,
@@ -188,10 +188,44 @@ function generateLevelUpCards(train) {
     }
   }
 
-  // Repair is always available
-  cards.push({ type: 'defence', name: 'Repair', icon: '🔧', color: '#1abc9c',
-    desc: 'Restore 30 hull points',
-    apply(t) { t.hp = Math.min(t.hp + 30, t.maxHp); } });
+  // Defense cards (max 2 defense slots)
+  const DEFENSE_DEFS = [
+    { id: 'shield', name: 'Shield', icon: '\uD83D\uDEE1', color: '#3498db', maxLevel: 5,
+      desc: lvl => `-${(lvl) * 2} damage per hit`,
+      apply(t, lvl) { t.armorReduction = lvl * 2; } },
+    { id: 'regen', name: 'Regen', icon: '\u2764', color: '#e74c3c', maxLevel: 5,
+      desc: lvl => `+${lvl * 3} HP/sec`,
+      apply(t, lvl) { t._regenRate = lvl * 3; } },
+    { id: 'repair', name: 'Repair', icon: '\uD83D\uDD27', color: '#1abc9c', maxLevel: 1,
+      desc: () => 'Restore 30 hull points',
+      apply(t) { t.hp = Math.min(t.hp + 30, t.maxHp); } },
+  ];
+
+  for (const def of DEFENSE_DEFS) {
+    if (def.id === 'repair') {
+      // Repair is always available, doesn't take a slot
+      cards.push({ type: 'defence', name: def.name, icon: def.icon, color: def.color,
+        desc: def.desc(0), apply(t) { def.apply(t); } });
+      continue;
+    }
+    const currentLvl = train.getDefenseLevel(def.id);
+    if (currentLvl > 0 && currentLvl < def.maxLevel) {
+      // Upgrade existing
+      const nextLvl = currentLvl + 1;
+      cards.push({
+        type: 'defence', name: `${def.name} Lv${nextLvl}`, icon: def.icon, color: def.color,
+        desc: def.desc(nextLvl),
+        apply(t) { t.addOrUpgradeDefense(def); def.apply(t, nextLvl); },
+      });
+    } else if (currentLvl === 0 && train.canAddDefense) {
+      // New defense (takes a slot)
+      cards.push({
+        type: 'defence', name: `${def.name} — New!`, icon: def.icon, color: def.color,
+        desc: def.desc(1),
+        apply(t) { t.addOrUpgradeDefense(def); def.apply(t, 1); },
+      });
+    }
+  }
 
   // Shuffle and pick 3
   const shuffled = cards.sort(() => Math.random() - 0.5);
@@ -359,6 +393,10 @@ function updateRun(dt) {
   }
 
   train.distance += TRAIN_SPEED * dt;
+  // Regen defense
+  if (train._regenRate > 0) {
+    train.hp = Math.min(train.hp + train._regenRate * dt, train.maxHp);
+  }
   if (train.distance >= TARGET_DISTANCE) { won = true; enterGameOver(); return; }
   if (train.hp <= 0) { train.hp = 0; won = false; enterGameOver(); return; }
 

@@ -201,12 +201,18 @@ export class Train {
     this.shakeTimer = 0;
     this.armorReduction = 0;
     this.greedMultiplier = 1;
+    this._regenRate = 0;
 
     // Manual gun upgrade level (applies to all crew weapons)
     this.manualGunLevel = 1;
 
-    // Auto-weapons (VS-style)
+    // Auto-weapons (VS-style) — max 2
     this.autoWeapons = {};
+    this.maxAutoWeapons = 2;
+
+    // Defense slots — max 2 equipped defenses (level-up choices)
+    this.defenseSlots = []; // array of { id, name, icon, color, level }
+    this.maxDefenseSlots = 2;
 
     // In-run passives (defence + modifiers, gained via level-up)
     this.passives = {
@@ -283,7 +289,25 @@ export class Train {
     w.level++;
   }
 
+  get autoWeaponCount() { return Object.keys(this.autoWeapons).length; }
+  get canAddAutoWeapon() { return this.autoWeaponCount < this.maxAutoWeapons && this.hasEmptyMount; }
+
   hasAutoWeapon(weaponId) { return !!this.autoWeapons[weaponId]; }
+
+  // Defense slot helpers
+  hasDefense(defId) { return this.defenseSlots.some(d => d.id === defId); }
+  getDefenseLevel(defId) { return this.defenseSlots.find(d => d.id === defId)?.level || 0; }
+  get canAddDefense() { return this.defenseSlots.length < this.maxDefenseSlots; }
+
+  addOrUpgradeDefense(def) {
+    const existing = this.defenseSlots.find(d => d.id === def.id);
+    if (existing) {
+      existing.level++;
+      return;
+    }
+    if (this.defenseSlots.length >= this.maxDefenseSlots) return;
+    this.defenseSlots.push({ id: def.id, name: def.name, icon: def.icon, color: def.color, level: 1 });
+  }
 
   autoWeaponLevel(weaponId) {
     return this.autoWeapons[weaponId]?.level || 0;

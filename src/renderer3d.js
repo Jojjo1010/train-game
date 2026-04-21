@@ -1263,48 +1263,93 @@ export class Renderer3D {
   // =============================================
   drawAutoWeaponHUD(train) {
     const ctx = this.ctx;
-    const weaponIds = Object.keys(AUTO_WEAPONS);
     const startX = 16;
-    const y = CANVAS_HEIGHT - 36;
+    const slotW = 42;
+    const slotH = 30;
+    const gap = 8;
 
-    // First slot: manual crew gun (always visible)
+    // === DEFENSE SLOTS (top row) ===
+    const defY = CANVAS_HEIGHT - 72;
+    ctx.fillStyle = '#aaa';
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('DEFENSE', startX, defY - 3);
+
+    for (let i = 0; i < train.maxDefenseSlots; i++) {
+      const x = startX + i * (slotW + gap);
+      const def = train.defenseSlots[i];
+
+      ctx.fillStyle = def ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.2)';
+      this.roundRect(x, defY, slotW, slotH, 4);
+      ctx.fill();
+      ctx.strokeStyle = def ? def.color : '#444';
+      ctx.lineWidth = 1;
+      ctx.setLineDash(def ? [] : [3, 2]);
+      this.roundRect(x, defY, slotW, slotH, 4);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (def) {
+        ctx.font = '14px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = def.color;
+        ctx.fillText(def.icon, x + slotW / 2, defY + 15);
+        // Level pips
+        for (let l = 0; l < 5; l++) {
+          ctx.fillStyle = l < def.level ? def.color : '#333';
+          ctx.fillRect(x + 4 + l * 8, defY + 22, 6, 3);
+        }
+      }
+    }
+
+    // === WEAPON SLOTS (bottom row): 1 manual + 2 auto ===
+    const weapY = CANVAS_HEIGHT - 36;
+    ctx.fillStyle = '#aaa';
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('WEAPONS', startX, weapY - 3);
+
+    // Slot 0: manual crew gun
     const mgX = startX;
     const mgLevel = train.manualGunLevel;
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    this.roundRect(mgX, y, 42, 30, 4);
+    this.roundRect(mgX, weapY, slotW, slotH, 4);
     ctx.fill();
     ctx.font = '14px monospace';
     ctx.textAlign = 'center';
     ctx.fillStyle = MANUAL_GUN.color;
-    ctx.fillText(MANUAL_GUN.icon, mgX + 21, y + 15);
+    ctx.fillText(MANUAL_GUN.icon, mgX + slotW / 2, weapY + 15);
     for (let l = 0; l < 5; l++) {
       ctx.fillStyle = l < mgLevel ? MANUAL_GUN.color : '#333';
-      ctx.fillRect(mgX + 4 + l * 8, y + 22, 6, 3);
+      ctx.fillRect(mgX + 4 + l * 8, weapY + 22, 6, 3);
     }
 
-    // Remaining slots: auto-weapons
-    for (let i = 0; i < weaponIds.length; i++) {
-      const id = weaponIds[i];
-      const def = AUTO_WEAPONS[id];
-      const x = startX + (i + 1) * 50;
-      const hasIt = train.hasAutoWeapon(id);
-      const level = train.autoWeaponLevel(id);
+    // Slots 1-2: auto weapon slots
+    const equippedAutos = Object.entries(train.autoWeapons);
+    for (let i = 0; i < train.maxAutoWeapons; i++) {
+      const x = startX + (i + 1) * (slotW + gap);
+      const entry = equippedAutos[i]; // [id, {level, ...}]
 
-      ctx.fillStyle = hasIt ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.2)';
-      this.roundRect(x, y, 42, 30, 4);
+      ctx.fillStyle = entry ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.2)';
+      this.roundRect(x, weapY, slotW, slotH, 4);
       ctx.fill();
+      ctx.strokeStyle = entry ? '#555' : '#444';
+      ctx.lineWidth = 1;
+      ctx.setLineDash(entry ? [] : [3, 2]);
+      this.roundRect(x, weapY, slotW, slotH, 4);
+      ctx.stroke();
+      ctx.setLineDash([]);
 
-      ctx.font = '14px monospace';
-      ctx.textAlign = 'center';
-      if (hasIt) {
+      if (entry) {
+        const [id, w] = entry;
+        const def = AUTO_WEAPONS[id];
+        ctx.font = '14px monospace';
+        ctx.textAlign = 'center';
         ctx.fillStyle = def.color;
-        ctx.fillText(def.icon, x + 21, y + 15);
-      }
-
-      if (hasIt) {
+        ctx.fillText(def.icon, x + slotW / 2, weapY + 15);
         for (let l = 0; l < 5; l++) {
-          ctx.fillStyle = l < level ? def.color : '#333';
-          ctx.fillRect(x + 4 + l * 8, y + 22, 6, 3);
+          ctx.fillStyle = l < w.level ? def.color : '#333';
+          ctx.fillRect(x + 4 + l * 8, weapY + 22, 6, 3);
         }
       }
     }
