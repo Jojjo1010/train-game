@@ -617,30 +617,6 @@ export class Renderer3D {
         ctx.setLineDash([]);
       }
 
-      // FEATURE 1: Auto-weapon mount glow — pulsing colored ring when occupied
-      if (hasAuto && !mount._bandit) {
-        const weaponDef = AUTO_WEAPONS[mount.autoWeaponId];
-        const glowColor = weaponDef ? weaponDef.color : '#ffffff';
-        const now = performance.now();
-        const pulse = 0.55 + Math.sin(now * 0.005 + i * 1.2) * 0.45;
-        const glowR = MOUNT_RADIUS + 5 + Math.sin(now * 0.007 + i) * 2;
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(sx, sy, glowR, 0, Math.PI * 2);
-        ctx.strokeStyle = glowColor;
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = pulse * 0.7;
-        ctx.stroke();
-        // Inner fill tint
-        ctx.beginPath();
-        ctx.arc(sx, sy, MOUNT_RADIUS - 1, 0, Math.PI * 2);
-        ctx.fillStyle = glowColor;
-        ctx.globalAlpha = pulse * 0.2;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.restore();
-      }
-
       if (mount.crew) {
         ctx.font = '12px serif';
         ctx.textAlign = 'center';
@@ -666,33 +642,6 @@ export class Renderer3D {
           ctx.restore();
         }
 
-        // Project a point offset in the shooting direction to get screen-space angle
-        const dirDist = 30; // 3D offset distance
-        const dirX = offset.x + Math.cos(mount.coneDirection) * dirDist;
-        const dirZ = offset.z + Math.sin(mount.coneDirection) * dirDist;
-        const dirScreen = this._project(dirX, dirZ);
-        const screenAngle = Math.atan2(dirScreen.y - sy, dirScreen.x - sx);
-
-        const arrowLen = MOUNT_RADIUS + 8;
-        const tipX = sx + Math.cos(screenAngle) * arrowLen;
-        const tipY = sy + Math.sin(screenAngle) * arrowLen;
-        ctx.strokeStyle = mount.crew.color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(sx + Math.cos(screenAngle) * (MOUNT_RADIUS - 2),
-                   sy + Math.sin(screenAngle) * (MOUNT_RADIUS - 2));
-        ctx.lineTo(tipX, tipY);
-        ctx.stroke();
-        const headLen = 5, headAngle = 0.5;
-        ctx.fillStyle = mount.crew.color;
-        ctx.beginPath();
-        ctx.moveTo(tipX, tipY);
-        ctx.lineTo(tipX - Math.cos(screenAngle - headAngle) * headLen,
-                   tipY - Math.sin(screenAngle - headAngle) * headLen);
-        ctx.lineTo(tipX - Math.cos(screenAngle + headAngle) * headLen,
-                   tipY - Math.sin(screenAngle + headAngle) * headLen);
-        ctx.closePath();
-        ctx.fill();
       }
 
       // Screen coords for input hit-testing + overlay drawing
@@ -1824,9 +1773,9 @@ export class Renderer3D {
     const ctx = this.ctx;
     const now = performance.now();
 
-    // Wave number display — bottom-left above minimap area
+    // Wave number display — bottom, right of slot boxes
     if (waveInfo.waveNumber > 0) {
-      const waveX = 12;
+      const waveX = 188;
       const waveY = CANVAS_HEIGHT - 60;
 
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -1843,10 +1792,10 @@ export class Renderer3D {
       ctx.fillText(`${waveInfo.waveNumber}`, waveX + 50, waveY + 20);
     }
 
-    // Active modifier badge — bottom-left, above wave counter
+    // Active modifier badge — bottom, right of slot boxes
     if (waveInfo.modifier) {
       const mod = waveInfo.modifier;
-      const badgeX = 12;
+      const badgeX = 188;
       const badgeY = CANVAS_HEIGHT - 88;
       ctx.fillStyle = 'rgba(0,0,0,0.65)';
       ctx.beginPath();
@@ -2123,7 +2072,7 @@ export class Renderer3D {
     const slotH = 34;
     const gap = 6;
     // --- CREW ROW (top) ---
-    const crewY = CANVAS_HEIGHT - 116;
+    const crewY = CANVAS_HEIGHT - 130;
     ctx.fillStyle = '#ccc';
     ctx.font = 'bold 8px monospace';
     ctx.textAlign = 'left';
@@ -2161,7 +2110,7 @@ export class Renderer3D {
     }
 
     // --- WEAPONS ROW (middle, auto-weapons only) ---
-    const weapY = CANVAS_HEIGHT - 74;
+    const weapY = CANVAS_HEIGHT - 84;
     ctx.fillStyle = '#ccc';
     ctx.font = 'bold 8px monospace';
     ctx.textAlign = 'left';
@@ -2189,7 +2138,7 @@ export class Renderer3D {
     }
 
     // --- DEFENSE ROW (bottom) ---
-    const defY = CANVAS_HEIGHT - 36;
+    const defY = CANVAS_HEIGHT - 40;
     ctx.fillStyle = '#ccc';
     ctx.font = 'bold 8px monospace';
     ctx.textAlign = 'left';

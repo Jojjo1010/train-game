@@ -404,7 +404,6 @@ function renderSetup() {
   renderer.drawDepartButton(departBtn.x, departBtn.y, departBtn.w, departBtn.h,
     crewReady && input.hitRect(departBtn.x, departBtn.y, departBtn.w, departBtn.h), !crewReady);
   if (selectedCrew) renderer.drawSelectedIndicator(selectedCrew);
-  if (selectedCrew) renderer.drawCrewInfoCard(selectedCrew);
   renderer.flush();
 }
 
@@ -630,7 +629,6 @@ function renderRun() {
     }
   }
   if (selectedCrew) renderer.drawSelectedIndicator(selectedCrew);
-  if (selectedCrew) renderer.drawCrewInfoCard(selectedCrew);
   if (debugMode) drawDebugHitboxes();
   // Debug toggle button
   const dctx = renderer.ctx;
