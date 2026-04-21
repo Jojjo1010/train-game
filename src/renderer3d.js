@@ -1739,7 +1739,7 @@ export class Renderer3D {
       const zy = 60 + (seed2 / 9973) * (H - 100);
       // Subtle sway
       const sway = Math.sin(t * 0.8 + i * 1.7) * 2;
-      const alpha = 0.25 + (i % 5) * 0.06;
+      const alpha = 0.6 + (i % 5) * 0.08;
       const size = 10 + (i % 4) * 3;
       ctx.globalAlpha = alpha;
       ctx.font = `${size}px serif`;
