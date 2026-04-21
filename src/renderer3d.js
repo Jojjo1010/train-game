@@ -460,12 +460,11 @@ export class Renderer3D {
         ctx.setLineDash([]);
       }
 
-      // Crew dot + direction arrow (projected from 3D to match gun barrel)
+      // Crew cat + direction arrow (projected from 3D to match gun barrel)
       if (mount.crew) {
-        ctx.beginPath();
-        ctx.arc(sx, sy, 5, 0, Math.PI * 2);
-        ctx.fillStyle = mount.crew.color;
-        ctx.fill();
+        ctx.font = '12px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('\uD83D\uDC31', sx, sy + 4);
 
         // Project a point offset in the shooting direction to get screen-space angle
         const dirDist = 30; // 3D offset distance
@@ -723,22 +722,12 @@ export class Renderer3D {
         sx = projected.x; sy = projected.y;
       }
 
-      // Draw on 2D overlay — large visible circle
+      // Draw on 2D overlay — cat emoji
       const pulse = 0.8 + Math.sin(performance.now() * 0.008) * 0.2;
       ctx.globalAlpha = pulse;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 12, 0, Math.PI * 2);
-      ctx.fillStyle = c.color;
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Label
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 9px monospace';
+      ctx.font = '20px serif';
       ctx.textAlign = 'center';
-      ctx.fillText('CREW', sx, sy - 16);
+      ctx.fillText('\uD83D\uDC31', sx, sy + 6);
       ctx.globalAlpha = 1;
     }
   }
@@ -779,20 +768,9 @@ export class Renderer3D {
           const bobY = b.state === 0 ? Math.sin(performance.now() * 0.015) * 2 : 0;
           ctx.save();
           ctx.translate(sx, sy + bobY);
-          // Body
-          ctx.fillStyle = '#4a2a0a';
-          ctx.fillRect(-4, -4, 8, 10);
-          // Head
-          ctx.beginPath();
-          ctx.arc(0, -7, 5, 0, Math.PI * 2);
-          ctx.fillStyle = '#6b3a1a';
-          ctx.fill();
-          // Bandana
-          ctx.fillStyle = '#c0392b';
-          ctx.fillRect(-6, -11, 12, 3);
-          // Mask
-          ctx.fillStyle = '#222';
-          ctx.fillRect(-4, -7, 8, 3);
+          ctx.font = '16px serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('\uD83C\uDFCE\uFE0F', 0, 4);
           ctx.restore();
           break;
         }
@@ -800,22 +778,18 @@ export class Renderer3D {
         case 2: // ON_TRAIN
         case 3: { // FIGHTING
           const fighting = b.state === 3;
-          const flash = fighting && b.flashTimer % 0.3 < 0.15;
 
           ctx.save();
           ctx.translate(sx, sy);
           if (fighting) ctx.translate((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4);
 
-          ctx.fillStyle = flash ? '#fff' : '#4a2a0a';
-          ctx.fillRect(-4, -4, 8, 10);
-          ctx.beginPath();
-          ctx.arc(0, -7, 5, 0, Math.PI * 2);
-          ctx.fillStyle = flash ? '#fff' : '#6b3a1a';
-          ctx.fill();
-          ctx.fillStyle = flash ? '#fff' : '#c0392b';
-          ctx.fillRect(-6, -11, 12, 3);
-          ctx.fillStyle = flash ? '#ddd' : '#222';
-          ctx.fillRect(-4, -7, 8, 3);
+          if (fighting && b.flashTimer % 0.3 < 0.15) {
+            ctx.globalAlpha = 0.5;
+          }
+          ctx.font = '16px serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('\uD83C\uDFCE\uFE0F', 0, 4);
+          ctx.globalAlpha = 1;
           ctx.restore();
 
           // Status labels and effects
@@ -907,12 +881,9 @@ export class Renderer3D {
           ctx.globalAlpha = alpha;
           ctx.translate(sx, sy);
           ctx.rotate(performance.now() * 0.02);
-          ctx.fillStyle = '#4a2a0a';
-          ctx.fillRect(-4, -4, 8, 10);
-          ctx.beginPath();
-          ctx.arc(0, -7, 5, 0, Math.PI * 2);
-          ctx.fillStyle = '#6b3a1a';
-          ctx.fill();
+          ctx.font = '16px serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('\uD83C\uDFCE\uFE0F', 0, 4);
           ctx.restore();
           break;
         }
@@ -1205,18 +1176,9 @@ export class Renderer3D {
       ctx.fillStyle = 'rgba(255,255,255,0.1)';
       ctx.fill();
 
-      ctx.beginPath();
-      ctx.arc(cx, cy, CREW_RADIUS, 0, Math.PI * 2);
-      ctx.fillStyle = c.color;
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2.5;
-      ctx.stroke();
-
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 12px monospace';
+      ctx.font = '18px serif';
       ctx.textAlign = 'center';
-      ctx.fillText('' + (i + 1), cx, cy + 4);
+      ctx.fillText('\uD83D\uDC31', cx, cy + 6);
     }
   }
 
