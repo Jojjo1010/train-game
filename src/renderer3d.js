@@ -635,6 +635,7 @@ export class Renderer3D {
     if (!stats) { this.steamRing.visible = false; return; }
 
     const m = train.getAutoWeaponMount('steamBlast');
+    if (m && m._bandit) { this.steamRing.visible = false; return; }
     const cx = m ? m.worldX : train.centerX;
     const cy = m ? m.worldY : train.centerY;
     const pulse = 1 + Math.sin(performance.now() * 0.004) * 0.05;
