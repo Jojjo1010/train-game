@@ -101,11 +101,31 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* Docs page */
-    .docs-content { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+    /* Docs layout — sidebar + main */
+    .docs-layout { display: flex; max-width: 1440px; margin: 0 auto; }
+
+    /* Sidebar */
+    .docs-sidebar { width: 260px; flex-shrink: 0; height: calc(100vh - 53px); position: sticky; top: 53px; overflow-y: auto; border-right: 1px solid var(--border); padding: 20px 0; background: var(--bg-0); }
+    .docs-sidebar::-webkit-scrollbar { width: 4px; }
+    .docs-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .docs-sidebar-title { padding: 0 20px 12px; font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+    .docs-sidebar a { display: block; padding: 5px 20px; font-size: 13px; color: var(--text-dim); text-decoration: none; transition: all 0.1s; border-left: 2px solid transparent; line-height: 1.4; }
+    .docs-sidebar a:hover { color: var(--text-muted); background: rgba(255,255,255,0.02); }
+    .docs-sidebar a.active { color: var(--text); border-left-color: var(--accent); background: rgba(245,158,11,0.05); }
+    .docs-sidebar a.h3 { padding-left: 32px; font-size: 12px; color: var(--text-dim); opacity: 0.7; }
+    .docs-sidebar a.h3:hover { opacity: 1; }
+    .docs-sidebar a.h3.active { opacity: 1; color: var(--text-muted); }
+
+    @media (max-width: 900px) {
+      .docs-sidebar { display: none; }
+      .docs-main { margin-left: 0 !important; }
+    }
+
+    /* Main content */
+    .docs-main { flex: 1; min-width: 0; padding: 32px 40px; max-width: 860px; }
     .docs-content h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; color: var(--accent); }
-    .docs-content h2 { font-size: 20px; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: var(--text); }
-    .docs-content h3 { font-size: 16px; font-weight: 600; margin: 32px 0 12px; color: #e4e4e7; }
+    .docs-content h2 { font-size: 20px; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: var(--text); scroll-margin-top: 70px; }
+    .docs-content h3 { font-size: 16px; font-weight: 600; margin: 32px 0 12px; color: #e4e4e7; scroll-margin-top: 70px; }
     .docs-content h4 { font-size: 14px; font-weight: 600; margin: 24px 0 8px; color: #d4d4d8; }
     .docs-content p { font-size: 14px; line-height: 1.7; margin: 0 0 12px; color: #d4d4d8; }
     .docs-content strong { color: var(--text); }
@@ -126,10 +146,6 @@
     .docs-content input[type="checkbox"] { margin-right: 6px; accent-color: var(--accent); }
 
     .docs-loading { text-align: center; padding: 80px 24px; color: var(--text-dim); font-size: 14px; }
-    .docs-toc { background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px 24px; margin: 0 0 32px; }
-    .docs-toc h3 { margin: 0 0 12px; font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    .docs-toc a { display: block; padding: 4px 0; font-size: 13px; color: var(--text-dim); text-decoration: none; transition: color 0.1s; }
-    .docs-toc a:hover { color: var(--accent); }
   </style>
 </head>
 <body>
@@ -156,12 +172,72 @@
   </div>
 
   <div class="tab-content" id="tab-docs">
-    <div class="docs-content" id="docsContent">
-      <div class="docs-loading">Loading documentation...</div>
+    <div class="docs-layout">
+      <nav class="docs-sidebar" id="docsSidebar">
+        <div class="docs-sidebar-title">On this page</div>
+      </nav>
+      <div class="docs-main">
+        <div class="docs-content" id="docsContent">
+          <div class="docs-loading">Loading documentation...</div>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
+    let _scrollSpyCleanup = null;
+
+    function buildSidebar() {
+      const content = document.getElementById('docsContent');
+      const sidebar = document.getElementById('docsSidebar');
+      const headings = content.querySelectorAll('h2, h3');
+      // Keep the title
+      sidebar.innerHTML = '<div class="docs-sidebar-title">On this page</div>';
+
+      headings.forEach((h, i) => {
+        // Ensure heading has an id for anchor linking
+        if (!h.id) {
+          h.id = 'heading-' + i;
+        }
+        const a = document.createElement('a');
+        a.href = '#' + h.id;
+        a.textContent = h.textContent;
+        a.dataset.target = h.id;
+        if (h.tagName === 'H3') a.classList.add('h3');
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          h.scrollIntoView({ behavior: 'smooth' });
+          history.replaceState(null, '', '#' + h.id);
+        });
+        sidebar.appendChild(a);
+      });
+
+      // Scroll spy
+      if (_scrollSpyCleanup) _scrollSpyCleanup();
+
+      const observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            sidebar.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+            const link = sidebar.querySelector(`a[data-target="${entry.target.id}"]`);
+            if (link) {
+              link.classList.add('active');
+              // Scroll sidebar to keep active link visible
+              const sidebarRect = sidebar.getBoundingClientRect();
+              const linkRect = link.getBoundingClientRect();
+              if (linkRect.top < sidebarRect.top + 60 || linkRect.bottom > sidebarRect.bottom - 20) {
+                link.scrollIntoView({ block: 'center', behavior: 'smooth' });
+              }
+            }
+            break;
+          }
+        }
+      }, { rootMargin: '-60px 0px -70% 0px', threshold: 0 });
+
+      headings.forEach(h => observer.observe(h));
+      _scrollSpyCleanup = () => observer.disconnect();
+    }
+
     function switchTab(tabId) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -175,6 +251,7 @@
           .then(r => r.text())
           .then(md => {
             document.getElementById('docsContent').innerHTML = marked.parse(md);
+            buildSidebar();
           })
           .catch(() => {
             document.getElementById('docsContent').innerHTML = '<p style="color:var(--red)">Failed to load documentation. Make sure docs/UNREAL_PORT.md exists.</p>';
