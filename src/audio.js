@@ -167,11 +167,11 @@ export function playDefeatMp3() { playMp3('assets/loose.mp3', 0.7); }
 
 export function playStealCoin() {
   // Try MP3 first, fallback to synth
-  playMp3('assets/steal.mp3', 0.8).catch(() => {});
+  playMp3('assets/steal.mp3', 1.0).catch(() => {});
   // Also play a synth coin-loss sound so it's always audible
   const c = getCtx();
   const osc = c.createOscillator();
-  const g = sfxGain(0.15);
+  const g = sfxGain(0.4);
   osc.type = 'sine';
   osc.frequency.setValueAtTime(600, c.currentTime);
   osc.frequency.exponentialRampToValueAtTime(200, c.currentTime + 0.15);
