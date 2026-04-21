@@ -9,7 +9,6 @@ export const STATION_TYPES = {
 };
 
 const COAL_PER_HOP = 1;
-const STARTING_COAL = 6;
 
 export class Station {
   constructor(id, x, y, type) {
@@ -24,15 +23,20 @@ export class Station {
 }
 
 export class Zone {
-  constructor(difficulty = 1) {
+  constructor(difficulty = 1, save = null) {
     this.stations = [];
     this.currentStation = 0;
-    this.coal = STARTING_COAL;
-    this.maxCoal = STARTING_COAL;
+    this._save = save; // persistent coal lives on save object
     this.difficulty = difficulty;
     this.stationsVisited = 0;
     this.completed = false;
     this.failed = false;
+
+    // Coal delegates to save object if provided
+    if (!save) {
+      this._coal = 6;
+      this._maxCoal = 6;
+    }
 
     this.generate();
     this.stations[0].visited = true;
@@ -185,6 +189,11 @@ export class Zone {
       this.stations[nid].revealed = true;
     }
   }
+
+  get coal() { return this._save ? this._save.coal : this._coal; }
+  set coal(v) { if (this._save) this._save.coal = v; else this._coal = v; }
+  get maxCoal() { return this._save ? this._save.maxCoal : this._maxCoal; }
+  set maxCoal(v) { if (this._save) this._save.maxCoal = v; else this._maxCoal = v; }
 
   addCoal(amount) {
     this.coal = Math.min(this.coal + amount, this.maxCoal);

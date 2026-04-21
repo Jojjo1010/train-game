@@ -1555,7 +1555,7 @@ export class Renderer3D {
   // =============================================
   // SHOP
   // =============================================
-  drawShop(save, upgradeKeys, hoveredIndex, departBtn, input, kbOnDepart = false) {
+  drawShop(save, upgradeKeys, hoveredIndex, departBtn, input, kbOnDepart = false, coalCost = 30, coalAmount = 2) {
     const ctx = this.ctx;
 
     ctx.fillStyle = '#1a1a2e';
@@ -1636,6 +1636,46 @@ export class Renderer3D {
       }
       ctx.textAlign = 'left';
     }
+
+    // Coal purchase row
+    const coalY = startY + upgradeKeys.length * (rowH + 6);
+    const coalIdx = upgradeKeys.length;
+    const coalHovered = hoveredIndex === coalIdx;
+    const coalFull = save.coal >= save.maxCoal;
+    const coalCanAfford = !coalFull && save.gold >= coalCost;
+    save._coalShopY = coalY;
+
+    ctx.fillStyle = coalHovered ? '#2a3a2a' : '#1e2e1e';
+    ctx.strokeStyle = coalHovered ? '#f5a623' : '#333';
+    ctx.lineWidth = coalHovered ? 2 : 1;
+    this.roundRect(rowX, coalY, rowW, rowH, 6);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.font = '18px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#555';
+    ctx.fillText('\u2B1B', rowX + 12, coalY + 28);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText('Buy Coal', rowX + 40, coalY + 20);
+
+    ctx.fillStyle = '#888';
+    ctx.font = '11px monospace';
+    ctx.fillText(`+${coalAmount} coal (${save.coal}/${save.maxCoal})`, rowX + 40, coalY + 35);
+
+    ctx.textAlign = 'right';
+    if (coalFull) {
+      ctx.fillStyle = '#666';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText('FULL', rowX + rowW - 12, coalY + 28);
+    } else {
+      ctx.fillStyle = coalCanAfford ? '#f5a623' : '#e74c3c';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(`${coalCost}g`, rowX + rowW - 12, coalY + 28);
+    }
+    ctx.textAlign = 'left';
 
     const hovered = input.hitRect(departBtn.x, departBtn.y, departBtn.w, departBtn.h) || kbOnDepart;
     ctx.fillStyle = hovered ? '#e09520' : '#f5a623';

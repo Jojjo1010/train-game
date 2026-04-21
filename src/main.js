@@ -54,8 +54,15 @@ let pendingWeaponId = null; // weapon waiting to be placed on a mount
 
 // === PERSISTENT UPGRADES (shop, kept across worlds — costs/levels from tuner) ===
 const ST = SHOP_TUNING;
+const COAL_SHOP_COST = 30;
+const COAL_SHOP_AMOUNT = 2;
+const STARTING_COAL = 4;
+const MAX_COAL = 8;
+
 const save = {
   gold: 0,
+  coal: STARTING_COAL,
+  maxCoal: MAX_COAL,
   upgrades: {
     damage:    { level: 0, maxLevel: ST.damage.maxLevel,   cost: ST.damage.cost,    icon: '💥', color: '#ff5722', name: 'Damage',     desc: `+${ST.damage.perLevel}% weapon damage` },
     shield:    { level: 0, maxLevel: ST.shield.maxLevel,   cost: ST.shield.cost,    icon: '🛡', color: '#3498db', name: 'Shield',     desc: `-${ST.shield.perLevel} damage per hit` },
@@ -92,7 +99,7 @@ function newZone() {
     enterWorldComplete();
     return;
   }
-  zone = new Zone(zoneNumber);
+  zone = new Zone(zoneNumber, save);
   state = STATES.ZONE_MAP;
 }
 
@@ -118,7 +125,9 @@ function applyShopUpgrades() {
 
 function startNewWorld() {
   zoneNumber = 1;
-  zone = new Zone(zoneNumber);
+  save.coal = STARTING_COAL;
+  save.maxCoal = MAX_COAL;
+  zone = new Zone(zoneNumber, save);
   combatDifficulty = 1;
   train = new Train();
   selectedCrew = null;
@@ -844,7 +853,8 @@ let kbShopIndex = 0;
 let kbShopOnDepart = false;
 
 function updateShop() {
-  // Mouse hover on upgrade rows
+  // Mouse hover on upgrade rows (including coal row)
+  const totalShopRows = UPGRADE_KEYS.length + 1; // +1 for coal
   let mouseHover = -1;
   for (let i = 0; i < UPGRADE_KEYS.length; i++) {
     const key = UPGRADE_KEYS[i];
@@ -852,6 +862,10 @@ function updateShop() {
     if (u._y !== undefined && input.hitRect(60, u._y, CANVAS_WIDTH - 120, 36)) {
       mouseHover = i;
     }
+  }
+  // Coal row hover
+  if (save._coalShopY !== undefined && input.hitRect(60, save._coalShopY, CANVAS_WIDTH - 120, 36)) {
+    mouseHover = UPGRADE_KEYS.length;
   }
   if (mouseHover >= 0) {
     hoveredShopItem = mouseHover;
@@ -862,12 +876,12 @@ function updateShop() {
   if (input.keyPressed('ArrowDown') || input.keyPressed('KeyS')) {
     if (!kbShopOnDepart) {
       kbShopIndex++;
-      if (kbShopIndex >= UPGRADE_KEYS.length) { kbShopOnDepart = true; hoveredShopItem = -1; }
+      if (kbShopIndex >= totalShopRows) { kbShopOnDepart = true; hoveredShopItem = -1; }
       else hoveredShopItem = kbShopIndex;
     }
   }
   if (input.keyPressed('ArrowUp') || input.keyPressed('KeyW')) {
-    if (kbShopOnDepart) { kbShopOnDepart = false; kbShopIndex = UPGRADE_KEYS.length - 1; hoveredShopItem = kbShopIndex; }
+    if (kbShopOnDepart) { kbShopOnDepart = false; kbShopIndex = totalShopRows - 1; hoveredShopItem = kbShopIndex; }
     else { kbShopIndex = Math.max(0, kbShopIndex - 1); hoveredShopItem = kbShopIndex; }
   }
 
@@ -877,7 +891,14 @@ function updateShop() {
     if (kbShopOnDepart && confirmKey) { leaveShop(); return; }
 
     const idx = confirmKey ? kbShopIndex : hoveredShopItem;
-    if (idx >= 0 && idx < UPGRADE_KEYS.length) {
+    // Coal purchase (last item before depart)
+    if (idx === UPGRADE_KEYS.length) {
+      if (save.coal < save.maxCoal && save.gold >= COAL_SHOP_COST) {
+        save.gold -= COAL_SHOP_COST;
+        save.coal = Math.min(save.coal + COAL_SHOP_AMOUNT, save.maxCoal);
+        playPowerup();
+      }
+    } else if (idx >= 0 && idx < UPGRADE_KEYS.length) {
       const key = UPGRADE_KEYS[idx];
       const u = save.upgrades[key];
       const cost = u.cost * (u.level + 1);
@@ -897,7 +918,7 @@ function updateShop() {
 
 function renderShop() {
   renderer.drawTerrain(0);
-  renderer.drawShop(save, UPGRADE_KEYS, hoveredShopItem, departBtn, input, kbShopOnDepart);
+  renderer.drawShop(save, UPGRADE_KEYS, hoveredShopItem, departBtn, input, kbShopOnDepart, COAL_SHOP_COST, COAL_SHOP_AMOUNT);
   renderer.flush();
 }
 
@@ -1093,6 +1114,16 @@ function getReachableStations() {
 let musicStarted = false;
 function updateZoneMap() {
   renderer.setZoneGold(save.gold);
+
+  // Check if stranded (no coal, no reachable stations)
+  if (zone.failed) {
+    won = false;
+    goldEarned = 0;
+    gameOverType = 'death';
+    state = STATES.GAMEOVER;
+    playDefeat();
+    return;
+  }
 
   // Start music on first interaction
   if (!musicStarted && input.clicked) {
