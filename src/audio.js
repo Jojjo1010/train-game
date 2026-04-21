@@ -166,7 +166,19 @@ export function playWinWorldMp3() { playMp3('assets/winworld.mp3', 0.7); }
 export function playDefeatMp3() { playMp3('assets/loose.mp3', 0.7); }
 
 export function playStealCoin() {
-  playMp3('assets/steal.mp3', 0.8);
+  // Try MP3 first, fallback to synth
+  playMp3('assets/steal.mp3', 0.8).catch(() => {});
+  // Also play a synth coin-loss sound so it's always audible
+  const c = getCtx();
+  const osc = c.createOscillator();
+  const g = sfxGain(0.15);
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(600, c.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(200, c.currentTime + 0.15);
+  g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.18);
+  osc.connect(g);
+  osc.start(c.currentTime);
+  osc.stop(c.currentTime + 0.18);
 }
 
 // Preload all MP3 SFX so first play is instant
