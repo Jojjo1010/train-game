@@ -65,5 +65,5 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Game server running at http://localhost:${PORT}`);
-  console.log(`Tuner at http://localhost:${PORT}/tuner.html`);
+  console.log(`Documentation at http://localhost:${PORT}/docs.html`);
 });

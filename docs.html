@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Train Defense — Game Tuner</title>
+  <title>Train Defense — Documentation</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script type="importmap">
     { "imports": {
@@ -91,24 +92,96 @@
     .card[data-color="orange"] .card-header { border-left: 3px solid #ffb74d; }
     .card[data-color="sky"] .card-header { border-left: 3px solid #8ecae6; }
     .card[data-color="violet"] .card-header { border-left: 3px solid #b388ff; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; }
+    .tab { padding: 8px 18px; font-size: 13px; font-weight: 600; font-family: var(--font); cursor: pointer; background: transparent; border: none; color: var(--text-dim); border-bottom: 2px solid transparent; transition: all 0.15s; }
+    .tab:hover { color: var(--text-muted); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Docs page */
+    .docs-content { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+    .docs-content h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; color: var(--accent); }
+    .docs-content h2 { font-size: 20px; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); color: var(--text); }
+    .docs-content h3 { font-size: 16px; font-weight: 600; margin: 32px 0 12px; color: #e4e4e7; }
+    .docs-content h4 { font-size: 14px; font-weight: 600; margin: 24px 0 8px; color: #d4d4d8; }
+    .docs-content p { font-size: 14px; line-height: 1.7; margin: 0 0 12px; color: #d4d4d8; }
+    .docs-content strong { color: var(--text); }
+    .docs-content a { color: var(--blue); text-decoration: none; }
+    .docs-content a:hover { text-decoration: underline; }
+    .docs-content ul, .docs-content ol { margin: 0 0 16px 24px; font-size: 14px; color: #d4d4d8; line-height: 1.7; }
+    .docs-content li { margin-bottom: 4px; }
+    .docs-content blockquote { border-left: 3px solid var(--accent); padding: 8px 16px; margin: 0 0 16px; background: rgba(245,158,11,0.05); border-radius: 0 var(--radius) var(--radius) 0; }
+    .docs-content blockquote p { color: var(--text-muted); margin: 0; }
+    .docs-content code { font-family: var(--mono); font-size: 13px; background: var(--bg-2); padding: 2px 6px; border-radius: 4px; color: var(--accent); }
+    .docs-content pre { background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin: 0 0 16px; overflow-x: auto; }
+    .docs-content pre code { background: none; padding: 0; color: #d4d4d8; font-size: 13px; line-height: 1.6; }
+    .docs-content table { width: 100%; border-collapse: collapse; margin: 0 0 16px; font-size: 13px; }
+    .docs-content th { text-align: left; padding: 8px 12px; background: var(--bg-2); border: 1px solid var(--border); font-weight: 600; color: var(--text); }
+    .docs-content td { padding: 8px 12px; border: 1px solid var(--border); color: #d4d4d8; }
+    .docs-content tr:hover td { background: rgba(255,255,255,0.02); }
+    .docs-content hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+    .docs-content input[type="checkbox"] { margin-right: 6px; accent-color: var(--accent); }
+
+    .docs-loading { text-align: center; padding: 80px 24px; color: var(--text-dim); font-size: 14px; }
+    .docs-toc { background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px 24px; margin: 0 0 32px; }
+    .docs-toc h3 { margin: 0 0 12px; font-size: 14px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .docs-toc a { display: block; padding: 4px 0; font-size: 13px; color: var(--text-dim); text-decoration: none; transition: color 0.1s; }
+    .docs-toc a:hover { color: var(--accent); }
   </style>
 </head>
 <body>
   <div class="header">
     <div class="header-inner">
-      <h1><span>Train Defense</span> Tuner</h1>
+      <h1><span>Train Defense</span> Documentation</h1>
       <div class="sep"></div>
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('tuner')">Tuner</button>
+        <button class="tab" onclick="switchTab('docs')">UE5 Port Guide</button>
+      </div>
       <span class="status" id="status">Loading...</span>
-      <div class="actions">
+      <div class="actions" id="tunerActions">
         <button class="btn btn-danger" onclick="resetAll()">Reset All</button>
         <button class="btn btn-primary" id="saveBtn" onclick="save()">Save</button>
       </div>
     </div>
   </div>
 
-  <div class="content">
-    <div class="grid" id="sections"></div>
+  <div class="tab-content active" id="tab-tuner">
+    <div class="content">
+      <div class="grid" id="sections"></div>
+    </div>
   </div>
+
+  <div class="tab-content" id="tab-docs">
+    <div class="docs-content" id="docsContent">
+      <div class="docs-loading">Loading documentation...</div>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-' + tabId).classList.add('active');
+      document.querySelector(`.tab[onclick="switchTab('${tabId}')"]`).classList.add('active');
+      document.getElementById('tunerActions').style.display = tabId === 'tuner' ? 'flex' : 'none';
+
+      if (tabId === 'docs' && !window._docsLoaded) {
+        window._docsLoaded = true;
+        fetch('docs/UNREAL_PORT.md')
+          .then(r => r.text())
+          .then(md => {
+            document.getElementById('docsContent').innerHTML = marked.parse(md);
+          })
+          .catch(() => {
+            document.getElementById('docsContent').innerHTML = '<p style="color:var(--red)">Failed to load documentation. Make sure docs/UNREAL_PORT.md exists.</p>';
+          });
+      }
+    }
+  </script>
 
   <script type="module">
     import * as THREE from 'three';
