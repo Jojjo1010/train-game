@@ -1228,8 +1228,13 @@ function updateStationArrival(dt) {
       }
       case STATION_TYPES.EXIT:
         save.gold += zone.stationsVisited * GOLD_PER_STATION;
-        state = STATES.SHOP;
-        hoveredShopItem = -1;
+        if (zoneNumber >= ZONES_PER_WORLD) {
+          // Last zone — skip shop, go to world complete
+          enterWorldComplete();
+        } else {
+          state = STATES.SHOP;
+          hoveredShopItem = -1;
+        }
         break;
       case STATION_TYPES.EMPTY:
         // Stay on zone map
