@@ -163,7 +163,7 @@ function generateLevelUpCards(train) {
       const crewId = c.id;
       cards.push({
         type: 'upgradeManual',
-        name: `Crew ${crewId + 1} Gun Lv${nextLv}`, icon: '🐱' + MANUAL_GUN.icon, color: c.color,
+        name: `Crew ${crewId + 1} Gun Lv${nextLv}`, icon: MANUAL_GUN.icon + '🐱', color: c.color,
         desc: `DMG ${nextStats.damage} | Rate ${nextStats.fireRate.toFixed(1)}/s`,
         apply(t) { t.crew[crewId].gunLevel = nextLv; },
       });
