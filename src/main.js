@@ -19,6 +19,7 @@ const STATES = {
   ZONE_MAP: 0, SETUP: 1, RUNNING: 2, LEVELUP: 3, PLACE_WEAPON: 4,
   GAMEOVER: 5, PAUSED: 6, SHOP: 7, SETTINGS: 8,
   START_SCREEN: 9, WORLD_SELECT: 10, WORLD_MAP: 11,
+  RUN_PAUSE: 12,
 };
 
 // World definitions — each sets a base difficulty multiplier and theme
@@ -97,6 +98,7 @@ const shopMapBtn = { x: CANVAS_WIDTH / 2 - 150, y: CANVAS_HEIGHT - 80, w: 140, h
 const shopNextBtn = { x: CANVAS_WIDTH / 2 + 10, y: CANVAS_HEIGHT - 80, w: 140, h: 48 };
 
 let stateBeforePause = STATES.SETUP; // remember where we came from
+let pauseAimMount = null; // mount being aimed during RUN_PAUSE
 const pauseButtons = {
   resume:  { x: CANVAS_WIDTH / 2 - 100, y: 260, w: 200, h: 50 },
   restart: { x: CANVAS_WIDTH / 2 - 100, y: 330, w: 200, h: 50 },
@@ -129,11 +131,7 @@ function newZone() {
 }
 
 function leaveShop() {
-  if (zone.completed) {
-    newZone();
-  } else {
-    state = STATES.ZONE_MAP;
-  }
+  state = STATES.START_SCREEN;
 }
 
 function applyShopUpgrades() {
@@ -994,19 +992,9 @@ function updateGameOver() {
   const confirmKey = input.keyPressed('Space') || input.keyPressed('Enter');
 
   if (gameOverType === 'zone') {
-    if (input.clicked) {
-      if (input.hitRect(gameOverBtns.shop.x, gameOverBtns.shop.y, gameOverBtns.shop.w, gameOverBtns.shop.h)) {
-        state = STATES.SHOP;
-        hoveredShopItem = -1;
-        return;
-      }
-      if (input.hitRect(gameOverBtns.nextZone.x, gameOverBtns.nextZone.y, gameOverBtns.nextZone.w, gameOverBtns.nextZone.h)) {
-        state = STATES.ZONE_MAP;
-        return;
-      }
-    }
-    if (confirmKey) {
-      state = STATES.ZONE_MAP;
+    if (confirmKey || (input.clicked && input.hitRect(gameOverBtns.nextZone.x, gameOverBtns.nextZone.y, gameOverBtns.nextZone.w, gameOverBtns.nextZone.h))) {
+      newZone();
+      state = STATES.WORLD_MAP;
       return;
     }
   } else {
@@ -1047,54 +1035,38 @@ function renderGameOver() {
 let kbShopIndex = 0;
 let kbShopOnDepart = false;
 
+const shopCloseBtn = { x: CANVAS_WIDTH / 2 - 80, y: CANVAS_HEIGHT - 68, w: 160, h: 44 };
+
 function updateShop() {
-  // Mouse hover on upgrade rows (including coal row)
-  const totalShopRows = UPGRADE_KEYS.length + 1; // +1 for coal
+  // Mouse hover on upgrade rows
   let mouseHover = -1;
   for (let i = 0; i < UPGRADE_KEYS.length; i++) {
-    const key = UPGRADE_KEYS[i];
-    const u = save.upgrades[key];
-    if (u._y !== undefined && input.hitRect(60, u._y, CANVAS_WIDTH - 120, 36)) {
+    const u = save.upgrades[UPGRADE_KEYS[i]];
+    if (u._y !== undefined && input.hitRect(60, u._y, CANVAS_WIDTH - 120, 44)) {
       mouseHover = i;
     }
   }
-  // Coal row hover (Y matches renderer: startY=110, rowH=44, gap=6)
-  const coalRowY = 110 + UPGRADE_KEYS.length * (44 + 6);
-  if (input.hitRect(60, coalRowY, CANVAS_WIDTH - 120, 36)) {
-    mouseHover = UPGRADE_KEYS.length;
-  }
-  if (mouseHover >= 0) {
-    hoveredShopItem = mouseHover;
-    kbShopOnDepart = false;
-  }
+  if (mouseHover >= 0) { hoveredShopItem = mouseHover; kbShopOnDepart = false; }
 
   // Keyboard nav
   if (input.keyPressed('ArrowDown') || input.keyPressed('KeyS')) {
     if (!kbShopOnDepart) {
       kbShopIndex++;
-      if (kbShopIndex >= totalShopRows) { kbShopOnDepart = true; hoveredShopItem = -1; }
+      if (kbShopIndex >= UPGRADE_KEYS.length) { kbShopOnDepart = true; hoveredShopItem = -1; }
       else hoveredShopItem = kbShopIndex;
     }
   }
   if (input.keyPressed('ArrowUp') || input.keyPressed('KeyW')) {
-    if (kbShopOnDepart) { kbShopOnDepart = false; kbShopIndex = totalShopRows - 1; hoveredShopItem = kbShopIndex; }
+    if (kbShopOnDepart) { kbShopOnDepart = false; kbShopIndex = UPGRADE_KEYS.length - 1; hoveredShopItem = kbShopIndex; }
     else { kbShopIndex = Math.max(0, kbShopIndex - 1); hoveredShopItem = kbShopIndex; }
   }
 
   const confirmKey = input.keyPressed('Space') || input.keyPressed('Enter');
 
+  // Buy upgrade
   if (input.clicked || confirmKey) {
-    if (kbShopOnDepart && confirmKey) { leaveShop(); return; }
-
     const idx = confirmKey ? kbShopIndex : hoveredShopItem;
-    // Coal purchase (last item before depart)
-    if (idx === UPGRADE_KEYS.length) {
-      if (save.coal < save.maxCoal && save.gold >= COAL_SHOP_COST) {
-        save.gold -= COAL_SHOP_COST;
-        save.coal = Math.min(save.coal + COAL_SHOP_AMOUNT, save.maxCoal);
-        playPowerup();
-      }
-    } else if (idx >= 0 && idx < UPGRADE_KEYS.length) {
+    if (idx >= 0 && idx < UPGRADE_KEYS.length) {
       const key = UPGRADE_KEYS[idx];
       const u = save.upgrades[key];
       const cost = u.cost * (u.level + 1);
@@ -1104,24 +1076,18 @@ function updateShop() {
         playPowerup();
       }
     }
-    if (input.clicked) {
-      if (input.hitRect(shopMapBtn.x, shopMapBtn.y, shopMapBtn.w, shopMapBtn.h)) {
-        state = STATES.ZONE_MAP;
-        return;
-      }
-      if (input.hitRect(shopNextBtn.x, shopNextBtn.y, shopNextBtn.w, shopNextBtn.h)) {
-        leaveShop();
-        return;
-      }
-    }
   }
 
-  if (input.keyPressed('Escape')) { state = STATES.ZONE_MAP; }
+  // Close button
+  if ((input.clicked && input.hitRect(shopCloseBtn.x, shopCloseBtn.y, shopCloseBtn.w, shopCloseBtn.h))
+      || (confirmKey && kbShopOnDepart)
+      || input.keyPressed('Escape')) {
+    state = STATES.START_SCREEN;
+  }
 }
 
 function renderShop() {
-  renderer.drawTerrain(0);
-  renderer.drawShop(save, UPGRADE_KEYS, hoveredShopItem, shopMapBtn, shopNextBtn, input, kbShopOnDepart);
+  renderer.drawArmory(save, UPGRADE_KEYS, hoveredShopItem, shopCloseBtn, input, kbShopOnDepart);
   renderer.flush();
 }
 
@@ -1150,20 +1116,15 @@ const settingsDebugBtn = { x: CANVAS_WIDTH / 2 - 80, y: 390, w: 160, h: 36 };
 const settingsBackBtn = { x: CANVAS_WIDTH / 2 - 60, y: 440, w: 120, h: 40 };
 
 function updateSettings() {
-  if (input.keyPressed('Escape')) {
-    state = STATES.ZONE_MAP;
+  if (input.keyPressed('Escape')
+      || (input.clicked && input.hitRect(settingsBackBtn.x, settingsBackBtn.y, settingsBackBtn.w, settingsBackBtn.h))) {
+    state = STATES.START_SCREEN;
     activeSliderDrag = null;
     return;
   }
 
   if (input.clicked && input.hitRect(settingsDebugBtn.x, settingsDebugBtn.y, settingsDebugBtn.w, settingsDebugBtn.h)) {
     debugMode = !debugMode;
-  }
-
-  if (input.clicked && input.hitRect(settingsBackBtn.x, settingsBackBtn.y, settingsBackBtn.w, settingsBackBtn.h)) {
-    state = STATES.ZONE_MAP;
-    activeSliderDrag = null;
-    return;
   }
 
   updateVolumeSliders(260, 330);
@@ -1246,6 +1207,128 @@ function drawSlider(ctx, label, x, y, w, value) {
   ctx.font = '12px monospace';
   ctx.textAlign = 'left';
   ctx.fillText(`${Math.round(value * 100)}%`, x + w + 16, y + 5);
+}
+
+// --- RUN_PAUSE (tactical pause during run — Space to toggle) ---
+function updateRunPause() {
+  // Resume on Space or Escape
+  if (input.keyPressed('Space') || input.keyPressed('Escape')) {
+    pauseAimMount = null;
+    state = STATES.RUNNING;
+    lastTime = performance.now();
+    return;
+  }
+
+  // Aim selected mount / auto-weapon in real-time as mouse moves
+  if (pauseAimMount) {
+    const mouseWorld = renderer.screenToPixel(input.mouseX, input.mouseY);
+    pauseAimMount.coneDirection = Math.atan2(
+      mouseWorld.y - pauseAimMount.worldY,
+      mouseWorld.x - pauseAimMount.worldX
+    );
+    if (pauseAimMount.hasAutoWeapon) pauseAimMount.directionLocked = true;
+  }
+
+  if (input.leftClicked) {
+    // Try selecting crew first
+    const clickedCrew = findCrewAtMouse();
+    if (clickedCrew) {
+      selectedCrew = clickedCrew === selectedCrew ? null : clickedCrew;
+      pauseAimMount = null;
+      return;
+    }
+    // Try selecting a mount to aim
+    const slot = findSlotAtMouse();
+    if (slot && (slot.isManned || slot.hasAutoWeapon)) {
+      pauseAimMount = pauseAimMount === slot ? null : slot;
+      selectedCrew = null;
+      return;
+    }
+    // Click on empty — deselect all
+    selectedCrew = null;
+    pauseAimMount = null;
+  }
+
+  // Right-click with selected crew: queue crew to a slot (walks when unpaused)
+  if (input.rightClicked && selectedCrew) {
+    const slot = findSlotAtMouse();
+    if (slot && (!slot.autoWeaponId || slot._bandit)) {
+      const fromSlot = selectedCrew.assignment;
+      if (fromSlot) {
+        const fromX = fromSlot.worldX;
+        const fromY = fromSlot.worldY;
+        const fromCar = train.findCarForSlot(fromSlot);
+        train.unassignCrew(selectedCrew);
+        selectedCrew.moveScreenX = undefined;
+        train.startCrewMove(selectedCrew, fromX, fromY, fromCar, slot);
+      } else {
+        train.assignCrew(selectedCrew, slot);
+      }
+    }
+  }
+}
+
+function renderRunPause() {
+  train.updateWorldPositions(trainScreenX, trainScreenY);
+  renderer.drawTerrain(train.distance);
+  renderer.drawEnemies(spawner.pool);
+  renderer.drawTrain(train);
+  renderer.drawWeaponMounts(train, getSelectedMount(), selectedCrew !== null);
+  renderer.drawMovingCrew(train.crew);
+  renderer.drawBandits(banditSystem.pool, train.allMounts);
+  renderer.drawFlyingCoins(coinSystem.flyingCoins);
+  renderer.drawHUD(train);
+  renderer.drawWaveHUD(spawner.waveInfo);
+  renderer.drawAutoWeaponHUD(train);
+  if (train.crew.some(c => !c.assignment && !c.isMoving)) {
+    renderer.drawCrewPanel(train.crew, CANVAS_HEIGHT - 70);
+  }
+  if (selectedCrew) renderer.drawSelectedIndicator(selectedCrew);
+
+  // Highlight the mount being aimed
+  if (pauseAimMount && pauseAimMount.screenX !== undefined) {
+    const ctx = renderer.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(pauseAimMount.screenX, pauseAimMount.screenY, MOUNT_RADIUS + 6, 0, Math.PI * 2);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.8 + Math.sin(performance.now() * 0.01) * 0.2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Dark overlay
+  const ctx = renderer.ctx;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,10,0.45)';
+  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  ctx.restore();
+
+  // Banner
+  ctx.save();
+  ctx.fillStyle = 'rgba(10,20,50,0.85)';
+  ctx.fillRect(0, 0, CANVAS_WIDTH, 36);
+  ctx.strokeStyle = '#4488ff';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0, 0, CANVAS_WIDTH, 36);
+  ctx.fillStyle = '#88aaff';
+  ctx.font = 'bold 15px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('TACTICAL PAUSE', CANVAS_WIDTH / 2, 23);
+  ctx.restore();
+
+  // Instructions
+  ctx.save();
+  ctx.fillStyle = 'rgba(10,20,50,0.75)';
+  ctx.fillRect(0, CANVAS_HEIGHT - 30, CANVAS_WIDTH, 30);
+  ctx.fillStyle = '#aabbcc';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Left-click crew to select  •  Right-click slot to assign  •  Left-click gun to aim  •  SPACE / ESC to resume', CANVAS_WIDTH / 2, CANVAS_HEIGHT - 11);
+  ctx.restore();
+
+  renderer.flush();
 }
 
 // --- PAUSED ---
@@ -1494,16 +1577,27 @@ function renderZoneMap() {
 }
 
 // --- START SCREEN ---
-const startScreenBtn = { x: CANVAS_WIDTH / 2 - 110, y: CANVAS_HEIGHT / 2 + 30, w: 220, h: 56 };
+const startScreenBtns = {
+  start:    { x: CANVAS_WIDTH / 2 - 110, y: CANVAS_HEIGHT / 2 + 20,  w: 220, h: 56 },
+  powerups: { x: CANVAS_WIDTH / 2 - 120, y: CANVAS_HEIGHT / 2 + 96,  w: 110, h: 42 },
+  settings: { x: CANVAS_WIDTH / 2 + 10,  y: CANVAS_HEIGHT / 2 + 96,  w: 110, h: 42 },
+};
 
 function updateStartScreen() {
-  if (input.clicked && input.hitRect(startScreenBtn.x, startScreenBtn.y, startScreenBtn.w, startScreenBtn.h)) {
+  if (!input.clicked) return;
+  if (input.hitRect(startScreenBtns.start.x, startScreenBtns.start.y, startScreenBtns.start.w, startScreenBtns.start.h)) {
     state = STATES.WORLD_SELECT;
+  } else if (input.hitRect(startScreenBtns.powerups.x, startScreenBtns.powerups.y, startScreenBtns.powerups.w, startScreenBtns.powerups.h)) {
+    hoveredShopItem = -1;
+    kbShopIndex = 0;
+    state = STATES.SHOP;
+  } else if (input.hitRect(startScreenBtns.settings.x, startScreenBtns.settings.y, startScreenBtns.settings.w, startScreenBtns.settings.h)) {
+    state = STATES.SETTINGS;
   }
 }
 
 function renderStartScreen() {
-  renderer.drawStartScreen(startScreenBtn, input);
+  renderer.drawStartScreen(startScreenBtns, input);
   renderer.flush();
 }
 
@@ -1586,8 +1680,18 @@ function loop(timestamp) {
   // F3 toggles debug hitboxes
   if (input.keyPressed('F3')) debugMode = !debugMode;
 
-  // Esc toggles pause (from running, setup, or levelup)
-  if (state !== STATES.PAUSED && state !== STATES.GAMEOVER && state !== STATES.SHOP && state !== STATES.ZONE_MAP && state !== STATES.START_SCREEN && state !== STATES.WORLD_SELECT && state !== STATES.WORLD_MAP && input.keyPressed('Escape')) {
+  // Space enters tactical pause from RUNNING
+  if (state === STATES.RUNNING && input.keyPressed('Space')) {
+    pauseAimMount = null;
+    state = STATES.RUN_PAUSE;
+    input.endFrame();
+    renderRunPause();
+    requestAnimationFrame(loop);
+    return;
+  }
+
+  // Esc toggles pause (from running, setup, or levelup) — not from RUN_PAUSE (handled there)
+  if (state !== STATES.PAUSED && state !== STATES.RUN_PAUSE && state !== STATES.GAMEOVER && state !== STATES.SHOP && state !== STATES.ZONE_MAP && state !== STATES.START_SCREEN && state !== STATES.WORLD_SELECT && state !== STATES.WORLD_MAP && input.keyPressed('Escape')) {
     stateBeforePause = state;
     state = STATES.PAUSED;
     // Consume the frame so updatePaused doesn't see the same Esc
@@ -1610,6 +1714,7 @@ function loop(timestamp) {
     case STATES.PAUSED:        updatePaused();       renderPaused();       break;
     case STATES.SHOP:          updateShop();         renderShop();         break;
     case STATES.SETTINGS:      updateSettings();     renderSettings();     break;
+    case STATES.RUN_PAUSE:     updateRunPause();     renderRunPause();     break;
   }
   input.endFrame();
   requestAnimationFrame(loop);

@@ -2465,25 +2465,20 @@ export class Renderer3D {
     const btnY = gameOverType === 'world' ? cy + 140 : cy + 70;
 
     if (gameOverType === 'zone') {
-      // Two buttons: SHOP and NEXT ZONE
-      const shopBtn = buttons.shop;
       const nextBtn = buttons.nextZone;
-      shopBtn.y = btnY;
+      nextBtn.x = cx - 80;
       nextBtn.y = btnY;
-
-      for (const [btn, label] of [[shopBtn, 'SHOP'], [nextBtn, 'NEXT ZONE']]) {
-        const h = input.hitRect(btn.x, btn.y, btn.w, btn.h);
-        ctx.fillStyle = h ? '#3a3a5a' : '#2a2a3a';
-        ctx.strokeStyle = h ? '#f5a623' : '#555';
-        ctx.lineWidth = h ? 2 : 1;
-        this.roundRect(btn.x, btn.y, btn.w, btn.h, 8);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = h ? '#f5a623' : '#ccc';
-        ctx.font = 'bold 14px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(label, btn.x + btn.w / 2, btn.y + btn.h / 2 + 5);
-      }
+      nextBtn.w = 160;
+      const h = input.hitRect(nextBtn.x, nextBtn.y, nextBtn.w, nextBtn.h);
+      ctx.fillStyle = h ? '#e09520' : '#f5a623';
+      ctx.strokeStyle = 'transparent';
+      ctx.lineWidth = 0;
+      this.roundRect(nextBtn.x, nextBtn.y, nextBtn.w, nextBtn.h, 8);
+      ctx.fill();
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 15px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('NEXT ZONE', nextBtn.x + nextBtn.w / 2, nextBtn.y + nextBtn.h / 2 + 5);
     } else {
       const btn = buttons.continue;
       btn.y = btnY;
@@ -2503,7 +2498,163 @@ export class Renderer3D {
   }
 
   // =============================================
-  // SHOP
+  // ARMORY — permanent upgrade screen (start-screen only)
+  // =============================================
+  drawArmory(save, upgradeKeys, hoveredIndex, closeBtn, input, kbOnDepart = false) {
+    const ctx = this.ctx;
+    const cx = CANVAS_WIDTH / 2;
+
+    // Background — deep military/headquarters feel
+    ctx.fillStyle = '#0c0e0a';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // Subtle grid overlay
+    ctx.strokeStyle = 'rgba(60,80,40,0.18)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < CANVAS_WIDTH; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_HEIGHT); ctx.stroke(); }
+    for (let y = 0; y < CANVAS_HEIGHT; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_WIDTH, y); ctx.stroke(); }
+
+    // Header bar
+    ctx.fillStyle = '#141a10';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, 72);
+    ctx.strokeStyle = '#3a5028';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, CANVAS_WIDTH, 72);
+
+    ctx.fillStyle = '#8fcf60';
+    ctx.font = 'bold 30px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('⚡ ARMORY', 32, 44);
+
+    ctx.fillStyle = '#556644';
+    ctx.font = '13px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('Permanent upgrades — persist across all runs', CANVAS_WIDTH - 32, 32);
+
+    // Gold display
+    ctx.fillStyle = '#f5a623';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText(`${save.gold} Gold`, CANVAS_WIDTH - 32, 56);
+
+    // Upgrade rows
+    const rowH = 52;
+    const rowGap = 6;
+    const startY = 90;
+    const rowX = 32;
+    const rowW = CANVAS_WIDTH - 64;
+
+    for (let i = 0; i < upgradeKeys.length; i++) {
+      const key = upgradeKeys[i];
+      const u = save.upgrades[key];
+      const y = startY + i * (rowH + rowGap);
+      const isHovered = hoveredIndex === i;
+      const maxed = u.level >= u.maxLevel;
+      const cost = u.cost * (u.level + 1);
+      const canAfford = !maxed && save.gold >= cost;
+
+      u._y = y;
+
+      // Row background with left accent stripe
+      ctx.fillStyle = isHovered ? '#161e10' : '#101408';
+      this.roundRect(rowX, y, rowW, rowH, 5);
+      ctx.fill();
+      ctx.strokeStyle = isHovered ? u.color : 'rgba(60,80,40,0.5)';
+      ctx.lineWidth = isHovered ? 1.5 : 1;
+      this.roundRect(rowX, y, rowW, rowH, 5);
+      ctx.stroke();
+
+      // Left accent stripe
+      ctx.fillStyle = u.color;
+      ctx.globalAlpha = isHovered ? 0.7 : 0.35;
+      ctx.fillRect(rowX, y, 4, rowH);
+      ctx.globalAlpha = 1;
+
+      // Icon
+      ctx.font = '20px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = u.color;
+      ctx.fillText(u.icon, rowX + 16, y + rowH / 2 + 7);
+
+      // Name + description
+      ctx.fillStyle = isHovered ? '#e0e8d0' : '#a0b080';
+      ctx.font = `bold 14px monospace`;
+      ctx.fillText(u.name, rowX + 50, y + 22);
+      ctx.fillStyle = '#506040';
+      ctx.font = '11px monospace';
+      ctx.fillText(u.desc, rowX + 50, y + 38);
+
+      // Level pips
+      const pipX = rowX + rowW - 280;
+      if (key === 'crewSlots') {
+        ctx.fillStyle = u.color;
+        ctx.font = 'bold 13px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${1 + u.level} crew`, pipX + 40, y + rowH / 2 + 5);
+        ctx.textAlign = 'left';
+      } else {
+        for (let l = 0; l < u.maxLevel; l++) {
+          const px = pipX + l * 22;
+          const filled = l < u.level;
+          ctx.fillStyle = filled ? u.color : '#1e2818';
+          ctx.strokeStyle = filled ? u.color : '#2a3820';
+          ctx.lineWidth = 1;
+          this.roundRect(px, y + 16, 16, 16, 3);
+          ctx.fill();
+          ctx.stroke();
+          if (filled) {
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 11px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('✓', px + 8, y + 28);
+            ctx.textAlign = 'left';
+          }
+        }
+      }
+
+      // Cost / buy button on right
+      const buyX = rowX + rowW - 90;
+      const buyY = y + 10;
+      const buyW = 78;
+      const buyH = rowH - 20;
+      if (maxed) {
+        ctx.fillStyle = '#1a2214';
+        this.roundRect(buyX, buyY, buyW, buyH, 4);
+        ctx.fill();
+        ctx.fillStyle = '#3a5030';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('MAXED', buyX + buyW / 2, buyY + buyH / 2 + 5);
+      } else {
+        ctx.fillStyle = canAfford ? (isHovered ? '#1e3010' : '#162008') : '#200e08';
+        ctx.strokeStyle = canAfford ? (isHovered ? '#8fcf60' : '#4a7030') : '#6a2010';
+        ctx.lineWidth = canAfford && isHovered ? 1.5 : 1;
+        this.roundRect(buyX, buyY, buyW, buyH, 4);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = canAfford ? (isHovered ? '#a0e060' : '#6a9040') : '#9a4020';
+        ctx.font = 'bold 13px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${cost}g`, buyX + buyW / 2, buyY + buyH / 2 + 5);
+      }
+      ctx.textAlign = 'left';
+    }
+
+    // Close button
+    const hClose = input.hitRect(closeBtn.x, closeBtn.y, closeBtn.w, closeBtn.h) || kbOnDepart;
+    ctx.fillStyle = hClose ? '#1a1e28' : '#10121c';
+    ctx.strokeStyle = hClose ? '#5588cc' : '#203050';
+    ctx.lineWidth = hClose ? 2 : 1;
+    this.roundRect(closeBtn.x, closeBtn.y, closeBtn.w, closeBtn.h, 7);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = hClose ? '#88aadd' : '#506070';
+    ctx.font = 'bold 15px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('← BACK TO MENU', closeBtn.x + closeBtn.w / 2, closeBtn.y + closeBtn.h / 2 + 6);
+  }
+
+  // =============================================
+  // SHOP (legacy — no longer used in main game)
   // =============================================
   drawShop(save, upgradeKeys, hoveredIndex, mapBtn, nextBtn, input, kbOnDepart = false) {
     const ctx = this.ctx;
@@ -3150,26 +3301,52 @@ export class Renderer3D {
     ctx.fillStyle = 'rgba(245, 166, 35, 0.08)';
     for (let c = 0; c < 4; c++) {
       const carX = cx - 180 + c * 90;
-      const carY = 296;
+      const carY = 290;
       this.roundRect(carX, carY, 80, 36, 4);
       ctx.fill();
     }
 
-    // START GAME button
-    const h = input.hitRect(btn.x, btn.y, btn.w, btn.h);
+    // START GAME button (primary — glowing)
     const glow = 0.6 + Math.sin(t * 3) * 0.4;
-    ctx.fillStyle = h ? '#3a2800' : '#2a1c00';
-    ctx.strokeStyle = h ? `rgba(245,166,35,${0.9 + glow * 0.1})` : `rgba(245,166,35,${0.5 + glow * 0.5})`;
-    ctx.lineWidth = h ? 2.5 : 2;
-    this.roundRect(btn.x, btn.y, btn.w, btn.h, 8);
+    const hStart = input.hitRect(btn.start.x, btn.start.y, btn.start.w, btn.start.h);
+    ctx.fillStyle = hStart ? '#3a2800' : '#2a1c00';
+    ctx.strokeStyle = hStart ? `rgba(245,166,35,${0.9 + glow * 0.1})` : `rgba(245,166,35,${0.5 + glow * 0.5})`;
+    ctx.lineWidth = hStart ? 2.5 : 2;
+    this.roundRect(btn.start.x, btn.start.y, btn.start.w, btn.start.h, 8);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = h ? '#f5a623' : '#c8a96e';
+    ctx.fillStyle = hStart ? '#f5a623' : '#c8a96e';
     ctx.font = 'bold 22px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('START GAME', btn.x + btn.w / 2, btn.y + btn.h / 2 + 8);
+    ctx.fillText('START GAME', btn.start.x + btn.start.w / 2, btn.start.y + btn.start.h / 2 + 8);
 
-    ctx.fillStyle = '#555';
+    // POWER UPS button (secondary)
+    const hPU = input.hitRect(btn.powerups.x, btn.powerups.y, btn.powerups.w, btn.powerups.h);
+    ctx.fillStyle = hPU ? '#1e2a1a' : '#141e10';
+    ctx.strokeStyle = hPU ? '#4caf50' : '#2a4020';
+    ctx.lineWidth = 1.5;
+    this.roundRect(btn.powerups.x, btn.powerups.y, btn.powerups.w, btn.powerups.h, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = hPU ? '#6fcf6f' : '#4a8a4a';
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚡ POWER UPS', btn.powerups.x + btn.powerups.w / 2, btn.powerups.y + btn.powerups.h / 2 + 5);
+
+    // SETTINGS button (secondary)
+    const hSet = input.hitRect(btn.settings.x, btn.settings.y, btn.settings.w, btn.settings.h);
+    ctx.fillStyle = hSet ? '#1a1e2a' : '#10141e';
+    ctx.strokeStyle = hSet ? '#5588cc' : '#203050';
+    ctx.lineWidth = 1.5;
+    this.roundRect(btn.settings.x, btn.settings.y, btn.settings.w, btn.settings.h, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = hSet ? '#88aadd' : '#4a6080';
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('⚙ SETTINGS', btn.settings.x + btn.settings.w / 2, btn.settings.y + btn.settings.h / 2 + 5);
+
+    ctx.fillStyle = '#444';
     ctx.font = '11px monospace';
     ctx.fillText('v1.0  —  Train Defense', cx, CANVAS_HEIGHT - 16);
   }
