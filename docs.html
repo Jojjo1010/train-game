@@ -108,13 +108,27 @@
     .docs-sidebar { width: 260px; flex-shrink: 0; height: calc(100vh - 53px); position: sticky; top: 53px; overflow-y: auto; border-right: 1px solid var(--border); padding: 20px 0; background: var(--bg-0); }
     .docs-sidebar::-webkit-scrollbar { width: 4px; }
     .docs-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-    .docs-sidebar-title { padding: 0 20px 12px; font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
-    .docs-sidebar a { display: block; padding: 5px 20px; font-size: 13px; color: var(--text-dim); text-decoration: none; transition: all 0.1s; border-left: 2px solid transparent; line-height: 1.4; }
-    .docs-sidebar a:hover { color: var(--text-muted); background: rgba(255,255,255,0.02); }
-    .docs-sidebar a.active { color: var(--text); border-left-color: var(--accent); background: rgba(245,158,11,0.05); }
-    .docs-sidebar a.h3 { padding-left: 32px; font-size: 12px; color: var(--text-dim); opacity: 0.7; }
-    .docs-sidebar a.h3:hover { opacity: 1; }
-    .docs-sidebar a.h3.active { opacity: 1; color: var(--text-muted); }
+    .docs-sidebar-title { padding: 0 16px 12px; font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+    .docs-search { padding: 0 12px 12px; }
+    .docs-search input { width: 100%; padding: 7px 10px 7px 30px; font-size: 13px; font-family: var(--font); background: var(--bg-1); border: 1px solid var(--border); border-radius: 6px; color: var(--text); outline: none; transition: border-color 0.15s; }
+    .docs-search input:focus { border-color: var(--text-muted); }
+    .docs-search input::placeholder { color: var(--text-dim); }
+    .docs-search-wrap { position: relative; }
+    .docs-search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 13px; pointer-events: none; }
+
+    .docs-section { border-bottom: 1px solid rgba(63,63,70,0.5); }
+    .docs-section:last-child { border-bottom: none; }
+    .docs-section-toggle { display: flex; align-items: center; width: 100%; padding: 8px 16px; font-size: 13px; font-weight: 500; font-family: var(--font); color: var(--text-muted); background: none; border: none; cursor: pointer; text-align: left; transition: all 0.1s; gap: 8px; border-left: 2px solid transparent; }
+    .docs-section-toggle:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+    .docs-section-toggle.active { color: var(--text); border-left-color: var(--accent); }
+    .docs-section-toggle .chevron { font-size: 10px; color: var(--text-dim); transition: transform 0.15s; flex-shrink: 0; width: 12px; }
+    .docs-section-toggle.open .chevron { transform: rotate(90deg); }
+    .docs-section-children { display: none; padding: 0 0 4px; }
+    .docs-section-children.open { display: block; }
+    .docs-section-children a { display: block; padding: 4px 16px 4px 36px; font-size: 12px; color: var(--text-dim); text-decoration: none; transition: all 0.1s; border-left: 2px solid transparent; line-height: 1.5; }
+    .docs-section-children a:hover { color: var(--text-muted); background: rgba(255,255,255,0.02); }
+    .docs-section-children a.active { color: var(--text-muted); border-left-color: var(--accent); background: rgba(245,158,11,0.04); }
+    .docs-section.hidden { display: none; }
 
     @media (max-width: 900px) {
       .docs-sidebar { display: none; }
@@ -175,6 +189,13 @@
     <div class="docs-layout">
       <nav class="docs-sidebar" id="docsSidebar">
         <div class="docs-sidebar-title">On this page</div>
+        <div class="docs-search">
+          <div class="docs-search-wrap">
+            <span class="docs-search-icon">⌕</span>
+            <input type="text" id="docsSearchInput" placeholder="Search..." autocomplete="off">
+          </div>
+        </div>
+        <div id="docsSidebarNav"></div>
       </nav>
       <div class="docs-main">
         <div class="docs-content" id="docsContent">
@@ -189,27 +210,101 @@
 
     function buildSidebar() {
       const content = document.getElementById('docsContent');
-      const sidebar = document.getElementById('docsSidebar');
+      const nav = document.getElementById('docsSidebarNav');
       const headings = content.querySelectorAll('h2, h3');
-      // Keep the title
-      sidebar.innerHTML = '<div class="docs-sidebar-title">On this page</div>';
+      nav.innerHTML = '';
+
+      // Group h3s under their preceding h2
+      let currentSection = null;
+      const sections = [];
 
       headings.forEach((h, i) => {
-        // Ensure heading has an id for anchor linking
-        if (!h.id) {
-          h.id = 'heading-' + i;
+        if (!h.id) h.id = 'heading-' + i;
+        if (h.tagName === 'H2') {
+          currentSection = { h2: h, children: [] };
+          sections.push(currentSection);
+        } else if (h.tagName === 'H3' && currentSection) {
+          currentSection.children.push(h);
         }
-        const a = document.createElement('a');
-        a.href = '#' + h.id;
-        a.textContent = h.textContent;
-        a.dataset.target = h.id;
-        if (h.tagName === 'H3') a.classList.add('h3');
-        a.addEventListener('click', (e) => {
-          e.preventDefault();
-          h.scrollIntoView({ behavior: 'smooth' });
-          history.replaceState(null, '', '#' + h.id);
+      });
+
+      sections.forEach((sec, si) => {
+        const div = document.createElement('div');
+        div.className = 'docs-section';
+        div.dataset.section = si;
+
+        const hasChildren = sec.children.length > 0;
+        const toggle = document.createElement('button');
+        toggle.className = 'docs-section-toggle';
+        toggle.innerHTML = `<span class="chevron">${hasChildren ? '▸' : ''}</span><span class="section-label">${sec.h2.textContent}</span>`;
+        toggle.dataset.target = sec.h2.id;
+
+        toggle.addEventListener('click', () => {
+          if (hasChildren) {
+            toggle.classList.toggle('open');
+            childrenDiv.classList.toggle('open');
+          }
+          sec.h2.scrollIntoView({ behavior: 'smooth' });
+          history.replaceState(null, '', '#' + sec.h2.id);
         });
-        sidebar.appendChild(a);
+        div.appendChild(toggle);
+
+        const childrenDiv = document.createElement('div');
+        childrenDiv.className = 'docs-section-children';
+        sec.children.forEach(h3 => {
+          const a = document.createElement('a');
+          a.href = '#' + h3.id;
+          a.textContent = h3.textContent;
+          a.dataset.target = h3.id;
+          a.addEventListener('click', (e) => {
+            e.preventDefault();
+            h3.scrollIntoView({ behavior: 'smooth' });
+            history.replaceState(null, '', '#' + h3.id);
+          });
+          childrenDiv.appendChild(a);
+        });
+        div.appendChild(childrenDiv);
+        nav.appendChild(div);
+      });
+
+      // Search
+      const searchInput = document.getElementById('docsSearchInput');
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.toLowerCase().trim();
+        nav.querySelectorAll('.docs-section').forEach(sec => {
+          const toggle = sec.querySelector('.docs-section-toggle');
+          const children = sec.querySelector('.docs-section-children');
+          const label = toggle.querySelector('.section-label').textContent.toLowerCase();
+          const childLinks = children.querySelectorAll('a');
+
+          if (!q) {
+            sec.classList.remove('hidden');
+            childLinks.forEach(a => a.style.display = '');
+            if (!toggle.classList.contains('open')) {
+              children.classList.remove('open');
+              toggle.classList.remove('open');
+            }
+            return;
+          }
+
+          let sectionMatch = label.includes(q);
+          let anyChildMatch = false;
+          childLinks.forEach(a => {
+            const match = a.textContent.toLowerCase().includes(q);
+            a.style.display = match ? '' : 'none';
+            if (match) anyChildMatch = true;
+          });
+
+          if (sectionMatch || anyChildMatch) {
+            sec.classList.remove('hidden');
+            if (anyChildMatch) {
+              children.classList.add('open');
+              toggle.classList.add('open');
+            }
+          } else {
+            sec.classList.add('hidden');
+          }
+        });
       });
 
       // Scroll spy
@@ -217,20 +312,26 @@
 
       const observer = new IntersectionObserver((entries) => {
         for (const entry of entries) {
-          if (entry.isIntersecting) {
-            sidebar.querySelectorAll('a').forEach(a => a.classList.remove('active'));
-            const link = sidebar.querySelector(`a[data-target="${entry.target.id}"]`);
-            if (link) {
-              link.classList.add('active');
-              // Scroll sidebar to keep active link visible
-              const sidebarRect = sidebar.getBoundingClientRect();
-              const linkRect = link.getBoundingClientRect();
-              if (linkRect.top < sidebarRect.top + 60 || linkRect.bottom > sidebarRect.bottom - 20) {
-                link.scrollIntoView({ block: 'center', behavior: 'smooth' });
-              }
+          if (!entry.isIntersecting) continue;
+          const id = entry.target.id;
+          // Clear all active states
+          nav.querySelectorAll('.docs-section-toggle, .docs-section-children a').forEach(el => el.classList.remove('active'));
+
+          // Find and activate the matching element
+          const childLink = nav.querySelector(`.docs-section-children a[data-target="${id}"]`);
+          if (childLink) {
+            childLink.classList.add('active');
+            // Also activate parent section and expand it
+            const sec = childLink.closest('.docs-section');
+            if (sec) {
+              sec.querySelector('.docs-section-toggle').classList.add('active', 'open');
+              sec.querySelector('.docs-section-children').classList.add('open');
             }
-            break;
+          } else {
+            const toggle = nav.querySelector(`.docs-section-toggle[data-target="${id}"]`);
+            if (toggle) toggle.classList.add('active');
           }
+          break;
         }
       }, { rootMargin: '-60px 0px -70% 0px', threshold: 0 });
 

@@ -5,26 +5,6 @@
 
 ---
 
-## Table of Contents
-
-1. [Game Overview](#1-game-overview)
-2. [Architecture Translation Map](#2-architecture-translation-map)
-3. [Core Game Mechanics](#3-core-game-mechanics)
-4. [Systems Dependency Graph](#4-systems-dependency-graph)
-5. [UE5 Project Setup](#5-ue5-project-setup)
-6. [System-by-System Porting Guide](#6-system-by-system-porting-guide)
-7. [Asset Pipeline](#7-asset-pipeline)
-8. [Coordinate System & Scale](#8-coordinate-system--scale)
-9. [All Tuning Constants](#9-all-tuning-constants)
-10. [UI Screens & Flow](#10-ui-screens--flow)
-11. [Audio Implementation](#11-audio-implementation)
-12. [Prioritization Strategy](#12-prioritization-strategy)
-13. [Phased Porting Plan](#13-phased-porting-plan)
-14. [Common Pitfalls](#14-common-pitfalls)
-15. [Acceptance Criteria](#15-acceptance-criteria)
-
----
-
 ## 1. Game Overview
 
 **Genre:** Top-down isometric train defense / tower defense hybrid
