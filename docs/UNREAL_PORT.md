@@ -5,11 +5,59 @@
 
 ---
 
+## How to Use This Guide
+
+This document maps every concept from the existing web game to its Unreal Engine 5 equivalent. If you have never used UE5 before, start with Epic's official **"Your First Hour in Unreal Engine 5"** tutorial first, then come back here as your porting roadmap.
+
+**Reading order for beginners:**
+1. Read the **Glossary** below to learn the key UE5 terms
+2. Read the **Game Overview** to understand what we are building
+3. Read the **Prioritization Strategy** (Section 12) to understand what to build first
+4. Follow the **Phased Porting Plan** (Section 13) step by step
+5. Reference the other sections as needed during implementation
+
+---
+
+## UE5 Glossary for Beginners
+
+These terms appear throughout this document. Refer back here when you encounter something unfamiliar.
+
+| Term | What It Means |
+|---|---|
+| **Actor** | Any object placed in the game world — enemies, the train, a camera, a light. The base building block of UE5. |
+| **Component** | A modular piece you attach to an Actor to give it abilities — a mesh (visual), collision (physics), audio, etc. |
+| **Blueprint (BP)** | UE5's visual scripting system. You connect nodes instead of writing code. Also a type of asset file. |
+| **C++** | Traditional programming. Faster than Blueprints but requires compiling. Most projects use both. |
+| **UCLASS / UPROPERTY / UENUM** | C++ macros (special keywords) that register your code with the UE5 engine so it can be used in the editor and Blueprints. |
+| **GameMode** | A special Actor that defines the rules of your game — win/lose conditions, what happens when a player spawns, which state the game is in. One per level. |
+| **GameInstance** | An object that persists even when you switch levels/maps. Good for storing save data and gold that carries between zones. |
+| **Subsystem** | A singleton service (only one exists) tied to a specific lifetime. A WorldSubsystem lives as long as the current level. |
+| **Widget / UMG** | UE5's UI system (Unreal Motion Graphics). Widgets are UI elements like buttons, text labels, and health bars. |
+| **Slate** | UE5's low-level UI framework underneath UMG. More performant but harder to use. You rarely need it directly. |
+| **CommonUI** | A plugin that manages which UI layer receives input, preventing gameplay actions while a menu is open. |
+| **DataAsset** | A simple data container you can edit in the UE5 editor without recompiling code. Great for tuning values. |
+| **Enhanced Input** | UE5's input system. It separates *what the player wants to do* (Input Action) from *which button does it* (Mapping Context). |
+| **Niagara** | UE5's visual effects (VFX) system for creating particles like explosions, smoke, sparks, and confetti. |
+| **MetaSounds** | UE5's node-based audio system. You wire oscillators and filters together visually — similar to the Web Audio API. |
+| **Sound Cue** | An older, simpler audio system. Good for basic "play this sound with random pitch variation." |
+| **Socket** | A named attachment point on a 3D mesh. Like a "slot" where you can attach weapons or crew to a train car. |
+| **Raycast / Line Trace** | Projecting an invisible line from a point (like the camera) to detect what it hits. Used for mouse click detection in 3D. |
+| **Static Mesh** | A 3D model that does not animate (a crate, a coin, a train car). |
+| **Skeletal Mesh** | A 3D model with a skeleton for animation (a walking character, a waving flag). |
+| **LOD (Level of Detail)** | Simplified versions of a mesh that swap in when the object is far away, saving performance. |
+| **FVector** | UE5's type for a 3D point or direction (X, Y, Z coordinates). |
+| **FRotator** | UE5's type for a rotation in degrees (Pitch, Yaw, Roll). |
+| **Tick** | The per-frame update function. Every Actor and Component can have one. Runs once per frame. |
+| **Dynamic Material Instance** | A runtime copy of a material whose colors/properties can be changed in real-time (e.g., flashing an enemy white when hit). |
+| **FBX** | A 3D model file format. UE5 imports FBX files as Static or Skeletal Meshes. |
+
+---
+
 ## 1. Game Overview
 
 **Genre:** Top-down isometric train defense / tower defense hybrid
 **Core Fantasy:** Deliver cargo across a zombie-infested wasteland by managing crew on a moving train
-**Camera:** Orthographic isometric (position: -180, 220, 180; frustum: 300 units)
+**Camera:** Orthographic isometric — the camera has no perspective distortion, so objects look the same size regardless of distance. This is standard for isometric games.
 
 **Core Loop:**
 ```
@@ -31,6 +79,8 @@ World (3 zones) → Persistent upgrades (gold) → Next World (harder)
 ---
 
 ## 2. Architecture Translation Map
+
+> **Key concept for beginners:** In the web version, we wrote one big game loop that updates everything each frame. In UE5, this works differently — every object in the world is an **Actor** that updates itself via its own **Tick** function. You don't write the outer loop; the engine runs it for you. Your job is to create Actors and Components and let UE5 manage them.
 
 ### Core Patterns
 
@@ -80,7 +130,7 @@ World (3 zones) → Persistent upgrades (gold) → Next World (harder)
 | Property | Value | UE5 Implementation |
 |---|---|---|
 | Car dimensions | 32×14px, 6px gap | Scale to UE5 units (×100 → 3200×1400cm) or redesign to fit art |
-| Max HP | 100 (upgradeable +15/level, max 175) | `UPROPERTY` on ATrain, replicated if multiplayer |
+| Max HP | 100 (upgradeable +15/level, max 175) | Store as a `UPROPERTY` variable on ATrain (makes it editable in the UE5 editor) |
 | Speed | 167 px/sec (constant) | `FVector` velocity on train actor |
 | Distance to win | 10,000px | Track length or timer-based |
 | Cargo boxes | 4 start, multiplier: 1 + boxes × 0.25 | `UPROPERTY`, affects gold calculation |
@@ -318,26 +368,28 @@ Build order: bottom → top
 ## 5. UE5 Project Setup
 
 ### Template
-**Blank C++ project** — set up own camera rig and systems.
+When creating a new project in the Unreal Editor, choose the **Blank** template and select **C++** instead of Blueprint. This gives you a clean slate with full engine API access.
 
 ### Required Plugins
-- Enhanced Input (default in 5.7)
-- CommonUI (for layered menu management)
-- Niagara (default, for particles)
+- **Enhanced Input** (enabled by default in 5.7) — the modern input system that separates "what the player wants to do" from "which button does it"
+- **CommonUI** — helps manage which UI screen receives input, so pressing a button in a menu does not accidentally fire a weapon
+- **Niagara** (enabled by default) — UE5's visual effects system for explosions, sparks, confetti, and steam
 
 ### Blueprint vs C++ Decision
 
 | System | Approach | Reason |
 |---|---|---|
-| Game flow / state machine | C++ base, BP transitions | Performance + visual iteration |
-| Enemy AI | Blueprint BT | Visual, designer-friendly |
-| Weapon/combat logic | C++ base, BP tuning | Performance-critical loops |
-| Object pooling | C++ subsystem | Must be fast, many actors |
-| UI/HUD | BP + UMG | Inherently visual layout |
-| Save system | C++ | Typed UPROPERTY serialization |
-| Input | BP + data assets | Enhanced Input is data-driven |
+| Game flow / state machine | C++ base, Blueprint transitions | Write the core logic in C++ for performance, but let designers trigger state changes visually in Blueprint |
+| Enemy AI | Blueprint Behavior Tree | Behavior Trees are UE5's visual AI system — easy to design enemy behaviors without code |
+| Weapon/combat logic | C++ base, Blueprint tuning | Combat runs every frame for 150+ enemies — needs C++ speed. Expose damage/range values to Blueprint for easy tweaking |
+| Object pooling | C++ Subsystem | Pooling manages hundreds of actors per frame — must be as fast as possible |
+| UI/HUD | Blueprint + UMG Widgets | UI layout is inherently visual — drag and drop in the UMG editor |
+| Save system | C++ | Structured save data benefits from C++ type safety |
+| Input | Blueprint + data assets | Enhanced Input uses editor-created assets, not code — naturally Blueprint-friendly |
 
 ### Folder Structure
+
+**Naming prefix key:** `BP_` = Blueprint, `SM_` = Static Mesh, `WBP_` = Widget Blueprint, `NS_` = Niagara System, `IA_` = Input Action, `IMC_` = Input Mapping Context, `SC_` = Sound Cue, `MS_` = MetaSound, `DA_` = Data Asset, `GM_` = GameMode, `M_` = Material
 
 ```
 Content/
@@ -392,20 +444,22 @@ Content/
 
 **Source:** `main.js` — 9 states with `switch(state)` in update/render
 
-**UE5 Approach:** Custom `UENUM` in `ATrainGameMode`
+**UE5 Approach:** In UE5, you define a set of named states using an **enum** (a list of labels). The `UENUM` macro tells the engine about your enum so it can be used in the visual Blueprint editor. The **GameMode** actor checks the current state each frame and decides what systems are active.
 
 ```cpp
+// UENUM(BlueprintType) = make this list of states usable in Blueprints
+// uint8 = store as a small number (0-255), saves memory
 UENUM(BlueprintType)
 enum class ETrainGameState : uint8 {
-    ZoneMap,
-    Setup,
-    Running,
-    LevelUp,
-    PlaceWeapon,
-    GameOver,
-    Paused,
-    Shop,
-    Settings
+    ZoneMap,       // Selecting which station to travel to
+    Setup,         // Placing crew before combat
+    Running,       // Active combat
+    LevelUp,       // Choosing a level-up card
+    PlaceWeapon,   // Placing a new auto-weapon on a mount
+    GameOver,      // Win or lose screen
+    Paused,        // Pause menu
+    Shop,          // Buying upgrades between zones
+    Settings       // Audio and debug settings
 };
 ```
 
@@ -427,21 +481,24 @@ enum class ETrainGameState : uint8 {
 
 **Source:** Pre-allocated arrays with `active` flag (enemies: 150, projectiles: 300, coins: 30, bandits: 10)
 
-**UE5 Approach:** `UActorPoolSubsystem : UWorldSubsystem`
+**UE5 Approach:** Create a pool manager as a **WorldSubsystem** (a singleton service that lives as long as the level). In the web version, we just set `active = false` to "remove" an entity. In UE5, you must explicitly disable three things — otherwise the actor still costs performance even when invisible:
 
 ```cpp
-// Pool interface
+// IPoolable = an interface (a contract) that all poolable actors must follow
+// The "I" prefix is UE5's naming convention for interfaces
 class IPoolable {
-    virtual void OnActivated() = 0;
-    virtual void OnDeactivated() = 0;
+    virtual void OnActivated() = 0;    // Called when taken from pool
+    virtual void OnDeactivated() = 0;  // Called when returned to pool
 };
 
-// On deactivate:
-Actor->SetActorHiddenInGame(true);
-Actor->SetActorEnableCollision(false);
-Actor->SetActorTickEnabled(false);
-// On activate: reverse all three
+// When returning an actor to the pool, disable all three:
+Actor->SetActorHiddenInGame(true);    // Hide the 3D model
+Actor->SetActorEnableCollision(false); // Stop physics/collision checks
+Actor->SetActorTickEnabled(false);     // Stop updating every frame
+// When taking an actor from the pool, re-enable all three
 ```
+
+> **Why all three?** In the web version, skipping an inactive entity in the game loop is free. In UE5, each of these systems runs independently — a hidden actor with collision enabled will still block bullets, and a hidden actor with tick enabled will still waste CPU.
 
 **Pool Sizes:**
 
@@ -460,7 +517,9 @@ Actor->SetActorTickEnabled(false);
 
 **Source:** Mouse events (click, move) + keyboard (WASD, Escape, 1-3)
 
-**UE5 Enhanced Input Actions:**
+**UE5 Approach:** UE5's Enhanced Input system separates "what the player wants to do" (**Input Actions** like Select, Aim, Pause) from "which button does it" (**Mapping Contexts**). You can swap Mapping Contexts based on game state — for example, switching from gameplay controls to menu-only controls when a popup appears.
+
+**Input Actions to create:**
 
 | Action | Trigger | Gameplay Use |
 |---|---|---|
@@ -479,29 +538,37 @@ Actor->SetActorTickEnabled(false);
 
 **Source:** Three.js OrthographicCamera at (-180, 220, 180), frustum 300, looking at origin
 
-**UE5:**
+**UE5 Approach:** Create a camera Actor and set it to orthographic mode. The values below convert the web game's camera setup to UE5 units (centimeters).
+
 ```cpp
+// Set camera to orthographic (no perspective distortion)
 CameraComponent->ProjectionMode = ECameraProjectionMode::Orthographic;
-CameraComponent->OrthoWidth = 30000.f;  // 300 × 100 (cm conversion)
-CameraComponent->SetWorldLocation(FVector(-18000, -18000, 22000));  // converted coords
-CameraComponent->SetWorldRotation(FRotator(-35, 45, 0));  // approximate isometric
+// OrthoWidth controls how much of the world is visible (like "zoom level")
+CameraComponent->OrthoWidth = 30000.f;  // 300 web units × 100 = 30,000 cm
+// FVector = a 3D point (X, Y, Z). Position the camera above and to the side.
+CameraComponent->SetWorldLocation(FVector(-18000, -18000, 22000));
+// FRotator = rotation in degrees (Pitch, Yaw, Roll). Approximate isometric angle.
+CameraComponent->SetWorldRotation(FRotator(-35, 45, 0));
 ```
 
-**Screen Shake:** Use `UMatineeCameraShake` or camera spring arm with additive offset (0.2s duration on train damage)
+**Screen Shake:** Use `UCameraShakeBase` (create a Blueprint subclass) with 0.2s duration, triggered on train damage. A **Spring Arm** component can also add subtle camera sway.
 
 ### 6.5 Combat / Projectiles
 
 **Source:** `combat.js` — `fireProjectile()`, collision in `updateCombat()`
 
 **UE5 Approach:**
-- `AProjectile` with `UProjectileMovementComponent` (built-in!)
-- `USphereComponent` for collision overlap
-- On `OnComponentBeginOverlap` → apply damage, return to pool
+- `AProjectile` Actor with **UProjectileMovementComponent** — a built-in component that handles velocity, gravity, and bouncing for projectiles (no need to write movement code!)
+- **USphereComponent** — a sphere-shaped invisible collision volume attached to the projectile
+- **OnComponentBeginOverlap** — an event that fires automatically when the sphere touches an enemy's collision → apply damage, return projectile to pool
 
-**Lead Targeting:**
+**Lead Targeting** (predicting where the enemy will be when the bullet arrives):
 ```cpp
+// Calculate how long the bullet will take to reach the enemy's current position
 float TimeToHit = FVector::Dist(MountLoc, EnemyLoc) / ProjectileSpeed;
+// Predict where the enemy will be by then (current position + velocity × time)
 FVector PredictedLoc = EnemyLoc + EnemyVelocity * TimeToHit;
+// Calculate the direction to aim (normalized = length of 1, just direction)
 FVector AimDir = (PredictedLoc - MountLoc).GetSafeNormal();
 ```
 
@@ -509,20 +576,26 @@ FVector AimDir = (PredictedLoc - MountLoc).GetSafeNormal();
 
 **Source:** `localStorage` for audio, in-memory `save` object for progression
 
-**UE5:**
+**UE5 Approach:** UE5 has a built-in save system. You create a class that extends **USaveGame**, list the variables you want to save using `UPROPERTY`, and call `SaveGameToSlot` / `LoadGameFromSlot`. The engine handles writing everything to a file on disk.
+
 ```cpp
+// UCLASS() = register this class with the engine
+// USaveGame = UE5's base class for saveable data
 UCLASS()
 class UTrainSaveGame : public USaveGame {
-    UPROPERTY() int32 Gold;
+    UPROPERTY() int32 Gold;           // int32 = a whole number
     UPROPERTY() int32 Coal;
     UPROPERTY() int32 MaxCoal;
-    UPROPERTY() TMap<FName, int32> UpgradeLevels;
-    UPROPERTY() float MusicVolume;
+    UPROPERTY() TMap<FName, int32> UpgradeLevels;  // TMap = a dictionary/map
+    UPROPERTY() float MusicVolume;    // float = a decimal number
     UPROPERTY() float SfxVolume;
 };
+
+// Save: UGameplayStatics::SaveGameToSlot(SaveObject, "Slot1", 0);
+// Load: UGameplayStatics::LoadGameFromSlot("Slot1", 0);
 ```
 
-Store reference in `UTrainGameInstance` for cross-level persistence.
+Store the save object reference in your **GameInstance** — this persists across level loads, so your gold and upgrades survive when moving between zones.
 
 ---
 
@@ -575,6 +648,8 @@ All UI is currently code-drawn (canvas 2D). For UE5:
 
 ## 8. Coordinate System & Scale
 
+> **Important for beginners:** UE5 uses centimeters and a different axis orientation than Three.js. Don't blindly multiply everything by 100 — you may end up with a 960-meter-wide game world! We recommend using a scale factor of **×10** (1 web pixel = 10 cm) which keeps things manageable. Whatever you choose, be **consistent everywhere**.
+
 ### Axis Conversion
 
 ```
@@ -608,7 +683,7 @@ UE5.Z =  ThreeJS.Y × 100    (up)
 
 ## 9. All Tuning Constants
 
-These should be implemented as a `UDataAsset` or `UDeveloperSettings` for easy tweaking.
+Store these in a **DataAsset** (a simple data container you can edit in the UE5 editor without recompiling code) or **DeveloperSettings** (appears in the Project Settings menu). Either way, designers can tweak values without touching C++.
 
 ### Train
 ```
@@ -784,6 +859,8 @@ MAX_ENEMIES = 150               MAX_MAGNETS = 3
 
 ### UE5 Audio Architecture
 
+UE5 organizes sounds into **Sound Classes**, which are like volume groups. A "Master" class contains "Music" and "SFX" sub-classes. Set the volume on a class and all sounds in that class are affected — this replaces the web game's separate `musicGain` / `sfxGainNode` setup.
+
 ```
 Sound Classes:
 ├── Master
@@ -835,9 +912,9 @@ A port is not a rewrite — the game design is proven. The risk isn't "will it b
 | Risk | Why It's Risky | When to Prove |
 |---|---|---|
 | **Orthographic camera + isometric** | UE5 defaults to perspective. Ortho breaks some VFX, post-process, and culling. Prove it works before building anything on top. | Day 1 |
-| **150 enemies + 300 projectiles** | Object pooling in UE5 is manual and easy to get wrong (tick leaks, collision ghosts). Prove pool performance before building combat. | Week 1 |
+| **150 enemies + 300 projectiles** | Object pooling in UE5 is manual and easy to get wrong (forgetting to disable tick = wasted CPU; forgetting to disable collision = invisible blockers). Prove pool performance before building combat. | Week 1 |
 | **Click-to-select crew on 3D mounts** | Mouse raycast → 3D hit → identify mount is the core interaction. If this feels bad, the game doesn't work. | Week 1 |
-| **World-space health bars × 150** | UMG per-enemy widget won't scale. Need batched canvas or custom Slate paint. | Week 2 |
+| **World-space health bars × 150** | Creating a separate UI widget per enemy won't scale. Need a batched drawing approach. | Week 2 |
 | **Train speed + scrolling terrain** | Constant movement with parallax. If camera/terrain stutters, everything feels wrong. | Week 1 |
 
 ### Priority Tiers
@@ -934,7 +1011,7 @@ If any answer is "no", you know exactly what to fix before building more.
 **Why now:** This is THE core interaction. If mouse→3D mount feels laggy or imprecise, the game fails.
 
 - [ ] WeaponMount component on train car actors
-- [ ] Mouse raycast → identify clicked mount (Enhanced Input)
+- [ ] Mouse raycast (cast an invisible line from camera through mouse cursor into 3D world) → identify clicked mount
 - [ ] Basic crew weapon firing (auto-target closest enemy in range)
 - [ ] Collision detection (projectile overlap → enemy)
 - [ ] Damage system (HP reduction, white flash 0.1s, death)
@@ -1036,7 +1113,7 @@ If any answer is "no", you know exactly what to fix before building more.
 **Exit criteria:** Someone who played the web version says "this feels the same but better"
 
 - [ ] Final 3D models imported (train, enemies, weapons, crew, bandits)
-- [ ] Materials: damage flash (dynamic material instance), enemy tier colors
+- [ ] Materials: damage flash (dynamic material instance = a runtime copy of a material whose color can change, e.g., flash white on hit), enemy tier colors
 - [ ] All MP3 audio imported as USoundWave assets
 - [ ] MetaSounds for synth SFX (shoot, hit, kill, train damage, powerup)
 - [ ] Niagara VFX: muzzle flash, steam aura, confetti, fireworks, coin sparkle
@@ -1071,29 +1148,29 @@ If any answer is "no", you know exactly what to fix before building more.
 ## 14. Common Pitfalls
 
 ### Architecture
-- **Don't replicate the central game loop.** Let actors tick themselves. Use GameMode for rules only.
-- **Don't use strings for state/type checks.** Port to `UENUM` immediately.
-- **Don't forget `Destroy()` vs pool return.** Pooled actors must never be destroyed.
+- **Don't replicate the central game loop.** In UE5, each Actor updates itself via Tick. If you try to write one big `updateAll()` function, you will fight the engine instead of working with it.
+- **Don't use strings for state/type checks.** Convert string comparisons to `UENUM` types immediately. Strings are slow to compare and easy to misspell.
+- **Don't call `Destroy()` on pooled actors.** Always return them to the pool. If you destroy a pooled actor, the pool loses track of it and eventually runs out of pre-allocated actors.
 
 ### Coordinates
 - **Y-up → Z-up.** Every hardcoded position needs conversion.
 - **Meters → Centimeters.** Multiply all distances by 100 (or choose a consistent scale).
 - **Radians → Degrees.** All angle constants need conversion.
-- **Right-handed → Left-handed.** Negate one axis in cross products and rotations.
+- **Right-handed → Left-handed.** Some rotation math may need a sign flip when converting.
 
 ### Performance
-- **Disable tick on inactive pooled actors.** Unlike JS where skipping is free, UE5 ticking actors have overhead.
-- **Use Timers for cooldowns**, not per-frame checks (`GetWorldTimerManager().SetTimer`).
-- **Use overlap events**, not per-frame distance checks for range detection.
-- **Batch UI updates.** Don't update all HUD text every frame — use dirty flags.
+- **Disable tick on inactive pooled actors.** In JS, skipping an entity in a loop is free. In UE5, every ticking actor has CPU overhead even if it does nothing.
+- **Use Timers for cooldowns** (UE5's built-in timer system), not manual per-frame countdown checks. Timers are more efficient and cleaner.
+- **Use overlap events for range detection.** UE5's physics system can automatically notify you when actors enter a radius — much cheaper than checking distances every frame.
+- **Batch UI updates.** Don't update all HUD text every frame — only update when values actually change (use a "dirty" flag pattern).
 
 ### UI
-- **Don't create a widget per enemy health bar.** For 150 enemies, use batched canvas drawing or a single widget with custom paint.
-- **Use CommonUI input routing** to prevent gameplay input during modal menus.
+- **Don't create a widget per enemy health bar.** For 150 enemies, creating 150 separate UI widgets will tank performance. Instead, draw all health bars in a single custom widget or use world-space rendering.
+- **Use CommonUI input routing** to prevent gameplay input during menus. Without it, clicking a "Buy" button in the shop might also fire a weapon behind the menu.
 
 ### Assets
-- **Check FBX scale on import.** Three.js models will likely need ×100 scale factor.
-- **Check pivot points.** Three.js meshes center at geometry center; UE5 expects pivot at actor origin.
+- **Check FBX scale on import.** Three.js models are in meters, UE5 uses centimeters. You may need to scale models up on import.
+- **Check pivot points.** The pivot is the point around which a model rotates and positions. Three.js meshes center at geometry center; UE5 expects the pivot at the actor's "feet." If your train car rotates weirdly, the pivot is probably wrong.
 
 ---
 
