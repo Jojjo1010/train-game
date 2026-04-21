@@ -1586,26 +1586,44 @@ export class Renderer3D {
       ctx.fillText(`+${goldEarned} Gold`, cx, cy + 38);
     }
 
-    // Continue button (moved down for world complete)
     const btnY = gameOverType === 'world' ? cy + 140 : cy + 70;
-    const btn = buttons.continue;
-    const adjustedBtn = { ...btn, y: btnY };
-    const hovered = input.hitRect(adjustedBtn.x, adjustedBtn.y, adjustedBtn.w, adjustedBtn.h);
-    // Store adjusted position for hit testing
-    buttons.continue.y = btnY;
 
-    ctx.fillStyle = hovered ? '#3a3a5a' : '#2a2a3a';
-    ctx.strokeStyle = hovered ? '#f5a623' : '#555';
-    ctx.lineWidth = hovered ? 2 : 1;
-    this.roundRect(adjustedBtn.x, adjustedBtn.y, adjustedBtn.w, adjustedBtn.h, 8);
-    ctx.fill();
-    ctx.stroke();
+    if (gameOverType === 'zone') {
+      // Two buttons: SHOP and NEXT ZONE
+      const shopBtn = buttons.shop;
+      const nextBtn = buttons.nextZone;
+      shopBtn.y = btnY;
+      nextBtn.y = btnY;
 
-    ctx.fillStyle = hovered ? '#f5a623' : '#ccc';
-    ctx.font = 'bold 16px monospace';
-    ctx.textAlign = 'center';
-    const btnLabel = gameOverType === 'world' ? 'NEW WORLD' : gameOverType === 'zone' ? 'CONTINUE' : 'TRY AGAIN';
-    ctx.fillText(btnLabel, adjustedBtn.x + adjustedBtn.w / 2, adjustedBtn.y + adjustedBtn.h / 2 + 5);
+      for (const [btn, label] of [[shopBtn, 'SHOP'], [nextBtn, 'NEXT ZONE']]) {
+        const h = input.hitRect(btn.x, btn.y, btn.w, btn.h);
+        ctx.fillStyle = h ? '#3a3a5a' : '#2a2a3a';
+        ctx.strokeStyle = h ? '#f5a623' : '#555';
+        ctx.lineWidth = h ? 2 : 1;
+        this.roundRect(btn.x, btn.y, btn.w, btn.h, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = h ? '#f5a623' : '#ccc';
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, btn.x + btn.w / 2, btn.y + btn.h / 2 + 5);
+      }
+    } else {
+      const btn = buttons.continue;
+      btn.y = btnY;
+      const h = input.hitRect(btn.x, btn.y, btn.w, btn.h);
+      ctx.fillStyle = h ? '#3a3a5a' : '#2a2a3a';
+      ctx.strokeStyle = h ? '#f5a623' : '#555';
+      ctx.lineWidth = h ? 2 : 1;
+      this.roundRect(btn.x, btn.y, btn.w, btn.h, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = h ? '#f5a623' : '#ccc';
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'center';
+      const label = gameOverType === 'world' ? 'NEW WORLD' : 'TRY AGAIN';
+      ctx.fillText(label, btn.x + btn.w / 2, btn.y + btn.h / 2 + 5);
+    }
   }
 
   // =============================================
@@ -1732,17 +1750,33 @@ export class Renderer3D {
     }
     ctx.textAlign = 'left';
 
-    const hovered = input.hitRect(departBtn.x, departBtn.y, departBtn.w, departBtn.h) || kbOnDepart;
-    ctx.fillStyle = hovered ? '#e09520' : '#f5a623';
+    // Next Zone button (right side)
+    const nextZoneBtn = { x: CANVAS_WIDTH / 2 + 10, y: departBtn.y, w: 140, h: departBtn.h };
+    const mapBtn = { x: CANVAS_WIDTH / 2 - 150, y: departBtn.y, w: 140, h: departBtn.h };
+    this._shopNextZoneBtn = nextZoneBtn;
+
+    // Back to Map
+    const mapH = input.hitRect(mapBtn.x, mapBtn.y, mapBtn.w, mapBtn.h);
+    ctx.fillStyle = mapH ? '#555' : '#333';
+    this.roundRect(mapBtn.x, mapBtn.y, mapBtn.w, mapBtn.h, 8);
+    ctx.fill();
+    ctx.fillStyle = mapH ? '#fff' : '#aaa';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('BACK TO MAP', mapBtn.x + mapBtn.w / 2, mapBtn.y + mapBtn.h / 2 + 5);
+
+    // Next Zone
+    const nextH = input.hitRect(nextZoneBtn.x, nextZoneBtn.y, nextZoneBtn.w, nextZoneBtn.h) || kbOnDepart;
+    ctx.fillStyle = nextH ? '#e09520' : '#f5a623';
     ctx.strokeStyle = kbOnDepart ? '#fff' : 'transparent';
     ctx.lineWidth = 2;
-    this.roundRect(departBtn.x, departBtn.y, departBtn.w, departBtn.h, 8);
+    this.roundRect(nextZoneBtn.x, nextZoneBtn.y, nextZoneBtn.w, nextZoneBtn.h, 8);
     ctx.fill();
     if (kbOnDepart) ctx.stroke();
     ctx.fillStyle = '#000';
-    ctx.font = 'bold 18px monospace';
+    ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('BACK TO MAP', departBtn.x + departBtn.w / 2, departBtn.y + departBtn.h / 2 + 6);
+    ctx.fillText('NEXT ZONE', nextZoneBtn.x + nextZoneBtn.w / 2, nextZoneBtn.y + nextZoneBtn.h / 2 + 5);
   }
 
   // =============================================

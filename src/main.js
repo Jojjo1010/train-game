@@ -816,8 +816,9 @@ function enterGameOver() {
   gameOverType = won ? 'zone' : 'death';
   if (won) {
     playVictory();
-    renderer.spawnConfetti();
-    renderer.spawnConfetti(); // double confetti for zone win
+    for (let i = 0; i < 6; i++) {
+      setTimeout(() => renderer.spawnConfetti(), i * 150);
+    }
   } else {
     playDefeat();
   }
@@ -843,17 +844,34 @@ function enterWorldComplete() {
 
 const gameOverBtns = {
   continue: { x: CANVAS_WIDTH / 2 - 70, y: CANVAS_HEIGHT / 2 + 70, w: 140, h: 44 },
+  shop:     { x: CANVAS_WIDTH / 2 - 150, y: CANVAS_HEIGHT / 2 + 70, w: 130, h: 44 },
+  nextZone: { x: CANVAS_WIDTH / 2 + 20, y: CANVAS_HEIGHT / 2 + 70, w: 130, h: 44 },
 };
 
 function updateGameOver() {
   const confirmKey = input.keyPressed('Space') || input.keyPressed('Enter');
-  if (confirmKey) {
-    afterGameOver();
-    return;
-  }
-  if (input.clicked) {
-    const btn = gameOverBtns.continue;
-    if (input.hitRect(btn.x, btn.y, btn.w, btn.h)) {
+
+  if (gameOverType === 'zone') {
+    if (input.clicked) {
+      if (input.hitRect(gameOverBtns.shop.x, gameOverBtns.shop.y, gameOverBtns.shop.w, gameOverBtns.shop.h)) {
+        zone.addCoal(COAL_PER_WIN);
+        state = STATES.SHOP;
+        hoveredShopItem = -1;
+        return;
+      }
+      if (input.hitRect(gameOverBtns.nextZone.x, gameOverBtns.nextZone.y, gameOverBtns.nextZone.w, gameOverBtns.nextZone.h)) {
+        zone.addCoal(COAL_PER_WIN);
+        state = STATES.ZONE_MAP;
+        return;
+      }
+    }
+    if (confirmKey) {
+      zone.addCoal(COAL_PER_WIN);
+      state = STATES.ZONE_MAP;
+      return;
+    }
+  } else {
+    if (confirmKey || (input.clicked && input.hitRect(gameOverBtns.continue.x, gameOverBtns.continue.y, gameOverBtns.continue.w, gameOverBtns.continue.h))) {
       afterGameOver();
       return;
     }
@@ -862,11 +880,8 @@ function updateGameOver() {
 
 function afterGameOver() {
   if (won) {
-    // Won the combat — refuel and continue
-    zone.addCoal(COAL_PER_WIN);
     state = STATES.ZONE_MAP;
   } else {
-    // Died — restart entire world (zone 1, fresh train, keep shop upgrades)
     startNewWorld();
     state = STATES.ZONE_MAP;
   }
@@ -946,12 +961,23 @@ function updateShop() {
         playPowerup();
       }
     }
-    if (input.clicked && input.hitRect(departBtn.x, departBtn.y, departBtn.w, departBtn.h)) {
-      leaveShop();
+    if (input.clicked) {
+      // "Back to Map" button (left)
+      const mapBtn = { x: CANVAS_WIDTH / 2 - 150, y: departBtn.y, w: 140, h: departBtn.h };
+      if (input.hitRect(mapBtn.x, mapBtn.y, mapBtn.w, mapBtn.h)) {
+        state = STATES.ZONE_MAP;
+        return;
+      }
+      // "Next Zone" button (right)
+      const nextBtn = { x: CANVAS_WIDTH / 2 + 10, y: departBtn.y, w: 140, h: departBtn.h };
+      if (input.hitRect(nextBtn.x, nextBtn.y, nextBtn.w, nextBtn.h)) {
+        leaveShop();
+        return;
+      }
     }
   }
 
-  if (input.keyPressed('Escape')) { leaveShop(); }
+  if (input.keyPressed('Escape')) { state = STATES.ZONE_MAP; }
 }
 
 function renderShop() {
