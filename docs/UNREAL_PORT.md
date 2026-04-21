@@ -18,9 +18,10 @@
 9. [All Tuning Constants](#9-all-tuning-constants)
 10. [UI Screens & Flow](#10-ui-screens--flow)
 11. [Audio Implementation](#11-audio-implementation)
-12. [Phased Porting Plan](#12-phased-porting-plan)
-13. [Common Pitfalls](#13-common-pitfalls)
-14. [Acceptance Criteria](#14-acceptance-criteria)
+12. [Prioritization Strategy](#12-prioritization-strategy)
+13. [Phased Porting Plan](#13-phased-porting-plan)
+14. [Common Pitfalls](#14-common-pitfalls)
+15. [Acceptance Criteria](#15-acceptance-criteria)
 
 ---
 
@@ -843,10 +844,90 @@ Sound Classes:
 
 ---
 
-## 12. Phased Porting Plan
+## 12. Prioritization Strategy
 
-### Phase 1: Skeleton (Core rendering + movement)
+### Why Order Matters
+
+A port is not a rewrite — the game design is proven. The risk isn't "will it be fun?" but "can we make it work in UE5?" Prioritize by **technical risk** first, then **core loop**, then **meta loop**, then **polish**.
+
+### Risk Map
+
+| Risk | Why It's Risky | When to Prove |
+|---|---|---|
+| **Orthographic camera + isometric** | UE5 defaults to perspective. Ortho breaks some VFX, post-process, and culling. Prove it works before building anything on top. | Day 1 |
+| **150 enemies + 300 projectiles** | Object pooling in UE5 is manual and easy to get wrong (tick leaks, collision ghosts). Prove pool performance before building combat. | Week 1 |
+| **Click-to-select crew on 3D mounts** | Mouse raycast → 3D hit → identify mount is the core interaction. If this feels bad, the game doesn't work. | Week 1 |
+| **World-space health bars × 150** | UMG per-enemy widget won't scale. Need batched canvas or custom Slate paint. | Week 2 |
+| **Train speed + scrolling terrain** | Constant movement with parallax. If camera/terrain stutters, everything feels wrong. | Week 1 |
+
+### Priority Tiers
+
+```
+TIER 1 — PROVE IT (kill technical risk)
+  Camera rig, train movement, mouse-to-mount interaction, enemy pooling at scale
+
+TIER 2 — CORE LOOP (one fun combat run)
+  Crew assignment, manual shooting, enemy spawning, projectile collision,
+  HP/damage, game over, basic HUD
+
+TIER 3 — DEPTH (full combat variety)
+  Auto-weapons (turret, steam, laser), defenses, level-up cards,
+  bandit system, coins/magnets, damage numbers
+
+TIER 4 — META LOOP (progression across runs)
+  Zone map, station graph, coal resource, shop upgrades,
+  save/load, world completion, difficulty scaling
+
+TIER 5 — POLISH (match original feel)
+  All audio, VFX (confetti, fireworks, muzzle flash), screen shake,
+  damage flash, crew names/HUD, settings menu, keyboard nav
+```
+
+### The "Playable at Every Tier" Rule
+
+Each tier should produce something you can play-test:
+- **After Tier 1:** Train moves, you can click mounts, enemies appear and die → "Is the camera right? Does clicking feel good?"
+- **After Tier 2:** Full combat run with crew → "Is it fun? Does the core loop hold up in 3D?"
+- **After Tier 3:** Weapons, bandits, coins → "Does the complexity work? Is balance close?"
+- **After Tier 4:** Full meta loop → "Can someone play 30 minutes and feel progression?"
+- **After Tier 5:** Ship-ready → "Does it feel as good as the web version?"
+
+### What NOT to Build Early
+
+| Trap | Why to Avoid |
+|---|---|
+| Final 3D art/models | Use placeholders until gameplay is locked. Art changes are expensive. |
+| MetaSounds synthesis | Import the MP3s first. Recreate synth sounds only in polish phase. |
+| Full UI/UMG polish | Gray boxes with text are fine for Tiers 1-3. Pretty UI is Tier 5. |
+| Zone map procedural gen | Hardcode 3 test zones. Procedural gen is Tier 4. |
+| Save system | Keep state in GameInstance (memory only). Disk save is Tier 4. |
+| Settings menu | Hardcode volumes. Settings is Tier 5. |
+
+### Critical Path (shortest path to "is this port viable?")
+
+```
+Day 1-2:  Project setup → ortho camera → train actor moving along track
+Day 3-4:  Enemy pool (50 first, scale to 150) → spawn from edges → move toward train
+Day 5-6:  Mouse raycast → mount selection → projectile firing → enemy collision
+Day 7:    DECISION POINT — Does it feel right? Is performance OK?
+          If yes → proceed to Tier 2
+          If no → identify what's wrong before investing more
+```
+
+This 1-week spike answers the three biggest unknowns:
+1. Does orthographic isometric look right in UE5?
+2. Can we pool 150+ actors without performance issues?
+3. Does click-to-aim on 3D mounts feel responsive?
+
+If any answer is "no", you know exactly what to fix before building more.
+
+---
+
+## 13. Phased Porting Plan
+
+### Phase 1: Skeleton — Prove the Camera + Movement (Tier 1)
 **Goal:** Train moves through scene, camera follows, basic input works
+**Exit criteria:** You can watch the train scroll past at correct speed with ortho camera
 
 - [ ] C++ project setup, folder structure
 - [ ] Orthographic camera rig matching isometric angle
@@ -855,103 +936,159 @@ Sound Classes:
 - [ ] Enhanced Input: mouse click + keyboard basics
 - [ ] Basic UMG HUD (HP text, distance text)
 
-### Phase 2: Combat Core (Enemies + shooting)
-**Goal:** Enemies spawn, crew shoots them, enemies die
+### Phase 2: Pooling + Enemies — Prove Performance (Tier 1)
+**Goal:** 150 enemies spawn, move, and despawn without frame drops
+**Exit criteria:** Stable 60fps with 100+ enemies on screen
+**Why now:** If pooling doesn't work at scale, everything built on top is wasted
 
-- [ ] AEnemy actor with pooling subsystem
-- [ ] Enemy spawn logic (wave-based from edges)
-- [ ] AProjectile with `UProjectileMovementComponent` + pooling
-- [ ] WeaponMount component on train cars
-- [ ] Manual crew weapon firing (auto-target closest)
-- [ ] Collision detection (projectile→enemy)
-- [ ] Damage system (HP, flash, death)
-- [ ] Damage numbers (floating text)
+- [ ] `UActorPoolSubsystem` (C++) with Acquire/Release pattern
+- [ ] AEnemy actor implementing IPoolable (activate/deactivate)
+- [ ] Enemy spawn logic (wave-based from edges, move toward train)
+- [ ] Stress test: spawn 150 enemies, verify no tick leaks or collision ghosts
+- [ ] AProjectile with `UProjectileMovementComponent` + same pool subsystem
+- [ ] Projectile pool: 300 actors, verify clean return cycle
 
-### Phase 3: Crew System
-**Goal:** Player can assign crew to mounts, driver buff works
+### Phase 3: Click-to-Mount + Basic Combat — Prove Interaction (Tier 1→2)
+**Goal:** Player can click a mount, fire at enemies, enemies die
+**Exit criteria:** Click mount → projectile fires → hits enemy → enemy flashes and dies → feels responsive
+**Why now:** This is THE core interaction. If mouse→3D mount feels laggy or imprecise, the game fails.
 
-- [ ] ACrewMember actors (3, with colors)
-- [ ] Crew panel UI (UMG)
-- [ ] Click-to-select, click-to-assign
-- [ ] Animated crew walk between cars (door waypoints)
+- [ ] WeaponMount component on train car actors
+- [ ] Mouse raycast → identify clicked mount (Enhanced Input)
+- [ ] Basic crew weapon firing (auto-target closest enemy in range)
+- [ ] Collision detection (projectile overlap → enemy)
+- [ ] Damage system (HP reduction, white flash 0.1s, death)
+- [ ] Damage numbers (floating text, size/color scale with damage)
+- [ ] Basic HUD: HP bar, distance counter, kill counter
+
+**⚡ DECISION POINT after Phase 3:** Play-test for 5 minutes. Does it feel right?
+- Camera angle correct? → If not, adjust before Phase 4
+- Clicking mounts intuitive? → If not, try larger hit areas or visual highlights
+- Performance with 100 enemies + 50 projectiles? → If not, profile and fix pooling
+
+### Phase 4: Crew Assignment — Complete Core Loop (Tier 2)
+**Goal:** Full combat run from setup to game over with crew management
+**Exit criteria:** Play a complete run: place crew → fight → take damage → win or die
+
+- [ ] ACrewMember actors (3, with crew colors)
+- [ ] Crew panel UI (simple UMG list)
+- [ ] Left-click to select crew, right-click mount to assign
+- [ ] Animated crew walk between cars (door waypoints, 120px/sec, 0.35s pause)
 - [ ] Driver seat + 1.5× damage buff
-- [ ] Selected crew aims at mouse (manual targeting)
+- [ ] Selected crew aims at mouse (manual targeting within cone)
+- [ ] Unselected crew auto-target closest enemy
+- [ ] Game state machine: SETUP → RUNNING → GAMEOVER
+- [ ] Win condition (distance reached) and lose condition (HP ≤ 0)
+- [ ] Basic game over screen with restart
 
-### Phase 4: Auto-Weapons + Defenses
-**Goal:** Full weapon variety
+### Phase 5: Auto-Weapons + Defenses — Combat Depth (Tier 3)
+**Goal:** All weapon types and defensive options work
+**Exit criteria:** Player can equip turret + steam blast, activate shield, and feel the variety
+**Why now:** This is what makes combat interesting beyond "click and shoot"
 
-- [ ] Turret auto-weapon (auto-target, burst fire)
-- [ ] Steam Blast aura (radius damage tick)
-- [ ] Laser/Ricochet bolts (bounce logic)
-- [ ] Shield defense (-damage reduction)
-- [ ] Regen defense (+HP/sec)
-- [ ] Repair (instant heal)
-- [ ] Weapon HUD (3 rows: Crew, Weapons, Defense)
+- [ ] Turret auto-weapon (auto-target, burst fire, pooled projectiles)
+- [ ] Steam Blast aura (radius damage tick via overlap sphere, Niagara ring visual)
+- [ ] Laser/Ricochet bolts (bounce logic: enemy→enemy, screen edge bounce)
+- [ ] Shield defense (-2 dmg/level, min 1 damage)
+- [ ] Regen defense (+3 HP/sec/level)
+- [ ] Repair (instant +30 HP)
+- [ ] Weapon HUD: 3 rows (Crew with names, Weapons, Defense)
+- [ ] Max constraints: 2 auto-weapons, 2 defense slots
 
-### Phase 5: Level-Up + XP
-**Goal:** Progression within a run
+### Phase 6: Level-Up + XP — In-Run Progression (Tier 3)
+**Goal:** Players grow stronger during a combat run
+**Exit criteria:** Kill enemies → gain XP → pick a card → see the upgrade take effect
 
-- [ ] XP tracking, level threshold
-- [ ] Level-up card generation (3 random from pool)
-- [ ] Card selection UI (UMG modal)
-- [ ] Apply upgrades (crew gun level, new weapons, defenses)
-- [ ] Place weapon flow (click mount to place)
+- [ ] XP tracking (12 per kill, threshold = level × 80)
+- [ ] Level-up card generation (3 random from weighted pool)
+- [ ] Card selection UI (UMG modal with hover highlight)
+- [ ] Pool constraints: max 2 weapons, max 2 defense, per-crew gun cap at 5
+- [ ] Apply upgrades immediately on selection
+- [ ] Place weapon flow (highlight empty mounts, click to place)
+- [ ] Powerup sound + confetti VFX on selection
 
-### Phase 6: Economy + Coins
-**Goal:** Gold flows correctly
+### Phase 7: Economy — Coins, Gold, Bandits (Tier 3)
+**Goal:** Gold economy and bandit threat complete
+**Exit criteria:** Coins spawn, magnets collect all, bandits steal gold, crew fights them off
+**Why grouped:** Coins and bandits both affect gold — test the economy as one system
 
-- [ ] Coin spawning + pickup
-- [ ] Magnet mechanic (collect all)
-- [ ] Flying coins animation
-- [ ] Gold counter HUD
-- [ ] Cargo multiplier calculation
+- [ ] Coin spawning (every 3s, 8% magnet chance) + pooling
+- [ ] Magnet: projectile hit → all coins fly to HUD
+- [ ] Flying coins animation (accelerate toward HUD target)
+- [ ] Gold counter with cargo multiplier
+- [ ] ABandit with 5-state machine (RUNNING→JUMPING→ON_TRAIN→FIGHTING→DEAD)
+- [ ] Bandit gold stealing (5g/sec on unmanned mount)
+- [ ] Bandit weapon disabling (auto-weapon mount = weapon off)
+- [ ] Crew fight interaction (0.5s, crew always wins)
+- [ ] Steal sound loop (start when any stealing, stop when none)
+- [ ] Visual: red glow + big X on disabled mounts, orange "IDLE" on guarding crew
 
-### Phase 7: Bandits
-**Goal:** Bandits threaten the train
+### Phase 8: Zone Map + World Progression — Meta Loop (Tier 4)
+**Goal:** Multiple combat runs connected by a zone map with strategic choices
+**Exit criteria:** Navigate 3 zones, choose routes, spend coal, complete a world
+**Why now:** The meta loop is what gives the game longevity. Without it, combat runs are isolated.
 
-- [ ] ABandit actor with state machine (5 states)
-- [ ] Bandit spawning from right
-- [ ] Jump-onto-train animation
-- [ ] Gold stealing mechanic
-- [ ] Weapon disabling mechanic
-- [ ] Crew fight interaction
-- [ ] Steal sound loop (start/stop)
+- [ ] UZoneData data asset (station graph, types, connections)
+- [ ] Zone generation (2-3 routes, short/long, cross-connections)
+- [ ] Zone map UI (UMG: station nodes, connection lines, coal cost)
+- [ ] Station types: START, COMBAT (→ setup), EMPTY (rest), EXIT (→ zone complete)
+- [ ] Coal resource (4 start, 1/hop, +2/win, buyable)
+- [ ] Zone complete screen ("DELIVERED!" + gold summary)
+- [ ] World complete screen (fireworks, confetti, bonus gold)
+- [ ] Difficulty scaling: zone number × 0.2, distance-based within run
+- [ ] 4 game over variants: combat win, zone complete, world complete, death
 
-### Phase 8: Zone Map + World Progression
-**Goal:** Full meta-game loop
+### Phase 9: Shop + Save — Persistence (Tier 4)
+**Goal:** Players invest gold in permanent upgrades that carry across worlds
+**Exit criteria:** Buy an upgrade → start new run → upgrade is active → save persists across sessions
 
-- [ ] Zone generation (procedural station graph)
-- [ ] Zone map UI (UMG)
-- [ ] Station types (combat, empty, exit)
-- [ ] Coal resource management
-- [ ] World completion (3 zones)
-- [ ] Difficulty scaling per zone
+- [ ] Shop UI (7 upgrade rows + coal purchase)
+- [ ] Cost formula: baseCost × (currentLevel + 1)
+- [ ] All 7 upgrades: damage, shield, coolOff, maxHp, baseArea, greed, crewSlots
+- [ ] Crew slot unlocking (300g per slot, max 2 additional)
+- [ ] USaveGame with all persistent data (gold, coal, upgrades, audio prefs)
+- [ ] Save on shop exit / world complete
+- [ ] Load on game start
+- [ ] Settings screen (music/SFX volume sliders)
 
-### Phase 9: Shop + Persistence
-**Goal:** Progression across runs
+### Phase 10: Polish — Ship Quality (Tier 5)
+**Goal:** Matches original game feel and adds UE5-quality enhancements
+**Exit criteria:** Someone who played the web version says "this feels the same but better"
 
-- [ ] Shop UI (7 upgrades + coal)
-- [ ] USaveGame for gold, coal, upgrade levels
-- [ ] Shop cost formula (cost × (level+1))
-- [ ] Crew slot unlocking
-- [ ] Settings (volume sliders, persist to save)
-
-### Phase 10: Polish
-**Goal:** Matches original game feel
-
-- [ ] All 3D models imported and positioned
-- [ ] All audio (MP3 imports + MetaSounds for synth SFX)
-- [ ] Niagara VFX: muzzle flash, confetti, fireworks, steam aura
-- [ ] Screen shake on damage
-- [ ] Damage flash overlay
-- [ ] Game over screens (4 variants)
-- [ ] Pause menu
+- [ ] Final 3D models imported (train, enemies, weapons, crew, bandits)
+- [ ] Materials: damage flash (dynamic material instance), enemy tier colors
+- [ ] All MP3 audio imported as USoundWave assets
+- [ ] MetaSounds for synth SFX (shoot, hit, kill, train damage, powerup)
+- [ ] Niagara VFX: muzzle flash, steam aura, confetti, fireworks, coin sparkle
+- [ ] Screen shake on train damage (UMatineeCameraShake, 0.2s)
+- [ ] Damage flash overlay (white flash on train hit)
+- [ ] Game over screens (4 variants with correct buttons/flow)
+- [ ] Pause menu with resume/restart/quit
 - [ ] Keyboard navigation for all menus
-- [ ] Balance pass (match original tuning values)
+- [ ] Balance pass: verify all tuning values match Section 9 constants
+- [ ] Performance pass: profile with max enemies/projectiles, optimize hot paths
+- [ ] Final audio mix: balance all volumes against each other
+
+### Estimated Timeline (solo developer)
+
+| Phase | Tier | Duration | Cumulative | Playable? |
+|---|---|---|---|---|
+| 1: Camera + Train | 1 | 2-3 days | 3 days | Train moves ✓ |
+| 2: Pooling + Enemies | 1 | 3-4 days | 1 week | Enemies swarm ✓ |
+| 3: Click + Combat | 1→2 | 4-5 days | 2 weeks | **Core combat works** ✓ |
+| 4: Crew System | 2 | 5-6 days | 3 weeks | Full crew management ✓ |
+| 5: Auto-Weapons | 3 | 4-5 days | 4 weeks | Weapon variety ✓ |
+| 6: Level-Up | 3 | 3-4 days | 4.5 weeks | In-run progression ✓ |
+| 7: Economy + Bandits | 3 | 5-6 days | 5.5 weeks | Full combat depth ✓ |
+| 8: Zone Map | 4 | 5-6 days | 7 weeks | **Full game loop** ✓ |
+| 9: Shop + Save | 4 | 3-4 days | 8 weeks | Persistence ✓ |
+| 10: Polish | 5 | 2-3 weeks | 11 weeks | **Ship quality** ✓ |
+
+**Key milestone: Week 2 (Phase 3 complete)** — This is where you know if the port is viable. If the core combat feels good in UE5, the rest is execution. If it doesn't, you've only invested 2 weeks.
 
 ---
 
-## 13. Common Pitfalls
+## 14. Common Pitfalls
 
 ### Architecture
 - **Don't replicate the central game loop.** Let actors tick themselves. Use GameMode for rules only.
@@ -980,7 +1117,7 @@ Sound Classes:
 
 ---
 
-## 14. Acceptance Criteria
+## 15. Acceptance Criteria
 
 Each ported system should be verified against the original:
 
