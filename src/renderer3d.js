@@ -832,18 +832,29 @@ export class Renderer3D {
 
             // Stolen amount
             if (b.stealFlash > 0) {
-              ctx.fillStyle = `rgba(231, 76, 60, ${Math.min(1, b.stealFlash * 2)})`;
-              ctx.font = 'bold 12px monospace';
+              ctx.strokeStyle = `rgba(0, 0, 0, ${Math.min(1, b.stealFlash * 2) * 0.8})`;
+              ctx.lineWidth = 3;
+              ctx.font = 'bold 16px monospace';
               ctx.textAlign = 'center';
-              ctx.fillText(`-${b.totalStolen}g`, sx, sy - 34);
+              ctx.strokeText(`-${b.totalStolen}g`, sx, sy - 40);
+              ctx.fillStyle = `rgba(231, 76, 60, ${Math.min(1, b.stealFlash * 2)})`;
+              ctx.fillText(`-${b.totalStolen}g`, sx, sy - 40);
             }
 
-            // "STEALING!" label
-            const pulse = 0.7 + Math.sin(performance.now() * 0.008) * 0.3;
-            ctx.fillStyle = `rgba(245, 166, 35, ${pulse})`;
-            ctx.font = 'bold 9px monospace';
+            // "STEALING!" label — large and urgent
+            const pulse = 0.5 + Math.sin(performance.now() * 0.012) * 0.5;
+            const stealScale = 1 + Math.sin(performance.now() * 0.01) * 0.08;
+            ctx.save();
+            ctx.translate(sx, sy - 24);
+            ctx.scale(stealScale, stealScale);
+            ctx.strokeStyle = `rgba(0, 0, 0, ${pulse * 0.8})`;
+            ctx.lineWidth = 3;
+            ctx.font = 'bold 15px monospace';
             ctx.textAlign = 'center';
-            ctx.fillText('STEALING!', sx, sy - 22);
+            ctx.strokeText('STEALING!', 0, 0);
+            ctx.fillStyle = `rgba(255, 60, 30, ${pulse})`;
+            ctx.fillText('STEALING!', 0, 0);
+            ctx.restore();
           }
 
           if (!fighting && b.targetSlot?.autoWeaponId) {
@@ -953,15 +964,23 @@ export class Renderer3D {
 
   drawDamageNumbers(numbers) {
     const ctx = this.ctx;
-    ctx.font = 'bold 12px monospace';
     ctx.textAlign = 'center';
     for (const d of numbers) {
       if (!d.active) continue;
       const w = toWorld(d.x, d.y);
       const s = this._project(w.x, w.z);
+      const t = 1 - d.life / d.maxLife; // 0→1 over lifetime
       const alpha = Math.max(0, d.life / d.maxLife);
       // Float upward in screen space
-      const yOff = (1 - d.life / d.maxLife) * -20;
+      const yOff = t * -35;
+      // Pop-in scale: starts at 1.4x and settles to 1x
+      const scale = 1 + 0.4 * Math.max(0, 1 - t * 4);
+      const size = Math.round(18 * scale);
+      ctx.font = `bold ${size}px monospace`;
+      // White outline for readability
+      ctx.strokeStyle = `rgba(0, 0, 0, ${alpha * 0.8})`;
+      ctx.lineWidth = 3;
+      ctx.strokeText(`-${Math.round(d.damage)}`, s.x, s.y + yOff);
       ctx.fillStyle = `rgba(255, 255, 100, ${alpha})`;
       ctx.fillText(`-${Math.round(d.damage)}`, s.x, s.y + yOff);
     }

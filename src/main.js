@@ -448,14 +448,23 @@ function renderRun() {
   }
   if (banditCount > 0) {
     const dctx2 = renderer.ctx;
-    const pulse = 0.6 + Math.sin(performance.now() * 0.006) * 0.4;
-    dctx2.fillStyle = `rgba(192, 57, 43, ${0.7 * pulse})`;
-    dctx2.fillRect(CANVAS_WIDTH / 2 - 140, 48, 280, 28);
+    const pulse = 0.5 + Math.sin(performance.now() * 0.008) * 0.5;
+    const bannerW = 340;
+    const bannerH = 38;
+    const bannerX = CANVAS_WIDTH / 2 - bannerW / 2;
+    const bannerY = 44;
+    // Red pulsing background with border
+    dctx2.fillStyle = `rgba(180, 30, 20, ${0.85 * pulse})`;
+    dctx2.fillRect(bannerX, bannerY, bannerW, bannerH);
+    dctx2.strokeStyle = `rgba(255, 80, 60, ${pulse})`;
+    dctx2.lineWidth = 2;
+    dctx2.strokeRect(bannerX, bannerY, bannerW, bannerH);
+    // Warning text
     dctx2.fillStyle = '#fff';
-    dctx2.font = 'bold 13px monospace';
+    dctx2.font = 'bold 16px monospace';
     dctx2.textAlign = 'center';
-    const msg = banditCount === 1 ? 'BANDIT ON BOARD! Move crew to fight!' : `${banditCount} BANDITS ON BOARD! Move crew!`;
-    dctx2.fillText(msg, CANVAS_WIDTH / 2, 67);
+    const msg = banditCount === 1 ? '⚠ BANDIT ON BOARD! Move crew to fight!' : `⚠ ${banditCount} BANDITS! Move crew to fight!`;
+    dctx2.fillText(msg, CANVAS_WIDTH / 2, bannerY + 25);
   }
   if (selectedCrew) renderer.drawSelectedIndicator(selectedCrew);
   if (debugMode) drawDebugHitboxes();
