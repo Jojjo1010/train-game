@@ -127,17 +127,7 @@ export function playTrainDamage() {
 }
 
 export function playCoinPickup() {
-  const c = getCtx();
-  const osc = c.createOscillator();
-  const g = sfxGain(0.15);
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(1200, c.currentTime);
-  osc.frequency.setValueAtTime(1600, c.currentTime + 0.05);
-  osc.frequency.exponentialRampToValueAtTime(800, c.currentTime + 0.15);
-  g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.2);
-  osc.connect(g);
-  osc.start(c.currentTime);
-  osc.stop(c.currentTime + 0.2);
+  playMp3('assets/coin.mp3', 0.6);
 }
 
 export function playLevelUp() {
