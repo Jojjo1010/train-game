@@ -1827,6 +1827,15 @@ export class Renderer3D {
       ctx.textAlign = 'center';
       if (isStart) ctx.fillText('DEP', x, y + 3);
       else if (isEnd) ctx.fillText('ARR', x, y + 3);
+      else if (station.type === 'combat' && !station.visited) {
+        const isPreBoss = station.connections.some(id => zone.stations[id].type === 'exit');
+        ctx.font = isPreBoss ? '14px serif' : '11px serif';
+        ctx.fillText(isPreBoss ? '\uD83D\uDC80' : '\uD83E\uDDDF', x, y + (isPreBoss ? 5 : 4));
+      } else if (station.type === 'empty' && !station.visited) {
+        ctx.font = '9px serif';
+        ctx.fillStyle = '#888';
+        ctx.fillText('?', x, y + 3);
+      }
 
       if (isCurrent) {
         ctx.fillStyle = '#e74c3c';
@@ -1877,7 +1886,7 @@ export class Renderer3D {
     }
 
     // Instructions
-    ctx.fillStyle = '#88785a';
+    ctx.fillStyle = '#e0d4b8';
     ctx.font = '12px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('Select a station to travel  \u2022  Each hop costs 1 coal', W / 2, H - 16);
