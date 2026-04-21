@@ -110,7 +110,6 @@ export class CoinSystem {
       const arrived = fc.update(dt);
       if (arrived) {
         this.goldCollected += fc.value;
-        playCoinPickup();
       }
     }
   }
@@ -172,6 +171,7 @@ export class CoinSystem {
           if (fc) fc.spawn(c.x, c.y, goldHudPos.x, goldHudPos.y, COIN_VALUE);
           c.active = false;
           p.active = false;
+          playCoinPickup();
           break;
         }
       }

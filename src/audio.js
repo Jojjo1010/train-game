@@ -165,6 +165,25 @@ export function playZoneCompleteMp3() { playMp3('assets/zonecomplete.mp3', 0.7);
 export function playWinWorldMp3() { playMp3('assets/winworld.mp3', 0.7); }
 export function playDefeatMp3() { playMp3('assets/loose.mp3', 0.7); }
 
+// Preload all MP3 SFX so first play is instant
+export async function preloadSfx() {
+  const c = getCtx();
+  const urls = [
+    'assets/coin.mp3', 'assets/steal.mp3', 'assets/levelup.mp3',
+    'assets/zonecomplete.mp3', 'assets/winworld.mp3', 'assets/loose.mp3'
+  ];
+  await Promise.all(urls.map(async (url) => {
+    if (mp3Cache[url]) return;
+    try {
+      const resp = await fetch(url);
+      const arrayBuf = await resp.arrayBuffer();
+      mp3Cache[url] = await c.decodeAudioData(arrayBuf);
+    } catch (e) { /* ignore missing files */ }
+  }));
+  // Also preload steal loop buffer
+  await loadStealBuffer().catch(() => {});
+}
+
 // --- LOOPING STEAL SFX ---
 let stealSource = null;
 let stealBuffer = null;

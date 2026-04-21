@@ -1408,37 +1408,26 @@ export class Renderer3D {
     ctx.textAlign = 'left';
     ctx.fillText('CREW', startX, crewY - 3);
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < train.crew.length; i++) {
       const x = startX + i * (slotW + gap);
       const c = train.crew[i];
-      if (c) {
-        // Filled crew slot
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        this.roundRect(x, crewY, slotW, slotH, 4);
-        ctx.fill();
-        ctx.strokeStyle = c.color;
-        ctx.lineWidth = 1.5;
-        this.roundRect(x, crewY, slotW, slotH, 4);
-        ctx.stroke();
-        // Name
-        ctx.font = 'bold 8px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = c.color;
-        ctx.fillText(crewNames[i], x + slotW / 2, crewY + 10);
-        // Gun icon + level
-        ctx.font = '12px monospace';
-        ctx.fillText('\uD83D\uDD2B', x + slotW / 2, crewY + 23);
-        this._drawLevelPips(ctx, x + 2, crewY + 1, c.gunLevel, c.color);
-      } else {
-        // Locked crew slot
-        this._drawSlotBox(ctx, x, crewY, slotW, slotH, false, '#555');
-        ctx.font = 'bold 8px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#555';
-        ctx.fillText(crewNames[i], x + slotW / 2, crewY + 14);
-        ctx.font = '10px monospace';
-        ctx.fillText('🔒', x + slotW / 2, crewY + 26);
-      }
+      // Filled crew slot
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      this.roundRect(x, crewY, slotW, slotH, 4);
+      ctx.fill();
+      ctx.strokeStyle = c.color;
+      ctx.lineWidth = 1.5;
+      this.roundRect(x, crewY, slotW, slotH, 4);
+      ctx.stroke();
+      // Name
+      ctx.font = 'bold 8px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = c.color;
+      ctx.fillText(crewNames[i], x + slotW / 2, crewY + 10);
+      // Gun icon + level
+      ctx.font = '12px monospace';
+      ctx.fillText('\uD83D\uDD2B', x + slotW / 2, crewY + 23);
+      this._drawLevelPips(ctx, x + 2, crewY + 1, c.gunLevel, c.color);
     }
 
     // --- WEAPONS ROW (middle, auto-weapons only) ---
@@ -1853,20 +1842,28 @@ export class Renderer3D {
       ctx.fillText(u.desc, rowX + 40, y + 35);
 
       const checkX = rowX + rowW - 200;
-      for (let l = 0; l < u.maxLevel; l++) {
-        const cx = checkX + l * 22;
-        ctx.fillStyle = l < u.level ? u.color : '#333';
-        ctx.strokeStyle = l < u.level ? u.color : '#555';
-        ctx.lineWidth = 1;
-        this.roundRect(cx, y + 12, 18, 18, 3);
-        ctx.fill();
-        ctx.stroke();
-        if (l < u.level) {
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 12px monospace';
-          ctx.textAlign = 'center';
-          ctx.fillText('\u2713', cx + 9, y + 26);
-          ctx.textAlign = 'left';
+      if (key === 'crewSlots') {
+        ctx.fillStyle = u.color;
+        ctx.font = 'bold 13px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${1 + u.level} crew`, checkX + 20, y + 26);
+        ctx.textAlign = 'left';
+      } else {
+        for (let l = 0; l < u.maxLevel; l++) {
+          const cx = checkX + l * 22;
+          ctx.fillStyle = l < u.level ? u.color : '#333';
+          ctx.strokeStyle = l < u.level ? u.color : '#555';
+          ctx.lineWidth = 1;
+          this.roundRect(cx, y + 12, 18, 18, 3);
+          ctx.fill();
+          ctx.stroke();
+          if (l < u.level) {
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('\u2713', cx + 9, y + 26);
+            ctx.textAlign = 'left';
+          }
         }
       }
 
@@ -2211,7 +2208,7 @@ export class Renderer3D {
       ctx.fillStyle = '#aaa';
       ctx.font = '10px monospace';
       const stats = [
-        `Crew: ${1 + u.crewSlots.level}/3`,
+        `Crew: ${1 + u.crewSlots.level}`,
         `Dmg: +${u.damage.level * 15}%  Shield: ${u.shield.level}`,
         `Cool-off: -${u.coolOff.level * 10}%  Range: +${u.baseArea.level * 15}%`,
         `Hull: +${u.maxHp.level * 15}  Greed: +${u.greed.level * 20}%`,
