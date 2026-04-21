@@ -3,7 +3,10 @@ import {
   ENEMY_BASE_HP, ENEMY_BASE_SPEED, ENEMY_RADIUS,
   ENEMY_CONTACT_DAMAGE, ENEMY_SPAWN_INTERVAL_START, ENEMY_SPAWN_INTERVAL_MIN,
   ENEMY_RADIUS_MULT, ENEMY_HP_MULT,
-  TARGET_DISTANCE
+  TARGET_DISTANCE,
+  WAVE_CYCLE_DURATION, WAVE_SURGE_DURATION, WAVE_CALM_DURATION,
+  WAVE_SURGE_SPAWN_MULT, WAVE_CALM_SPAWN_MULT, WAVE_ESCALATION,
+  WAVE_WARNING_DURATION, WAVE_BOSS_SURGE_MULT
 } from './constants.js';
 
 export class Enemy {
@@ -66,6 +69,9 @@ export class Enemy {
   }
 }
 
+// Wave phases
+const WAVE_PHASE = { CALM: 0, WARNING: 1, SURGE: 2 };
+
 export class Spawner {
   constructor() {
     this.pool = [];
@@ -73,14 +79,90 @@ export class Spawner {
       this.pool.push(new Enemy());
     }
     this.spawnTimer = 1; // start with a brief delay
+
+    // Wave state
+    this.waveNumber = 0;
+    this.wavePhase = WAVE_PHASE.CALM;
+    this.waveCycleTimer = WAVE_CYCLE_DURATION; // time until next surge
+    this.wavePhaseTimer = 0; // time remaining in current phase
+    this.isBossStation = false;
   }
 
   get activeEnemies() {
     return this.pool.filter(e => e.active);
   }
 
+  /** Current wave info for HUD rendering */
+  get waveInfo() {
+    return {
+      waveNumber: this.waveNumber,
+      phase: this.wavePhase,
+      phaseTimer: this.wavePhaseTimer,
+      cycleTimer: this.waveCycleTimer,
+      isSurge: this.wavePhase === WAVE_PHASE.SURGE,
+      isWarning: this.wavePhase === WAVE_PHASE.WARNING,
+      isCalm: this.wavePhase === WAVE_PHASE.CALM,
+      isBossStation: this.isBossStation,
+    };
+  }
+
+  updateWave(dt) {
+    switch (this.wavePhase) {
+      case WAVE_PHASE.CALM:
+        this.waveCycleTimer -= dt;
+        if (this.waveCycleTimer <= WAVE_WARNING_DURATION) {
+          // Transition to warning
+          this.wavePhase = WAVE_PHASE.WARNING;
+          this.wavePhaseTimer = this.waveCycleTimer;
+        }
+        break;
+
+      case WAVE_PHASE.WARNING:
+        this.wavePhaseTimer -= dt;
+        if (this.wavePhaseTimer <= 0) {
+          // Transition to surge
+          this.waveNumber++;
+          this.wavePhase = WAVE_PHASE.SURGE;
+          this.wavePhaseTimer = WAVE_SURGE_DURATION;
+        }
+        break;
+
+      case WAVE_PHASE.SURGE:
+        this.wavePhaseTimer -= dt;
+        if (this.wavePhaseTimer <= 0) {
+          // Transition to calm, reset cycle
+          this.wavePhase = WAVE_PHASE.CALM;
+          this.wavePhaseTimer = WAVE_CALM_DURATION;
+          this.waveCycleTimer = WAVE_CYCLE_DURATION;
+        }
+        break;
+    }
+  }
+
+  /** Get the spawn rate multiplier based on current wave phase */
+  getWaveSpawnMultiplier() {
+    const escalation = 1 + this.waveNumber * WAVE_ESCALATION;
+    switch (this.wavePhase) {
+      case WAVE_PHASE.SURGE: {
+        const baseMult = this.isBossStation ? WAVE_BOSS_SURGE_MULT : WAVE_SURGE_SPAWN_MULT;
+        return baseMult * escalation;
+      }
+      case WAVE_PHASE.CALM:
+        // During the post-surge calm, reduce rate
+        return this.waveNumber > 0 ? WAVE_CALM_SPAWN_MULT : 1;
+      case WAVE_PHASE.WARNING:
+        return 1; // normal rate during warning
+      default:
+        return 1;
+    }
+  }
+
   update(dt, distance, carBounds, stationDifficulty = 1) {
-    // Difficulty scales with distance AND station depth
+    // Update wave state
+    this.updateWave(dt);
+    const waveMult = this.getWaveSpawnMultiplier();
+
+    // Difficulty scales with distance AND station depth (unchanged)
     const distDiff = 1 + (distance / TARGET_DISTANCE) * 2;
     const difficulty = distDiff + (stationDifficulty - 1);
     const interval = Math.max(
@@ -88,12 +170,17 @@ export class Spawner {
       ENEMY_SPAWN_INTERVAL_START / stationDifficulty - difficulty * 0.2
     );
 
+    // Apply wave multiplier: lower interval = faster spawns
+    const waveInterval = interval / waveMult;
+
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
-      // Spawn more enemies per tick at higher difficulty
-      const spawnCount = Math.min(4, Math.floor(stationDifficulty));
+      // Spawn more enemies per tick at higher difficulty; wave can add extra
+      const baseCount = Math.min(4, Math.floor(stationDifficulty));
+      const surgeExtra = this.wavePhase === WAVE_PHASE.SURGE ? Math.floor(this.waveNumber * 0.5) : 0;
+      const spawnCount = Math.min(6, baseCount + surgeExtra);
       for (let i = 0; i < spawnCount; i++) this.spawnEnemy(difficulty, carBounds);
-      this.spawnTimer = interval;
+      this.spawnTimer = waveInterval;
     }
   }
 
@@ -154,5 +241,11 @@ export class Spawner {
   reset() {
     for (const e of this.pool) e.active = false;
     this.spawnTimer = 1;
+    // Reset wave state
+    this.waveNumber = 0;
+    this.wavePhase = WAVE_PHASE.CALM;
+    this.waveCycleTimer = WAVE_CYCLE_DURATION;
+    this.wavePhaseTimer = 0;
+    this.isBossStation = false;
   }
 }

@@ -147,6 +147,16 @@ export const BANDIT_STEAL_RATE = T('BANDIT_STEAL_RATE', 5); // gold per second
 export const BANDIT_FIGHT_DURATION = T('BANDIT_FIGHT_DURATION', 0.5);
 export const MAX_BANDITS = 10;
 
+// Wave system
+export const WAVE_CYCLE_DURATION = T('WAVE_CYCLE_DURATION', 30);       // seconds between surge starts
+export const WAVE_SURGE_DURATION = T('WAVE_SURGE_DURATION', 8);        // seconds a surge lasts
+export const WAVE_CALM_DURATION = T('WAVE_CALM_DURATION', 10);         // calm period after surge
+export const WAVE_SURGE_SPAWN_MULT = T('WAVE_SURGE_SPAWN_MULT', 2.5);  // spawn rate multiplier during surge
+export const WAVE_CALM_SPAWN_MULT = T('WAVE_CALM_SPAWN_MULT', 0.6);    // spawn rate multiplier during calm
+export const WAVE_ESCALATION = T('WAVE_ESCALATION', 0.15);             // per-wave difficulty increase
+export const WAVE_WARNING_DURATION = T('WAVE_WARNING_DURATION', 3);    // seconds of warning before surge
+export const WAVE_BOSS_SURGE_MULT = T('WAVE_BOSS_SURGE_MULT', 3.5);   // extra intense boss wave multiplier
+
 // Pools
 export const MAX_ENEMIES = 150;
 export const MAX_PROJECTILES = 300;

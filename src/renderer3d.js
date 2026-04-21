@@ -1243,6 +1243,102 @@ export class Renderer3D {
     this.drawMiniMap(train.distance);
   }
 
+  drawWaveHUD(waveInfo) {
+    if (!waveInfo) return;
+    const ctx = this.ctx;
+    const now = performance.now();
+
+    // Wave number display — bottom-left above minimap area
+    if (waveInfo.waveNumber > 0) {
+      const waveX = 12;
+      const waveY = CANVAS_HEIGHT - 60;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      this.roundRect(waveX, waveY, 110, 28, 4);
+      ctx.fill();
+
+      ctx.fillStyle = '#f5a623';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('WAVE', waveX + 6, waveY + 11);
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px monospace';
+      ctx.fillText(`${waveInfo.waveNumber}`, waveX + 50, waveY + 20);
+    }
+
+    // Surge warning banner — top center
+    if (waveInfo.isWarning) {
+      const pulse = 0.5 + Math.sin(now * 0.01) * 0.5;
+      const bannerW = 280;
+      const bannerH = 36;
+      const bannerX = CANVAS_WIDTH / 2 - bannerW / 2;
+      const bannerY = 88;
+
+      // Pulsing red border
+      ctx.strokeStyle = `rgba(255, 60, 40, ${0.5 + pulse * 0.5})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      this.roundRect(bannerX, bannerY, bannerW, bannerH, 6);
+      ctx.stroke();
+
+      // Background
+      ctx.fillStyle = `rgba(140, 20, 10, ${0.7 + pulse * 0.2})`;
+      ctx.beginPath();
+      this.roundRect(bannerX, bannerY, bannerW, bannerH, 6);
+      ctx.fill();
+
+      // Text
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulse * 0.3})`;
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'center';
+      const nextWave = waveInfo.waveNumber + 1;
+      ctx.fillText(`WAVE ${nextWave} INCOMING`, CANVAS_WIDTH / 2, bannerY + 24);
+    }
+
+    // Active surge indicator — pulsing red border overlay on edges
+    if (waveInfo.isSurge) {
+      const pulse = 0.3 + Math.sin(now * 0.006) * 0.3;
+      const borderSize = 4;
+
+      // Red tint on screen edges
+      const grad = ctx.createLinearGradient(0, 0, borderSize * 8, 0);
+      grad.addColorStop(0, `rgba(200, 30, 20, ${pulse})`);
+      grad.addColorStop(1, 'rgba(200, 30, 20, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, borderSize * 8, CANVAS_HEIGHT);
+
+      const grad2 = ctx.createLinearGradient(CANVAS_WIDTH, 0, CANVAS_WIDTH - borderSize * 8, 0);
+      grad2.addColorStop(0, `rgba(200, 30, 20, ${pulse})`);
+      grad2.addColorStop(1, 'rgba(200, 30, 20, 0)');
+      ctx.fillStyle = grad2;
+      ctx.fillRect(CANVAS_WIDTH - borderSize * 8, 0, borderSize * 8, CANVAS_HEIGHT);
+
+      // Surge banner
+      const bannerW = 200;
+      const bannerH = 30;
+      const bannerX = CANVAS_WIDTH / 2 - bannerW / 2;
+      const bannerY = 88;
+
+      ctx.fillStyle = `rgba(180, 20, 10, ${0.7 + pulse * 0.2})`;
+      ctx.beginPath();
+      this.roundRect(bannerX, bannerY, bannerW, bannerH, 6);
+      ctx.fill();
+
+      ctx.strokeStyle = `rgba(255, 80, 60, ${pulse + 0.3})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      this.roundRect(bannerX, bannerY, bannerW, bannerH, 6);
+      ctx.stroke();
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      const label = waveInfo.isBossStation ? `BOSS WAVE ${waveInfo.waveNumber}` : `WAVE ${waveInfo.waveNumber}`;
+      ctx.fillText(label, CANVAS_WIDTH / 2, bannerY + 21);
+    }
+  }
+
   drawMiniMap(distance) {
     const ctx = this.ctx;
     const mapW = 180;

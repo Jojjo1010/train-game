@@ -135,7 +135,7 @@ function startNewWorld() {
   train.hp = train.maxHp;
 }
 
-function prepareForCombat() {
+function prepareForCombat(isBossStation = false) {
   state = STATES.SETUP;
   train.combatDifficulty = combatDifficulty;
   train.distance = 0;
@@ -144,6 +144,7 @@ function prepareForCombat() {
   train.shakeTimer = 0;
   selectedCrew = null;
   spawner.reset();
+  spawner.isBossStation = isBossStation;
   combat.reset();
   coinSystem.reset();
   banditSystem.reset();
@@ -507,6 +508,7 @@ function renderRun() {
     renderer.drawCrewPanel(train.crew, CANVAS_HEIGHT - 70);
   }
   renderer.drawHUD(train);
+  renderer.drawWaveHUD(spawner.waveInfo);
   renderer.drawAutoWeaponHUD(train);
   // Bandit alert banner
   let banditCount = 0;
@@ -1338,8 +1340,9 @@ function updateStationArrival(dt) {
     switch (s.type) {
       case STATION_TYPES.COMBAT: {
         combatDifficulty = 1 + (zoneNumber - 1) * ZONE_DIFFICULTY_SCALE;
-        if (stationArrival?.isPreBoss) combatDifficulty *= 1.6;
-        prepareForCombat();
+        const isBoss = stationArrival?.isPreBoss || false;
+        if (isBoss) combatDifficulty *= 1.6;
+        prepareForCombat(isBoss);
         break;
       }
       case STATION_TYPES.EXIT:
