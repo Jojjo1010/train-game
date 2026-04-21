@@ -146,7 +146,7 @@ export class Renderer3D {
   _initPools() {
     // Enemy pool — small cones matching the FBX blockout
     this.enemyPool = [];
-    const enemyMat = new THREE.MeshLambertMaterial({ color: 0x8e44ad });
+    const enemyMat = new THREE.MeshLambertMaterial({ color: 0x2d6a2e });
     for (let i = 0; i < MAX_ENEMIES; i++) {
       const mesh = new THREE.Mesh(new THREE.ConeGeometry(3, 8, 8), enemyMat.clone());
       mesh.visible = false;

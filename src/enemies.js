@@ -15,7 +15,7 @@ export class Enemy {
     this.maxHp = 0;
     this.speed = 0;
     this.radius = ENEMY_RADIUS;
-    this.color = '#8e44ad';
+    this.color = '#2d6a2e';
     this.damage = ENEMY_CONTACT_DAMAGE;
     this.flashTimer = 0;
   }
@@ -96,7 +96,7 @@ export class Spawner {
     }
   }
 
-  static COLORS = ['#8e44ad', '#c0392b', '#e74c3c'];
+  static COLORS = ['#2d6a2e', '#3a8a3c', '#1a4d1a'];
 
   spawnEnemy(difficulty, carBounds) {
     const enemy = this.pool.find(e => !e.active);
