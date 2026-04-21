@@ -1166,7 +1166,7 @@ export class Renderer3D {
     ctx.fillStyle = '#f5a623';
     ctx.font = 'bold 20px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Click crew to select, click slot to place, hold to aim', CANVAS_WIDTH / 2, 32);
+    ctx.fillText('Left-click crew to select, right-click slot to place', CANVAS_WIDTH / 2, 32);
   }
 
   drawDepartButton(x, y, w, h, hovered, disabled = false) {
