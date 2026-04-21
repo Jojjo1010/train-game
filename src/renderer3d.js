@@ -445,17 +445,19 @@ export class Renderer3D {
       const sx = screenPos.x;
       const sy = screenPos.y;
 
-      // Slot circle on overlay (skip for auto-weapons — 3D model is visible)
+      // Slot indicator on overlay
       const hasAuto = mount.hasAutoWeapon;
       const active = mount.isManned || hasAuto;
-      if (!hasAuto && !mount.isManned && showEmptySlots) {
-        ctx.beginPath();
-        ctx.arc(sx, sy, MOUNT_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(150,150,150,0.6)';
+      if (!hasAuto && !mount.isManned) {
+        // Empty box to show "weapon slot available"
+        const boxSize = MOUNT_RADIUS * 2;
+        ctx.fillStyle = 'rgba(60, 60, 60, 0.5)';
+        ctx.fillRect(sx - boxSize / 2, sy - boxSize / 2, boxSize, boxSize);
+        ctx.strokeStyle = showEmptySlots ? 'rgba(200,200,200,0.7)' : 'rgba(120,120,120,0.5)';
         ctx.lineWidth = 1.5;
-        ctx.stroke();
+        ctx.setLineDash([4, 3]);
+        ctx.strokeRect(sx - boxSize / 2, sy - boxSize / 2, boxSize, boxSize);
+        ctx.setLineDash([]);
       }
 
       // Crew dot + direction arrow (projected from 3D to match gun barrel)
