@@ -13,7 +13,7 @@ import { CombatSystem } from './combat.js';
 import { CoinSystem } from './coins.js';
 import { BanditSystem, BANDIT_STATES } from './bandits.js';
 import { Zone, STATION_TYPES } from './zone.js';
-import { playPowerup, playDefeat, startMusic, stopMusic, getMusicVolume, getSfxVolume, setMusicVolume, setSfxVolume, playLevelUpMp3, playZoneCompleteMp3, playWinWorldMp3 } from './audio.js';
+import { playPowerup, startMusic, stopMusic, getMusicVolume, getSfxVolume, setMusicVolume, setSfxVolume, playLevelUpMp3, playZoneCompleteMp3, playWinWorldMp3, playDefeatMp3 } from './audio.js';
 
 const STATES = { ZONE_MAP: 0, SETUP: 1, RUNNING: 2, LEVELUP: 3, PLACE_WEAPON: 4, GAMEOVER: 5, PAUSED: 6, SHOP: 7, SETTINGS: 8 };
 
@@ -826,7 +826,7 @@ function enterGameOver() {
       setTimeout(() => renderer.spawnConfetti(), i * 150);
     }
   } else {
-    playDefeat();
+    playDefeatMp3();
   }
 }
 
@@ -1199,7 +1199,7 @@ function updateZoneMap() {
     goldEarned = 0;
     gameOverType = 'death';
     state = STATES.GAMEOVER;
-    playDefeat();
+    playDefeatMp3();
     return;
   }
 
