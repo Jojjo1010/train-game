@@ -197,10 +197,22 @@ export class CombatSystem {
         const target = this.findTarget(mount, enemies, areaMult);
         if (target) angle = this.leadAngle(mount, target);
       } else {
-        const target = this.findClosestEnemy(mount, enemies, areaMult);
+        // Auto-rotate cone toward nearest enemy at 2 rad/s
+        const nearest = this.findClosestEnemy(mount, enemies, areaMult);
+        if (nearest) {
+          const desiredAngle = Math.atan2(nearest.y - mount.worldY, nearest.x - mount.worldX);
+          const diff = normalizeAngle(desiredAngle - mount.coneDirection);
+          const maxRot = 2.0 * dt;
+          if (Math.abs(diff) < maxRot) {
+            mount.coneDirection = desiredAngle;
+          } else {
+            mount.coneDirection += Math.sign(diff) * maxRot;
+          }
+        }
+        // Fire only at enemies within cone
+        const target = this.findTarget(mount, enemies, areaMult);
         if (!target) continue;
         angle = this.leadAngle(mount, target);
-        mount.coneDirection = angle;
       }
 
       let damage = mount.damage * train.totalDamageMultiplier;

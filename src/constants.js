@@ -20,7 +20,7 @@ export const CAMERA_TRAIN_X = CANVAS_WIDTH * 0.3;
 
 // Weapon mounts
 export const MOUNT_RADIUS = 8;
-export const WEAPON_CONE_HALF_ANGLE = Math.PI / 4;
+export const WEAPON_CONE_HALF_ANGLE = Math.PI / 3;
 export const WEAPON_RANGE = T('WEAPON_RANGE', 220);
 export const WEAPON_FIRE_RATE = T('WEAPON_FIRE_RATE', 5);
 export const WEAPON_DAMAGE = T('WEAPON_DAMAGE', 12);

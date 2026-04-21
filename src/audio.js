@@ -57,22 +57,50 @@ export function setSfxVolume(v) {
 // --- SFX (unchanged, routed through sfxGainNode) ---
 export function playShoot() {
   const c = getCtx();
+  const t = c.currentTime;
+  const pitchMult = 0.9 + Math.random() * 0.2;
+
+  // Layer 1: noise snap (15ms)
+  const noiseLen = c.sampleRate * 0.015;
+  const noiseBuf = c.createBuffer(1, noiseLen, c.sampleRate);
+  const noiseData = noiseBuf.getChannelData(0);
+  for (let i = 0; i < noiseLen; i++) noiseData[i] = (Math.random() * 2 - 1) * (1 - i / noiseLen);
+  const noiseSrc = c.createBufferSource();
+  noiseSrc.buffer = noiseBuf;
+  const gn = sfxGain(0.18);
+  noiseSrc.connect(gn);
+  noiseSrc.start(t);
+
+  // Layer 2: low thump (30ms sine at 120Hz)
+  const thump = c.createOscillator();
+  const gt = sfxGain(0.12);
+  thump.type = 'sine';
+  thump.frequency.setValueAtTime(120 * pitchMult, t);
+  thump.frequency.exponentialRampToValueAtTime(60, t + 0.03);
+  gt.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+  thump.connect(gt);
+  thump.start(t);
+  thump.stop(t + 0.04);
+
+  // Layer 3: pitch sweep (louder + pitch varied)
   const osc = c.createOscillator();
-  const g = sfxGain(0.08);
+  const g = sfxGain(0.15);
   osc.type = 'square';
-  osc.frequency.setValueAtTime(800, c.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(200, c.currentTime + 0.06);
+  osc.frequency.setValueAtTime(800 * pitchMult, t);
+  osc.frequency.exponentialRampToValueAtTime(200, t + 0.06);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
   osc.connect(g);
-  osc.start(c.currentTime);
-  osc.stop(c.currentTime + 0.06);
+  osc.start(t);
+  osc.stop(t + 0.07);
 }
 
 export function playEnemyHit() {
   const c = getCtx();
+  const pitchMult = 0.85 + Math.random() * 0.3;
   const osc = c.createOscillator();
   const g = sfxGain(0.12);
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(300, c.currentTime);
+  osc.frequency.setValueAtTime(300 * pitchMult, c.currentTime);
   osc.frequency.exponentialRampToValueAtTime(80, c.currentTime + 0.1);
   g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.1);
   osc.connect(g);
@@ -82,25 +110,44 @@ export function playEnemyHit() {
 
 export function playEnemyKill() {
   const c = getCtx();
-  const bufferSize = c.sampleRate * 0.08;
+  const pitchMult = 0.85 + Math.random() * 0.3;
+  const bufferSize = c.sampleRate * 0.1;
   const buffer = c.createBuffer(1, bufferSize, c.sampleRate);
   const data = buffer.getChannelData(0);
   for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
   const noise = c.createBufferSource();
   noise.buffer = buffer;
-  const g = sfxGain(0.1);
+  const g = sfxGain(0.14);
   noise.connect(g);
   noise.start(c.currentTime);
 
   const osc = c.createOscillator();
-  const g2 = sfxGain(0.08);
+  const g2 = sfxGain(0.12);
   osc.type = 'square';
-  osc.frequency.setValueAtTime(600, c.currentTime);
+  osc.frequency.setValueAtTime(600 * pitchMult, c.currentTime);
   osc.frequency.exponentialRampToValueAtTime(100, c.currentTime + 0.12);
   g2.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.12);
   osc.connect(g2);
   osc.start(c.currentTime);
   osc.stop(c.currentTime + 0.12);
+}
+
+export function playWaveClear() {
+  const c = getCtx();
+  const t = c.currentTime;
+  const tones = [400, 600];
+  tones.forEach((freq, i) => {
+    const osc = c.createOscillator();
+    const g = sfxGain(0.12);
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    const start = t + i * 0.08;
+    g.gain.setValueAtTime(0.12, start);
+    g.gain.exponentialRampToValueAtTime(0.001, start + 0.15);
+    osc.connect(g);
+    osc.start(start);
+    osc.stop(start + 0.15);
+  });
 }
 
 export function playTrainDamage() {

@@ -96,7 +96,7 @@ export class Renderer3D {
     // --- Hit spark pool (max 30) ---
     this._hitSparks = [];
     for (let i = 0; i < 30; i++) {
-      this._hitSparks.push({ active: false, x: 0, y: 0, life: 0, maxLife: 0.05 });
+      this._hitSparks.push({ active: false, x: 0, y: 0, life: 0, maxLife: 0.12 });
     }
 
     // --- FBX Models ---
@@ -468,8 +468,8 @@ export class Renderer3D {
       flash.x = x;
       flash.y = y;
       flash.radius = 12;
-      flash.life = 0.06;
-      flash.maxLife = 0.06;
+      flash.life = 0.10;
+      flash.maxLife = 0.10;
     }
   }
 
@@ -1159,7 +1159,7 @@ export class Renderer3D {
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Drag crew to fight off bandits!', CANVAS_WIDTH / 2, tipY + 26);
+    ctx.fillText('Click crew \u2192 click mount to fight bandits!', CANVAS_WIDTH / 2, tipY + 26);
     ctx.restore();
   }
 
@@ -1580,8 +1580,14 @@ export class Renderer3D {
     s.active = true;
     s.x = screen.x;
     s.y = screen.y;
-    s.maxLife = 0.05;
+    s.maxLife = 0.12;
     s.life = s.maxLife;
+    s.particles = [];
+    for (let i = 0; i < 3; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const spd = 40 + Math.random() * 40;
+      s.particles.push({ x: s.x, y: s.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, life: 0.1 });
+    }
   }
 
   updateAndDrawHitSparks(dt) {
@@ -1598,6 +1604,19 @@ export class Renderer3D {
       ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
       ctx.fillStyle = '#ffffff';
       ctx.fill();
+      if (s.particles) {
+        for (const p of s.particles) {
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.life -= dt;
+          if (p.life <= 0) continue;
+          const pa = p.life / 0.1;
+          ctx.globalAlpha = pa * 0.8;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 1.5 * pa, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
       ctx.restore();
     }
   }
@@ -1671,7 +1690,7 @@ export class Renderer3D {
   drawDamageFlash(train) {
     if (train.damageFlash <= 0) return;
     const ctx = this.ctx;
-    const alpha = Math.min(0.35, train.damageFlash);
+    const alpha = Math.min(0.5, train.damageFlash);
     ctx.fillStyle = `rgba(255, 0, 0, ${alpha})`;
     ctx.fillRect(-10, -10, CANVAS_WIDTH + 20, CANVAS_HEIGHT + 20);
   }

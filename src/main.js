@@ -13,7 +13,7 @@ import { CombatSystem } from './combat.js';
 import { CoinSystem } from './coins.js';
 import { BanditSystem, BANDIT_STATES } from './bandits.js';
 import { Zone, STATION_TYPES } from './zone.js';
-import { playPowerup, startMusic, stopMusic, getMusicVolume, getSfxVolume, setMusicVolume, setSfxVolume, playLevelUpMp3, playZoneCompleteMp3, playWinWorldMp3, playDefeatMp3, preloadSfx, playWeaponAcquire } from './audio.js';
+import { playPowerup, startMusic, stopMusic, getMusicVolume, getSfxVolume, setMusicVolume, setSfxVolume, playLevelUpMp3, playZoneCompleteMp3, playWinWorldMp3, playDefeatMp3, preloadSfx, playWeaponAcquire, playWaveClear } from './audio.js';
 
 const STATES = {
   ZONE_MAP: 0, SETUP: 1, RUNNING: 2, LEVELUP: 3, PLACE_WEAPON: 4,
@@ -119,6 +119,9 @@ let prevWavePhase = -1; // -1 = uninitialized; compared each frame in updateRun
 let fanfareTimer = 0;   // seconds remaining in fanfare freeze
 let fanfareText = '';   // e.g. "TURRET ACQUIRED!"
 let fanfareColor = '#f5a623';
+
+// --- Hitstop (micro-freeze on kills) ---
+let hitStopTimer = 0;
 
 function newZone() {
   zoneNumber++;
@@ -427,6 +430,12 @@ function updateRun(dt) {
     debugMode = !debugMode;
   }
 
+  // Hitstop: skip simulation but still allow rendering/effects
+  if (hitStopTimer > 0) {
+    hitStopTimer -= dt;
+    return;
+  }
+
   train.distance += TRAIN_SPEED * dt;
   // Regen: defense regen + Medic role bonus (2 HP/s when stationed)
   let regenRate = train._regenRate;
@@ -502,9 +511,10 @@ function updateRun(dt) {
       train.shakeTimer = 0.3;
       train.shakeIntensity = 1.5; // slightly larger multiplier for surge
     } else if (currentPhase === 1 /* WARNING */) {
-      // Warning start — mild shake
       train.shakeTimer = 0.15;
       train.shakeIntensity = 1.0;
+    } else if (currentPhase === 0 /* CALM */ && prevWavePhase === 2 /* was SURGE */) {
+      playWaveClear();
     }
   }
   prevWavePhase = currentPhase;
@@ -559,6 +569,11 @@ function renderRun() {
   renderer.drawProjectiles(combat.projectiles);
   renderer.drawRicochetBolts(combat.ricochetBolts);
   // Spawn + draw kill effects (consume pending kills from combat this frame)
+  if (combat.killEffects.length > 0) {
+    hitStopTimer = 0.033; // 2-frame micro-freeze on kills
+    train.shakeTimer = Math.max(train.shakeTimer, 0.06);
+    train.shakeIntensity = Math.max(train.shakeIntensity || 0, 0.5);
+  }
   for (const ke of combat.killEffects) renderer.spawnKillEffect(ke.x, ke.y, ke.color);
   combat.killEffects.length = 0;
   renderer.updateAndDrawKillEffects(0.016);
@@ -640,18 +655,19 @@ function renderRun() {
     }
   }
   if (selectedCrew) renderer.drawSelectedIndicator(selectedCrew);
-  if (debugMode) drawDebugHitboxes();
-  // Debug toggle button
-  const dctx = renderer.ctx;
-  const dbHover = input.hitRect(debugBtnRun.x, debugBtnRun.y, debugBtnRun.w, debugBtnRun.h);
-  dctx.fillStyle = debugMode ? 'rgba(40,90,30,0.7)' : (dbHover ? 'rgba(80,80,80,0.7)' : 'rgba(40,40,40,0.5)');
-  dctx.beginPath();
-  renderer.roundRect(debugBtnRun.x, debugBtnRun.y, debugBtnRun.w, debugBtnRun.h, 4);
-  dctx.fill();
-  dctx.fillStyle = debugMode ? '#4f4' : '#888';
-  dctx.font = '10px monospace';
-  dctx.textAlign = 'center';
-  dctx.fillText('DEBUG', debugBtnRun.x + debugBtnRun.w / 2, debugBtnRun.y + 15);
+  if (debugMode) {
+    drawDebugHitboxes();
+    // Debug button only visible when debug mode active
+    const dctx = renderer.ctx;
+    dctx.fillStyle = 'rgba(40,90,30,0.7)';
+    dctx.beginPath();
+    renderer.roundRect(debugBtnRun.x, debugBtnRun.y, debugBtnRun.w, debugBtnRun.h, 4);
+    dctx.fill();
+    dctx.fillStyle = '#4f4';
+    dctx.font = '10px monospace';
+    dctx.textAlign = 'center';
+    dctx.fillText('DEBUG', debugBtnRun.x + debugBtnRun.w / 2, debugBtnRun.y + 15);
+  }
   renderer.flush();
 }
 
