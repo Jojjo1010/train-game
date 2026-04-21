@@ -1275,8 +1275,10 @@ export class Renderer3D {
 
       ctx.font = '14px monospace';
       ctx.textAlign = 'center';
-      ctx.fillStyle = hasIt ? def.color : '#444';
-      ctx.fillText(def.icon, x + 21, y + 15);
+      if (hasIt) {
+        ctx.fillStyle = def.color;
+        ctx.fillText(def.icon, x + 21, y + 15);
+      }
 
       if (hasIt) {
         for (let l = 0; l < 5; l++) {
