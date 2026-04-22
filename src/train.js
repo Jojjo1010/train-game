@@ -109,11 +109,15 @@ export class TrainCar {
 
     if (type === 'weapon') {
       const m = MOUNT_RADIUS + 2;
-      // 4 corner mounts per weapon car, facing outward
-      this.mounts.push(new WeaponMount(m, m, -Math.PI * 3 / 4));                // top-left → up-left
-      this.mounts.push(new WeaponMount(CAR_WIDTH - m, m, -Math.PI / 4));         // top-right → up-right
-      this.mounts.push(new WeaponMount(m, CAR_HEIGHT - m, Math.PI * 3 / 4));     // bottom-left → down-left
-      this.mounts.push(new WeaponMount(CAR_WIDTH - m, CAR_HEIGHT - m, Math.PI / 4)); // bottom-right → down-right
+      // 4 corner mounts per weapon car
+      // Upper-side mounts (small Y = z<0 in 3D) face upper-left (-3π/4)
+      // Lower-side mounts (large Y = z>0 in 3D) face lower-right (π/4)
+      const UPPER_OUT = -Math.PI * 3 / 4;  // perpendicular to upper train edge
+      const LOWER_OUT = Math.PI / 4;        // perpendicular to lower train edge
+      this.mounts.push(new WeaponMount(m, m, UPPER_OUT));                        // top-left
+      this.mounts.push(new WeaponMount(CAR_WIDTH - m, m, UPPER_OUT));            // top-right
+      this.mounts.push(new WeaponMount(m, CAR_HEIGHT - m, LOWER_OUT));           // bottom-left
+      this.mounts.push(new WeaponMount(CAR_WIDTH - m, CAR_HEIGHT - m, LOWER_OUT)); // bottom-right
     } else if (type === 'locomotive') {
       this.driverSeat = new DriverSeat(CAR_WIDTH / 2, CAR_HEIGHT / 2);
     }
