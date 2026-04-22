@@ -612,13 +612,20 @@ export class Renderer3D {
         const entry = this.mountGroups[mountIdx];
         const group = entry.group;
         group.position.set(offset.x, offset.y, offset.z);
-        const gunOff = offset.z < 0 ? MD.upperGunOffset : MD.lowerGunOffset;
+        // Hardcoded tuned defaults: upper = 135° + (-55°) = 80°, lower = -45° + 30° = -15°
+        const defaultRot = offset.z < 0
+          ? (135 + MD.upperGunOffset) * Math.PI / 180
+          : (-45 + MD.lowerGunOffset) * Math.PI / 180;
         if (mount._aimRotY !== undefined) {
-          // Mouse aim: 3D rotation computed in main.js
-          group.rotation.y = mount._aimRotY;
+          // Mouse aim: clamp within 90° of default outward direction
+          let diff = mount._aimRotY - defaultRot;
+          while (diff > Math.PI) diff -= 2 * Math.PI;
+          while (diff < -Math.PI) diff += 2 * Math.PI;
+          const maxDiff = MD.coneHalf * Math.PI / 180;
+          if (Math.abs(diff) > maxDiff) diff = Math.sign(diff) * maxDiff;
+          group.rotation.y = defaultRot + diff;
         } else {
-          // Default tuned position (exact formula from F4 tuning session)
-          group.rotation.y = -mount.coneDirection + gunOff * Math.PI / 180;
+          group.rotation.y = defaultRot;
         }
 
         // Determine which model to show
