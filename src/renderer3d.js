@@ -654,17 +654,21 @@ export class Renderer3D {
         }
       }
 
-      // Firing cone — diagonal outward from each corner
-      // Train at 45° on screen. Perpendicular to edges = diagonal directions.
-      // Mount order per car: 0=TL, 1=TR, 2=BL, 3=BR
+      // Firing cone — compute outward from screen-space car center
       const hasAuto = mount.hasAutoWeapon;
       const showCone = mount.isManned;
       if (showCone) {
-        const mountInCar = i % 4;
-        // Outward diagonals: TL=upper-left, TR=upper-right, BL=lower-left, BR=lower-right
-        const screenAngles = [-3*Math.PI/4, -Math.PI/4, 3*Math.PI/4, Math.PI/4];
-        const screenCenter = screenAngles[mountInCar];
-        const screenHalf = Math.PI / 2; // 180° total cone
+        // Average all 4 mount SCREEN positions to get car center
+        const carStart = i < 4 ? 0 : 4;
+        let csx = 0, csy = 0;
+        for (let j = carStart; j < carStart + 4; j++) {
+          const off = this.mountOffsets3D[j];
+          const scr = this._project(off.x, off.z);
+          csx += scr.x; csy += scr.y;
+        }
+        csx /= 4; csy /= 4;
+        const screenCenter = Math.atan2(sy - csy, sx - csx);
+        const screenHalf = Math.PI / 4; // 90° cone — 4 mounts × 90° = full coverage
 
         const coneColor = mount.crew.color;
         const coneRadius = 70;
