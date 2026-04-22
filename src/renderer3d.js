@@ -581,7 +581,7 @@ export class Renderer3D {
         const entry = this.mountGroups[mountIdx];
         const group = entry.group;
         group.position.set(offset.x, offset.y, offset.z);
-        group.rotation.y = -mount.coneDirection + Math.PI * 3 / 4;
+        group.rotation.y = -mount.coneDirection + Math.PI / 4;
 
         // Determine which model to show
         let desiredType = null;
