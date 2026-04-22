@@ -800,32 +800,43 @@ export class Renderer3D {
   }
 
   drawRicochetBolts(bolts) {
-    let idx = 0;
+    // Hide all 3D lines (use 2D overlay instead for visibility)
+    for (const line of this.ricochetPool) line.visible = false;
+
+    const ctx = this.ctx;
     for (const b of bolts) {
-      if (idx >= this.ricochetPool.length) break;
-      const line = this.ricochetPool[idx];
-      if (!b.active) {
-        line.visible = false;
-        idx++;
-        continue;
-      }
-      const trailLen = 30;
+      if (!b.active) continue;
       const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+      if (speed < 1) continue;
+
+      // Project head and tail through isometric camera
+      const headW = toWorld(b.x, b.y);
+      const trailLen = 35;
       const tailX = b.x - (b.vx / speed) * trailLen;
       const tailY = b.y - (b.vy / speed) * trailLen;
+      const tailW = toWorld(tailX, tailY);
 
-      const wHead = toWorld(b.x, b.y);
-      const wTail = toWorld(tailX, tailY);
+      const head = this._project(headW.x, headW.z);
+      const tail = this._project(tailW.x, tailW.z);
 
-      const positions = line.geometry.attributes.position;
-      positions.setXYZ(0, wTail.x, 5, wTail.z);
-      positions.setXYZ(1, wHead.x, 5, wHead.z);
-      positions.needsUpdate = true;
-      line.visible = true;
-      idx++;
-    }
-    for (let i = idx; i < this.ricochetPool.length; i++) {
-      this.ricochetPool[i].visible = false;
+      // Bright glowing bolt line
+      ctx.save();
+      ctx.strokeStyle = '#d4b8ff';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#b388ff';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(tail.x, tail.y);
+      ctx.lineTo(head.x, head.y);
+      ctx.stroke();
+
+      // Bright head dot
+      ctx.beginPath();
+      ctx.arc(head.x, head.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
     }
   }
 
@@ -3199,11 +3210,13 @@ export class Renderer3D {
     this._savedBg = this.scene.background;
     this.scene.background = new THREE.Color(0x0a0804);
 
-    // Show 3D train model, slowly rotating
+    // Show 3D train model (static, no rotation)
     if (this.trainMesh) {
       this.trainMesh.visible = true;
       this.trainMesh.position.set(0, 0, 0);
-      this.trainMesh.rotation.y = t * 0.3;
+      if (this._trainOrigRotY !== undefined) {
+        this.trainMesh.rotation.y = this._trainOrigRotY;
+      }
     }
 
     // Semi-transparent overlay so 3D train shows through
