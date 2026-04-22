@@ -1324,14 +1324,8 @@ function renderRunPause() {
     ctx.restore();
   }
 
-  // Dark overlay
-  const ctx = renderer.ctx;
-  ctx.save();
-  ctx.fillStyle = 'rgba(0,0,10,0.45)';
-  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  ctx.restore();
-
   // Banner
+  const ctx = renderer.ctx;
   ctx.save();
   ctx.fillStyle = 'rgba(10,20,50,0.85)';
   ctx.fillRect(0, 0, CANVAS_WIDTH, 36);
