@@ -2273,16 +2273,18 @@ export class Renderer3D {
     ctx.textAlign = 'center';
     ctx.fillText('CHOOSE YOUR CREW', CANVAS_WIDTH / 2, 50);
 
-    // ========== CREW SLOTS (top) ==========
-    const slotW = 160;
+    // ========== YOUR LOADOUT SLOTS (top) ==========
+    const slotW = 140;
     const slotH = 100;
-    const slotGap = 40;
-    const slotsTotal = crew.length * slotW + (crew.length - 1) * slotGap;
+    const slotGap = 20;
+    const totalSlots = crew.length + 1; // +1 for weapon
+    const slotsTotal = totalSlots * slotW + (totalSlots - 1) * slotGap;
     const slotsStartX = CANVAS_WIDTH / 2 - slotsTotal / 2;
     const slotsY = 70;
 
     const buttons = [];
 
+    // --- Crew slots ---
     for (let ci = 0; ci < crew.length; ci++) {
       const c = crew[ci];
       const sx = slotsStartX + ci * (slotW + slotGap);
@@ -2291,13 +2293,11 @@ export class Renderer3D {
       const slotKey = `slot_${ci}`;
       const isHovered = hoveredBtn === slotKey;
 
-      // Slot background
       ctx.fillStyle = hasRole ? role.bg : 'rgba(40, 40, 60, 0.8)';
       ctx.beginPath();
       this.roundRect(sx, slotsY, slotW, slotH, 10);
       ctx.fill();
 
-      // Border
       ctx.strokeStyle = hasRole ? role.color : (isHovered ? '#888' : '#555');
       ctx.lineWidth = hasRole ? 2 : (isHovered ? 2 : 1);
       if (hasRole) { ctx.shadowColor = role.color; ctx.shadowBlur = 8; }
@@ -2307,24 +2307,23 @@ export class Renderer3D {
       ctx.shadowBlur = 0;
 
       // Slot label
-      ctx.fillStyle = c.color;
-      ctx.font = 'bold 10px monospace';
+      ctx.fillStyle = '#888';
+      ctx.font = 'bold 9px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(`SLOT ${ci + 1}`, sx + slotW / 2, slotsY + 14);
+      ctx.fillText(`CREW ${ci + 1}`, sx + slotW / 2, slotsY + 13);
 
       if (hasRole) {
-        // Filled slot
-        ctx.font = '36px serif';
+        ctx.font = '32px serif';
         ctx.textAlign = 'center';
-        ctx.fillText(role.avatar, sx + slotW / 2, slotsY + 52);
+        ctx.fillText(role.avatar, sx + slotW / 2, slotsY + 48);
 
         ctx.fillStyle = role.color;
-        ctx.font = 'bold 12px monospace';
-        ctx.fillText(role.title, sx + slotW / 2, slotsY + 72);
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(role.title, sx + slotW / 2, slotsY + 68);
 
         ctx.fillStyle = '#aaa';
         ctx.font = '10px monospace';
-        ctx.fillText(c.name || '', sx + slotW / 2, slotsY + 86);
+        ctx.fillText(c.name || '', sx + slotW / 2, slotsY + 82);
 
         if (isHovered) {
           ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -2332,7 +2331,7 @@ export class Renderer3D {
           this.roundRect(sx, slotsY, slotW, slotH, 10);
           ctx.fill();
           ctx.fillStyle = '#f44';
-          ctx.font = 'bold 12px monospace';
+          ctx.font = 'bold 11px monospace';
           ctx.textAlign = 'center';
           ctx.fillText('\u2715 REMOVE', sx + slotW / 2, slotsY + slotH / 2 + 4);
         }
@@ -2341,20 +2340,52 @@ export class Renderer3D {
         ctx.strokeStyle = isHovered ? '#aaa' : '#555';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        this.roundRect(sx + 8, slotsY + 22, slotW - 16, slotH - 30, 6);
+        this.roundRect(sx + 8, slotsY + 20, slotW - 16, slotH - 28, 6);
         ctx.stroke();
         ctx.setLineDash([]);
 
         ctx.fillStyle = '#555';
         ctx.font = '11px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText('Empty', sx + slotW / 2, slotsY + 55);
+        ctx.fillText('Empty', sx + slotW / 2, slotsY + 52);
       }
 
       if (hasRole) {
         buttons.push({ type: 'slot', crewIdx: ci, x: sx, y: slotsY, w: slotW, h: slotH, key: slotKey });
       }
     }
+
+    // --- Weapon slot (Garlic) ---
+    const weapX = slotsStartX + crew.length * (slotW + slotGap);
+    const weapColor = '#8ecae6';
+
+    ctx.fillStyle = 'rgba(40, 50, 60, 0.8)';
+    ctx.beginPath();
+    this.roundRect(weapX, slotsY, slotW, slotH, 10);
+    ctx.fill();
+
+    ctx.strokeStyle = weapColor + '88';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    this.roundRect(weapX, slotsY, slotW, slotH, 10);
+    ctx.stroke();
+
+    ctx.fillStyle = '#888';
+    ctx.font = 'bold 9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('WEAPON', weapX + slotW / 2, slotsY + 13);
+
+    ctx.font = '28px serif';
+    ctx.fillText('\uD83D\uDCA8', weapX + slotW / 2, slotsY + 46);
+
+    ctx.fillStyle = weapColor;
+    ctx.font = 'bold 11px monospace';
+    ctx.fillText('GARLIC', weapX + slotW / 2, slotsY + 66);
+
+    ctx.fillStyle = '#777';
+    ctx.font = '9px monospace';
+    ctx.fillText('AOE aura', weapX + slotW / 2, slotsY + 80);
+    ctx.fillText('Place after confirm', weapX + slotW / 2, slotsY + 92);
 
     // ========== CHARACTER ROSTER (bottom) ==========
     const cardW = 200;
