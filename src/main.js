@@ -690,13 +690,15 @@ function updateRun(dt) {
   // Bandits
   banditSystem.update(dt, train, train.combatDifficulty || 1, currentPhase);
 
-  // Brawler kick — small shake on the kick itself
+  // Brawler kick — immediate shockwave at kick origin + small shake
   for (const b of banditSystem.pool) {
     if (!b._brawlerKick) continue;
     b._brawlerKick = false;
-    // Minor shake when bandit is launched (anticipation)
-    train.shakeTimer = Math.max(train.shakeTimer, 0.1);
-    train.shakeIntensity = 0.8;
+    // Spawn shockwave immediately at the mount where the kick happened
+    if (b._kickWorldX !== undefined) {
+      const kickScreen = renderer._project(b._kickWorldX - CANVAS_WIDTH / 2, b._kickWorldY - CANVAS_HEIGHT / 2);
+      renderer.spawnBrawlerKick(kickScreen.x, kickScreen.y, 80);
+    }
   }
 
   // Brawler kick AOE — triggers when kicked bandit LANDS
@@ -728,13 +730,20 @@ function updateRun(dt) {
     crew._kickCount = (crew._kickCount || 0) + 1;
     crew._kickTotalDmg = (crew._kickTotalDmg || 0) + kickTotalDmg;
     crew._kickHits = (crew._kickHits || 0) + kickHits;
-    // Impact on landing — punchy but brief
-    train.shakeTimer = Math.max(train.shakeTimer, 0.15);
-    train.shakeIntensity = 1.5;
-    hitStopTimer = 0.05;
-    // Project landing position from pixel-space to screen-space
+    // Minimal shake — the shockwave ring IS the impact feedback
+    train.shakeTimer = Math.max(train.shakeTimer, 0.05);
+    train.shakeIntensity = 0.5;
+    // Project landing position from pixel-space to screen-space for visuals
     const landScreen = renderer._project(kx - CANVAS_WIDTH / 2, ky - CANVAS_HEIGHT / 2);
     renderer.spawnBrawlerKick(landScreen.x, landScreen.y, kickR);
+    // Also spawn kill effects at the screen position for extra visibility
+    for (let i = 0; i < 8; i++) {
+      renderer.spawnKillEffect(
+        landScreen.x + (Math.random() - 0.5) * 60,
+        landScreen.y + (Math.random() - 0.5) * 60,
+        '#66bb6a'
+      );
+    }
     train.hpGreenFlashTimer = 0.4;
   }
 
