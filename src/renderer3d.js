@@ -623,24 +623,28 @@ export class Renderer3D {
         const dirDist = 40;
         const coneRadius = 56;
 
-        // Project cone edges through isometric projection for correct visual angle
+        // Project cone center + edges through isometric projection
         const half = mount.coneHalfAngle;
+        const baseDirX = offset.x + Math.cos(mount.baseDirection) * dirDist;
+        const baseDirZ = offset.z + Math.sin(mount.baseDirection) * dirDist;
+        const baseScreen = this._project(baseDirX, baseDirZ);
+        const baseScreenAngle = Math.atan2(baseScreen.y - sy, baseScreen.x - sx);
+
+        // Project both edges to get the screen-space half angle
         const edgeAng1 = mount.baseDirection - half;
-        const edgeAng2 = mount.baseDirection + half;
         const edge1X = offset.x + Math.cos(edgeAng1) * dirDist;
         const edge1Z = offset.z + Math.sin(edgeAng1) * dirDist;
-        const edge2X = offset.x + Math.cos(edgeAng2) * dirDist;
-        const edge2Z = offset.z + Math.sin(edgeAng2) * dirDist;
         const edgeScreen1 = this._project(edge1X, edge1Z);
-        const edgeScreen2 = this._project(edge2X, edge2Z);
-        const screenAng1 = Math.atan2(edgeScreen1.y - sy, edgeScreen1.x - sx);
-        const screenAng2 = Math.atan2(edgeScreen2.y - sy, edgeScreen2.x - sx);
+        const screenEdge1 = Math.atan2(edgeScreen1.y - sy, edgeScreen1.x - sx);
+        // Screen-space half angle = distance from center to one edge
+        let screenHalf = Math.abs(screenEdge1 - baseScreenAngle);
+        if (screenHalf > Math.PI) screenHalf = Math.PI * 2 - screenHalf;
 
         // Full allowed arc (faint)
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(sx, sy);
-        ctx.arc(sx, sy, coneRadius, screenAng1, screenAng2, false);
+        ctx.arc(sx, sy, coneRadius, baseScreenAngle - screenHalf, baseScreenAngle + screenHalf, false);
         ctx.closePath();
         ctx.fillStyle = coneColor;
         ctx.globalAlpha = 0.08;
@@ -1915,6 +1919,11 @@ export class Renderer3D {
   // =============================================
   drawCrewPanel(crew, panelY) {
     const ctx = this.ctx;
+
+    // Don't draw panel if all crew are assigned
+    const unassigned = crew.filter(c => !c.assignment && !c.isMoving);
+    if (unassigned.length === 0) return;
+
     const spacing = 70;
     const totalW = crew.length * spacing;
     const startX = CANVAS_WIDTH / 2 - totalW / 2;
