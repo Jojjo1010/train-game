@@ -694,6 +694,17 @@ export class Renderer3D {
       // Set pixel coords from 3D offset so combat fires from turret position
       mount.worldX = toPixelX(offset.x);
       mount.worldY = toPixelZ(offset.z);
+
+      // Update baseDirection to point outward from train center in pixel space
+      // This aligns clampAngle (gameplay) with the visual cone
+      const trainCenterX = toPixelX(0);
+      const trainCenterY = toPixelZ(0);
+      mount.baseDirection = Math.atan2(
+        mount.worldY - trainCenterY,
+        mount.worldX - trainCenterX
+      );
+      // Re-clamp current aim to the updated arc
+      mount.coneDirection = mount.clampAngle(mount.coneDirection);
     }
 
     // Hide unused mount groups
