@@ -670,26 +670,39 @@ export class Renderer3D {
         // In 2D pixel space: cos→X, sin→Y(down). Pixel X→world X, pixel Y→world Z.
         // So a 2D direction (cos(a), sin(a)) maps to 3D offset (cos(a), sin(a)) on (X, Z).
         const half = mount.coneHalfAngle;
-        const centerPx = mount.worldX + Math.cos(mount.baseDirection) * projDist;
-        const centerPy = mount.worldY + Math.sin(mount.baseDirection) * projDist;
-        const centerW = toWorld(centerPx, centerPy);
-        const centerScr = this._project(centerW.x, centerW.z);
-        const screenBaseAngle = Math.atan2(centerScr.y - sy, centerScr.x - sx);
 
-        // Project both cone edges the same way to get the screen half angle
+        // Project BOTH cone edges independently — isometric projection is NOT
+        // angle-preserving, so the two edges distort differently.
         const edge1Px = mount.worldX + Math.cos(mount.baseDirection - half) * projDist;
         const edge1Py = mount.worldY + Math.sin(mount.baseDirection - half) * projDist;
         const edge1W = toWorld(edge1Px, edge1Py);
         const edge1Scr = this._project(edge1W.x, edge1W.z);
         const screenEdge1 = Math.atan2(edge1Scr.y - sy, edge1Scr.x - sx);
 
-        let screenHalf = Math.abs(screenEdge1 - screenBaseAngle);
-        if (screenHalf > Math.PI) screenHalf = Math.PI * 2 - screenHalf;
+        const edge2Px = mount.worldX + Math.cos(mount.baseDirection + half) * projDist;
+        const edge2Py = mount.worldY + Math.sin(mount.baseDirection + half) * projDist;
+        const edge2W = toWorld(edge2Px, edge2Py);
+        const edge2Scr = this._project(edge2W.x, edge2W.z);
+        const screenEdge2 = Math.atan2(edge2Scr.y - sy, edge2Scr.x - sx);
+
+        // Determine the correct arc direction (shortest path between edges)
+        // Normalize the angular span
+        let arcStart = screenEdge1;
+        let arcEnd = screenEdge2;
+        let span = arcEnd - arcStart;
+        while (span > Math.PI) span -= Math.PI * 2;
+        while (span < -Math.PI) span += Math.PI * 2;
+        // If span is negative, swap so we always draw counterclockwise
+        if (span < 0) {
+          arcStart = screenEdge2;
+          arcEnd = screenEdge1;
+          span = -span;
+        }
 
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(sx, sy);
-        ctx.arc(sx, sy, coneRadius, screenBaseAngle - screenHalf, screenBaseAngle + screenHalf, false);
+        ctx.arc(sx, sy, coneRadius, arcStart, arcEnd, false);
         ctx.closePath();
         ctx.fillStyle = coneColor;
         ctx.globalAlpha = 0.12;

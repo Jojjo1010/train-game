@@ -780,17 +780,7 @@ function drawDebugHitboxes() {
     ctx.arc(center.x, center.y, screenRange, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Firing cone (for crew weapons)
-    if (mount.isManned) {
-      const dir = mount.coneDirection;
-      const half = mount.coneHalfAngle;
-      ctx.fillStyle = 'rgba(0,255,255,0.1)';
-      ctx.beginPath();
-      ctx.moveTo(center.x, center.y);
-      ctx.arc(center.x, center.y, screenRange, dir - half, dir + half);
-      ctx.closePath();
-      ctx.fill();
-    }
+    // Firing cone is drawn by renderer3d.js in isometric space
   }
 
   // Ricochet bolts
