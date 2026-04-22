@@ -13,7 +13,8 @@ window.__mountDebug = window.__mountDebug || {
   upperGunRot: 80,       // direct rotation.y for upper gun (degrees)
   lowerGunRot: -15,      // direct rotation.y for lower gun (degrees)
   coneHalf: 90,          // half of total cone (degrees)
-  mouseScale: -1,        // multiplier for mouse delta → rotation.y
+  upperMouseScale: 1,    // multiplier for upper mouse delta → rotation.y
+  lowerMouseScale: -1,   // multiplier for lower mouse delta → rotation.y
 };
 const MD = window.__mountDebug;
 document.addEventListener('keydown', (e) => {
@@ -623,7 +624,8 @@ export class Renderer3D {
           // Mouse aim: compute delta from cone center in screen space, apply to 3D rotation
           const coneCenterRad = (offset.z < 0 ? MD.upperConeAngle : MD.lowerConeAngle) * Math.PI / 180;
           const aimDelta = mount.screenAimAngle - coneCenterRad;
-          group.rotation.y = defaultRot + aimDelta * MD.mouseScale;
+          const mScale = offset.z < 0 ? MD.upperMouseScale : MD.lowerMouseScale;
+          group.rotation.y = defaultRot + aimDelta * mScale;
         } else {
           group.rotation.y = defaultRot;
         }
