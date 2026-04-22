@@ -673,7 +673,7 @@ export class Renderer3D {
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(sx, sy);
-        ctx.arc(sx, sy, coneRadius, screenCenter - screenHalf, screenCenter + screenHalf, true);
+        ctx.arc(sx, sy, coneRadius, screenCenter - screenHalf, screenCenter + screenHalf, false);
         ctx.closePath();
         ctx.fillStyle = coneColor;
         ctx.globalAlpha = 0.2;
