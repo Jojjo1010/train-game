@@ -615,10 +615,11 @@ export class Renderer3D {
         const gunOff = offset.z < 0 ? MD.upperGunOffset : MD.lowerGunOffset;
         const coneCenter = offset.z < 0 ? MD.upperConeAngle : MD.lowerConeAngle;
         const coneCenterRad = coneCenter * Math.PI / 180;
-        // screenAimAngle is in screen space; gunOff is the tuned rotation at cone center
+        // Default: tuned position = -baseDirection + gunOff
+        // Mouse aim: subtract screen-space delta from default
         const aimAngle = mount.screenAimAngle !== undefined ? mount.screenAimAngle : coneCenterRad;
         const aimDelta = aimAngle - coneCenterRad;
-        group.rotation.y = gunOff * Math.PI / 180 - aimDelta;
+        group.rotation.y = -mount.baseDirection + gunOff * Math.PI / 180 - aimDelta;
 
         // Determine which model to show
         let desiredType = null;
