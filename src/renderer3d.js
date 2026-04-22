@@ -581,7 +581,7 @@ export class Renderer3D {
         const entry = this.mountGroups[mountIdx];
         const group = entry.group;
         group.position.set(offset.x, offset.y, offset.z);
-        group.rotation.y = -mount.coneDirection + Math.PI / 4;
+        group.rotation.y = -mount.coneDirection + Math.PI / 2;
 
         // Determine which model to show
         let desiredType = null;
@@ -664,16 +664,6 @@ export class Renderer3D {
 
         const coneColor = mount.crew.color;
         const coneRadius = 70;
-
-        // DEBUG: draw direction line from mount outward
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(sx + Math.cos(screenCenter) * 80, sy + Math.sin(screenCenter) * 80);
-        ctx.strokeStyle = '#ff0';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        ctx.restore();
 
         ctx.save();
         ctx.beginPath();
