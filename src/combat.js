@@ -185,19 +185,25 @@ export class CombatSystem {
     const hasDriver = train.hasDriver;
     const areaMult = train.totalAreaMultiplier;
 
-    // Phase 1: rotate all non-player-aimed cones every frame (clamped to allowed arc)
+    // Unmanned crew mounts: fire at reduced effectiveness (30% damage, 40% fire rate)
+    const UNMANNED_DAMAGE_MULT = 0.30;
+    const UNMANNED_RATE_MULT = 0.40;
+
+    // Phase 1: rotate cones — manned crew, auto-weapons, AND unmanned crew mounts
     for (const mount of train.allMounts) {
       if (mount.crew === selectedCrew) continue; // selected crew aims via mouse
       const isAutoWeapon = mount.hasAutoWeapon && !mount.isManned;
       const isCrew = mount.isManned && !mount.hasAutoWeapon;
-      if (!isAutoWeapon && !isCrew) continue;
+      const isUnmanned = !mount.isManned && !mount.hasAutoWeapon;
+      if (!isAutoWeapon && !isCrew && !isUnmanned) continue;
       const nearest = this.findClosestEnemy(mount, enemies, areaMult);
       if (nearest) {
         const desiredAngle = mount.clampAngle(
           Math.atan2(nearest.y - mount.worldY, nearest.x - mount.worldX)
         );
         const diff = normalizeAngle(desiredAngle - mount.coneDirection);
-        const rotSpeed = isAutoWeapon ? 1.5 : 2.0;
+        // Unmanned rotates slower (sloppy aim without crew)
+        const rotSpeed = isAutoWeapon ? 1.5 : (isCrew ? 2.0 : 0.8);
         const maxRot = rotSpeed * dt;
         if (Math.abs(diff) < maxRot) {
           mount.coneDirection = desiredAngle;
@@ -207,31 +213,44 @@ export class CombatSystem {
       }
     }
 
-    // Phase 2: fire weapons when cooldown ready
+    // Phase 2: fire crew weapons (manned at full power, unmanned at reduced)
     for (const mount of train.allMounts) {
-      if (!mount.isManned || mount.hasAutoWeapon) continue;
+      if (mount.hasAutoWeapon) continue; // auto-weapons handled separately
+      if (mount._bandit) continue; // bandit on mount suppresses all fire
+      const manned = mount.isManned;
 
       mount.cooldownTimer -= dt;
       if (mount.cooldownTimer > 0) continue;
 
-      const isSelected = mount.crew === selectedCrew;
-      let angle = mount.coneDirection;
+      if (manned) {
+        // --- Manned: full power, crew bonuses apply ---
+        const target = this.findTarget(mount, enemies, areaMult);
+        if (!target) continue;
+        const angle = this.leadAngle(mount, target);
 
-      // Both selected and unselected respect cone — find target within cone
-      const target = this.findTarget(mount, enemies, areaMult);
-      if (!target) continue;
-      angle = this.leadAngle(mount, target);
+        let damage = mount.damage * train.totalDamageMultiplier;
+        if (hasDriver) damage *= DRIVER_DAMAGE_BUFF;
+        if (mount.crew.role === 'Gunner') damage *= 1.2;
 
-      let damage = mount.damage * train.totalDamageMultiplier;
-      if (hasDriver) damage *= DRIVER_DAMAGE_BUFF;
-      if (mount.crew.role === 'Gunner') damage *= 1.2; // Gunner role bonus: +20% manual gun damage
+        this.fireProjectile(mount.worldX, mount.worldY, angle, damage, 'crew', mount.crew.color);
+        mount.cooldownTimer = (1 / mount.fireRate) * train.totalCooldownMultiplier;
+        if (mount.screenX !== undefined && mount.screenY !== undefined) {
+          this.muzzleFlashes.push({ x: mount.screenX, y: mount.screenY });
+        }
+        playShoot();
+      } else {
+        // --- Unmanned: degraded auto-fire, no crew bonuses ---
+        const target = this.findTarget(mount, enemies, areaMult);
+        if (!target) continue;
+        const angle = this.leadAngle(mount, target);
 
-      this.fireProjectile(mount.worldX, mount.worldY, angle, damage, 'crew', mount.crew.color);
-      mount.cooldownTimer = (1 / mount.fireRate) * train.totalCooldownMultiplier;
-      if (mount.screenX !== undefined && mount.screenY !== undefined) {
-        this.muzzleFlashes.push({ x: mount.screenX, y: mount.screenY });
+        const baseDmg = mount.damage; // level-1 stats, no crew multipliers
+        const damage = baseDmg * train.totalDamageMultiplier * UNMANNED_DAMAGE_MULT;
+
+        this.fireProjectile(mount.worldX, mount.worldY, angle, damage, 'unmanned', '#888888');
+        mount.cooldownTimer = (1 / (mount.fireRate * UNMANNED_RATE_MULT)) * train.totalCooldownMultiplier;
+        // No muzzle flash for unmanned (visually distinguishable)
       }
-      playShoot();
     }
 
     // Projectile-enemy collision

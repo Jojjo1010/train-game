@@ -7,8 +7,8 @@ import {
   MANUAL_GUN
 } from './constants.js';
 
-const CREW_MOVE_SPEED = 120; // px/sec
-const DOOR_PAUSE = 0.35;     // seconds to pass through a door
+const CREW_MOVE_SPEED = 85; // px/sec (was 120 — slowed for meaningful transit cost)
+const DOOR_PAUSE = 0.55;    // seconds to pass through a door (was 0.35)
 
 export class WeaponMount {
   constructor(localX, localY, baseDirection) {

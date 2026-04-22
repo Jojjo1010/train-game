@@ -171,6 +171,7 @@
         <button class="tab active" onclick="switchTab('tuner')">Tuner</button>
         <button class="tab" onclick="switchTab('changelog')">Changelog</button>
         <button class="tab" onclick="switchTab('docs')">UE5 Port Guide</button>
+        <button class="tab" onclick="switchTab('changelog')">Changelog</button>
       </div>
       <span class="status" id="status">Loading...</span>
       <div class="actions" id="tunerActions">
@@ -218,6 +219,33 @@
         <div class="docs-content" id="docsContent">
           <div class="docs-loading">Loading documentation...</div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-changelog">
+    <div class="content" style="max-width: 720px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: var(--accent); margin-bottom: 16px;">Changelog</h2>
+
+      <div style="margin-bottom: 24px; padding: 16px; background: var(--card); border-radius: 8px; border: 1px solid var(--border);">
+        <h3 style="margin: 0 0 8px; color: var(--text);">2026-04-22 — Bandit Escalation & Unmanned Weapons</h3>
+        <ul style="margin: 0; padding-left: 20px; color: var(--text-muted); font-size: 14px; line-height: 1.8;">
+          <li><strong>Bandit escalation:</strong> Bandits now have 3 phases — 0–3s grace (no impact), 3–6s normal steal (8 gold/s), 6s+ escalated (16 gold/s + 1 HP/s hull damage)</li>
+          <li><strong>First bandit delay:</strong> Pushed from 5s to 9s — gives players a calm orientation window before internal pressure begins</li>
+          <li><strong>Unmanned weapons:</strong> Mounts without crew now auto-fire at 30% damage / 40% fire rate (grey projectiles, slow rotation). Removes the 0%→100% cliff.</li>
+          <li><strong>Fight duration:</strong> Adjusted from 2.5s to 2.0s — still meaningful commitment but less punishing per-bandit</li>
+          <li><strong>Steal rate:</strong> Base steal rate reduced from 12 to 8 gold/s — escalation doubles it to 16 at 6s+ instead</li>
+          <li><strong>Banner escalation:</strong> Alert banner now shifts from amber (grace) → red (stealing) → bright red (damaging hull) with increasing pulse speed</li>
+        </ul>
+      </div>
+
+      <div style="margin-bottom: 24px; padding: 16px; background: var(--card); border-radius: 8px; border: 1px solid var(--border);">
+        <h3 style="margin: 0 0 8px; color: var(--text);">2026-04-22 — Crew Movement Tuning (prior session)</h3>
+        <ul style="margin: 0; padding-left: 20px; color: var(--text-muted); font-size: 14px; line-height: 1.8;">
+          <li>Crew move speed: 120 → 85 px/s</li>
+          <li>Door pause: 0.35s → 0.55s</li>
+          <li>Bandit spawn interval: 15s → 8s, min 4s → 3s</li>
+        </ul>
       </div>
     </div>
   </div>

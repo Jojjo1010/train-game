@@ -15,6 +15,10 @@ const STATES = {
 
 export { STATES as BANDIT_STATES };
 
+// Escalation thresholds (seconds on train)
+const BANDIT_GRACE_PERIOD = 3;       // 0–3s: no stealing (just arrived)
+const BANDIT_ESCALATE_TIME = 6;      // 6s+: double steal rate
+
 export class Bandit {
   constructor() {
     this.active = false;
@@ -33,6 +37,7 @@ export class Bandit {
     this.totalStolen = 0;
     this.deathVx = 0;
     this.deathVy = 0;
+    this.dwellTime = 0; // seconds spent ON_TRAIN (drives escalation)
   }
 
   spawn(x, y, targetSlot, side) {
@@ -48,6 +53,7 @@ export class Bandit {
     this.flashTimer = 0;
     this.stealFlash = 0;
     this.totalStolen = 0;
+    this.dwellTime = 0;
   }
 
   update(dt, train) {
@@ -101,9 +107,13 @@ export class Bandit {
         this.x = this.targetSlot.worldX;
         this.y = this.targetSlot.worldY;
 
-        // If slot has no auto-weapon, steal gold
-        if (!this.targetSlot.autoWeaponId) {
-          this.stealAccumulator += BANDIT_STEAL_RATE * dt;
+        // Track how long this bandit has been aboard
+        this.dwellTime += dt;
+
+        // Escalating steal: grace → normal → double rate
+        if (!this.targetSlot.autoWeaponId && this.dwellTime > BANDIT_GRACE_PERIOD) {
+          const mult = this.dwellTime >= BANDIT_ESCALATE_TIME ? 2 : 1;
+          this.stealAccumulator += BANDIT_STEAL_RATE * mult * dt;
           if (this.stealAccumulator >= 1) {
             const stolen = Math.floor(this.stealAccumulator);
             if (train.runGold > 0) {
@@ -115,6 +125,13 @@ export class Bandit {
             this.stealAccumulator -= stolen;
           }
         }
+
+        // At 6s+, also start dealing HP damage (1 HP/s per bandit)
+        if (this.dwellTime >= BANDIT_ESCALATE_TIME) {
+          train.hp -= 1 * dt;
+          if (train.damageFlash <= 0) train.damageFlash = 0.1;
+        }
+
         if (this.stealFlash > 0) this.stealFlash -= dt;
         // If slot has auto-weapon, it's disabled (checked in combat.js)
 
@@ -171,7 +188,7 @@ export class BanditSystem {
     for (let i = 0; i < MAX_BANDITS; i++) {
       this.pool.push(new Bandit());
     }
-    this.spawnTimer = 8; // initial delay before first bandit
+    this.spawnTimer = 9; // initial delay — player gets ~9s to orient before first bandit
   }
 
   update(dt, train, difficulty) {
@@ -181,16 +198,17 @@ export class BanditSystem {
     }
 
     // Spawn new bandits
-    const interval = Math.max(4, BANDIT_SPAWN_INTERVAL - difficulty * 1.5);
+    const interval = Math.max(3, BANDIT_SPAWN_INTERVAL - difficulty * 1.0);
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnTimer = interval;
       this.trySpawn(train);
     }
 
-    // Steal sound: loop while any bandit is actively stealing gold
+    // Steal sound: loop only when a bandit is past the grace period and actually stealing
     const anyStealing = this.pool.some(b =>
       b.active && b.state === STATES.ON_TRAIN && !b.targetSlot?.autoWeaponId
+      && b.dwellTime > BANDIT_GRACE_PERIOD
     );
     if (anyStealing) {
       startStealLoop();
@@ -236,6 +254,6 @@ export class BanditSystem {
         b.targetSlot = null;
       }
     }
-    this.spawnTimer = 8;
+    this.spawnTimer = 9;
   }
 }

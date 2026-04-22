@@ -319,7 +319,7 @@ function findSlotAtMouse() {
 }
 
 function updateCrewWalk(dt) {
-  const CREW_WALK_SPEED = 120;
+  const CREW_WALK_SPEED = 85;
   for (const c of train.crew) {
     if (!c.isMoving || c.moveScreenX === undefined) continue;
     const dx = c.moveTargetX - c.moveScreenX;
@@ -600,29 +600,48 @@ function renderRun() {
   renderer.drawHUD(train);
   renderer.drawWaveHUD(spawner.waveInfo);
   renderer.drawAutoWeaponHUD(train);
-  // Bandit alert banner
+  // Bandit alert banner — escalates visually with dwell time
   let banditCount = 0;
+  let maxDwell = 0;
   for (const b of banditSystem.pool) {
-    if (b.active && (b.state === BANDIT_STATES.ON_TRAIN || b.state === BANDIT_STATES.FIGHTING)) banditCount++;
+    if (b.active && (b.state === BANDIT_STATES.ON_TRAIN || b.state === BANDIT_STATES.FIGHTING)) {
+      banditCount++;
+      if (b.dwellTime > maxDwell) maxDwell = b.dwellTime;
+    }
   }
   if (banditCount > 0) {
     const dctx2 = renderer.ctx;
-    const pulse = 0.5 + Math.sin(performance.now() * 0.008) * 0.5;
+    // Pulse speed increases with dwell time (faster = more urgent)
+    const pulseSpeed = maxDwell >= 6 ? 0.016 : (maxDwell >= 3 ? 0.010 : 0.006);
+    const pulse = 0.5 + Math.sin(performance.now() * pulseSpeed) * 0.5;
     const bannerW = 340;
     const bannerH = 38;
     const bannerX = CANVAS_WIDTH / 2 - bannerW / 2;
     const bannerY = 44;
-    // Red pulsing background with border
-    dctx2.fillStyle = `rgba(180, 30, 20, ${0.85 * pulse})`;
+    // Color shifts: yellow (grace) → red (stealing) → bright red (escalated)
+    let bgR = 180, bgG = 30, bgB = 20;
+    let msg;
+    if (maxDwell < 3) {
+      // Grace period — yellow/amber, less alarming
+      bgR = 180; bgG = 130; bgB = 20;
+      msg = banditCount === 1 ? '⚠ Bandit boarding! Move crew to intercept' : `⚠ ${banditCount} bandits boarding!`;
+    } else if (maxDwell < 6) {
+      // Normal steal — red
+      bgR = 180; bgG = 30; bgB = 20;
+      msg = banditCount === 1 ? '⚠ BANDIT STEALING! Move crew to fight!' : `⚠ ${banditCount} BANDITS STEALING!`;
+    } else {
+      // Escalated — bright red, damage warning
+      bgR = 220; bgG = 20; bgB = 20;
+      msg = banditCount === 1 ? '⚠ BANDIT DAMAGING TRAIN! RESPOND NOW!' : `⚠ ${banditCount} BANDITS DAMAGING TRAIN!`;
+    }
+    dctx2.fillStyle = `rgba(${bgR}, ${bgG}, ${bgB}, ${0.85 * pulse})`;
     dctx2.fillRect(bannerX, bannerY, bannerW, bannerH);
     dctx2.strokeStyle = `rgba(255, 80, 60, ${pulse})`;
     dctx2.lineWidth = 2;
     dctx2.strokeRect(bannerX, bannerY, bannerW, bannerH);
-    // Warning text
     dctx2.fillStyle = '#fff';
     dctx2.font = 'bold 16px monospace';
     dctx2.textAlign = 'center';
-    const msg = banditCount === 1 ? '⚠ BANDIT ON BOARD! Move crew to fight!' : `⚠ ${banditCount} BANDITS! Move crew to fight!`;
     dctx2.fillText(msg, CANVAS_WIDTH / 2, bannerY + 25);
   }
   // Crew idle on auto-weapon slot hint (after bandit defeated)
