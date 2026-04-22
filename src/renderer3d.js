@@ -18,19 +18,23 @@ const MD = window.__mountDebug;
 document.addEventListener('keydown', (e) => {
   if (e.code === 'F4') { MD.enabled = !MD.enabled; e.preventDefault(); return; }
   if (!MD.enabled) return;
+  // Use number keys (no conflict with game controls)
   const step = e.shiftKey ? 1 : 5;
+  let handled = true;
   switch (e.code) {
-    case 'KeyQ': MD.upperConeAngle -= step; break;
-    case 'KeyW': MD.upperConeAngle += step; break;
-    case 'KeyE': MD.lowerConeAngle -= step; break;
-    case 'KeyR': MD.lowerConeAngle += step; break;
-    case 'KeyA': MD.upperGunOffset -= step; break;
-    case 'KeyS': MD.upperGunOffset += step; break;
-    case 'KeyZ': MD.lowerGunOffset -= step; break;
-    case 'KeyX': MD.lowerGunOffset += step; break;
-    case 'KeyD': MD.coneHalf -= step; break;
-    case 'KeyF': MD.coneHalf += step; break;
+    case 'Digit1': MD.upperConeAngle -= step; break;
+    case 'Digit2': MD.upperConeAngle += step; break;
+    case 'Digit3': MD.lowerConeAngle -= step; break;
+    case 'Digit4': MD.lowerConeAngle += step; break;
+    case 'Digit5': MD.upperGunOffset -= step; break;
+    case 'Digit6': MD.upperGunOffset += step; break;
+    case 'Digit7': MD.lowerGunOffset -= step; break;
+    case 'Digit8': MD.lowerGunOffset += step; break;
+    case 'Digit9': MD.coneHalf -= step; break;
+    case 'Digit0': MD.coneHalf += step; break;
+    default: handled = false;
   }
+  if (handled) e.preventDefault();
 });
 import {
   CANVAS_WIDTH, CANVAS_HEIGHT, MOUNT_RADIUS, CREW_RADIUS,
@@ -652,7 +656,7 @@ export class Renderer3D {
         group.visible = desiredType !== null;
 
         // DEBUG: green line showing where gun 3D rotation actually points
-        if (MD.enabled && mount.isManned) {
+        if (mount.isManned) {
           const rotY = group.rotation.y;
           // rotation.y in Three.js: 0=+Z, π/2=+X, π=-Z, -π/2=-X
           const gunDirX = Math.sin(rotY); // world X component
@@ -1984,11 +1988,11 @@ export class Renderer3D {
     ctx.fillText('MOUNT DEBUG (F4 toggle, Shift=1\u00B0)', dx + 6, dy + 14);
     ctx.fillStyle = '#fff';
     ctx.font = '11px monospace';
-    ctx.fillText(`Q/W  Upper cone: ${MD.upperConeAngle}\u00B0`, dx + 6, dy + 30);
-    ctx.fillText(`E/R  Lower cone: ${MD.lowerConeAngle}\u00B0`, dx + 6, dy + 44);
-    ctx.fillText(`A/S  Upper gun:  ${MD.upperGunOffset}\u00B0`, dx + 6, dy + 58);
-    ctx.fillText(`Z/X  Lower gun:  ${MD.lowerGunOffset}\u00B0`, dx + 6, dy + 72);
-    ctx.fillText(`D/F  Cone half:  ${MD.coneHalf}\u00B0`, dx + 6, dy + 86);
+    ctx.fillText(`1/2  Upper cone: ${MD.upperConeAngle}\u00B0`, dx + 6, dy + 30);
+    ctx.fillText(`3/4  Lower cone: ${MD.lowerConeAngle}\u00B0`, dx + 6, dy + 44);
+    ctx.fillText(`5/6  Upper gun:  ${MD.upperGunOffset}\u00B0`, dx + 6, dy + 58);
+    ctx.fillText(`7/8  Lower gun:  ${MD.lowerGunOffset}\u00B0`, dx + 6, dy + 72);
+    ctx.fillText(`9/0  Cone half:  ${MD.coneHalf}\u00B0`, dx + 6, dy + 86);
     ctx.fillStyle = '#888';
     ctx.fillText('Copy these values when aligned!', dx + 6, dy + 100);
   }
