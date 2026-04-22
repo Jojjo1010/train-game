@@ -658,19 +658,18 @@ export class Renderer3D {
       const hasAuto = mount.hasAutoWeapon;
       const showCone = mount.isManned;
       if (showCone) {
-        // Find which car this mount belongs to (0-3 = rear, 4-7 = front)
+        // Compute car center directly in SCREEN space (not 3D)
         const carStart = i < 4 ? 0 : 4;
-        // Car center in 3D = average of the 4 mount offsets
-        let ccx = 0, ccz = 0;
+        let csx = 0, csy = 0;
         for (let j = carStart; j < carStart + 4; j++) {
-          ccx += this.mountOffsets3D[j].x;
-          ccz += this.mountOffsets3D[j].z;
+          const off = this.mountOffsets3D[j];
+          const scr = this._project(off.x, off.z);
+          csx += scr.x;
+          csy += scr.y;
         }
-        ccx /= 4; ccz /= 4;
-        // Project car center and this mount to screen
-        const carCenterScr = this._project(ccx, ccz);
-        // Screen direction from car center to this mount = outward direction
-        const screenCenter = Math.atan2(sy - carCenterScr.y, sx - carCenterScr.x);
+        csx /= 4; csy /= 4;
+        // Direction from screen-center to this mount = outward
+        const screenCenter = Math.atan2(sy - csy, sx - csx);
         const screenHalf = Math.PI / 2; // 180° total cone
 
         const coneColor = mount.crew.color;
