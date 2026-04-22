@@ -10,7 +10,7 @@ window.__mountDebug = window.__mountDebug || {
   enabled: false,
   upperConeAngle: -125,  // screen-space cone center (degrees)
   lowerConeAngle: 55,    // screen-space cone center (degrees)
-  upperGunRot: 80,       // direct rotation.y for upper gun (degrees)
+  upperGunRot: 71,       // direct rotation.y for upper gun (degrees)
   lowerGunRot: -15,      // direct rotation.y for lower gun (degrees)
   coneHalf: 90,          // half of total cone (degrees)
   upperMouseScale: 1,    // multiplier for upper mouse delta → rotation.y
