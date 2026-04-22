@@ -15,9 +15,12 @@ const STATES = {
 
 export { STATES as BANDIT_STATES };
 
-// Escalation thresholds (seconds on train)
-const BANDIT_GRACE_PERIOD = 3;       // 0–3s: no stealing (just arrived)
-const BANDIT_ESCALATE_TIME = 6;      // 6s+: double steal rate
+// Escalation: smooth ramps, not step functions
+const BANDIT_GRACE_PERIOD = 4;       // 0–4s: no stealing (just settled in)
+const BANDIT_STEAL_RAMP = 5;         // seconds after grace to reach full steal rate
+const BANDIT_HP_START = 10;          // seconds before HP drain begins
+const BANDIT_HP_RAMP = 4;            // seconds to reach max HP drain rate
+const BANDIT_MAX_HP_RATE = 0.5;      // max HP/s per bandit (was 1.0 instant)
 
 export class Bandit {
   constructor() {
@@ -38,6 +41,7 @@ export class Bandit {
     this.deathVx = 0;
     this.deathVy = 0;
     this.dwellTime = 0; // seconds spent ON_TRAIN (drives escalation)
+    this.justDied = false; // flag for BanditSystem spawn cooldown
   }
 
   spawn(x, y, targetSlot, side) {
@@ -54,6 +58,7 @@ export class Bandit {
     this.stealFlash = 0;
     this.totalStolen = 0;
     this.dwellTime = 0;
+    this.justDied = false;
   }
 
   update(dt, train) {
@@ -110,10 +115,10 @@ export class Bandit {
         // Track how long this bandit has been aboard
         this.dwellTime += dt;
 
-        // Escalating steal: grace → normal → double rate
+        // Smooth steal ramp: 0 during grace, then linearly reaches full rate
         if (!this.targetSlot.autoWeaponId && this.dwellTime > BANDIT_GRACE_PERIOD) {
-          const mult = this.dwellTime >= BANDIT_ESCALATE_TIME ? 2 : 1;
-          this.stealAccumulator += BANDIT_STEAL_RATE * mult * dt;
+          const stealFraction = Math.min(1, (this.dwellTime - BANDIT_GRACE_PERIOD) / BANDIT_STEAL_RAMP);
+          this.stealAccumulator += BANDIT_STEAL_RATE * stealFraction * dt;
           if (this.stealAccumulator >= 1) {
             const stolen = Math.floor(this.stealAccumulator);
             if (train.runGold > 0) {
@@ -126,14 +131,15 @@ export class Bandit {
           }
         }
 
-        // At 6s+, also start dealing HP damage (1 HP/s per bandit)
-        if (this.dwellTime >= BANDIT_ESCALATE_TIME) {
-          train.hp -= 1 * dt;
+        // HP damage: starts late, ramps slowly, caps low per bandit
+        if (this.dwellTime >= BANDIT_HP_START) {
+          const hpFraction = Math.min(1, (this.dwellTime - BANDIT_HP_START) / BANDIT_HP_RAMP);
+          train.hp -= BANDIT_MAX_HP_RATE * hpFraction * dt;
           if (train.damageFlash <= 0) train.damageFlash = 0.1;
         }
 
         if (this.stealFlash > 0) this.stealFlash -= dt;
-        // If slot has auto-weapon, it's disabled (checked in combat.js)
+        // If slot has auto-weapon, it's degraded (checked in combat.js)
 
         // Check if crew just arrived at this slot
         if (this.targetSlot.crew) {
@@ -170,13 +176,11 @@ export class Bandit {
 
   die() {
     if (this.targetSlot) {
-      // Crew stays assigned after defeating the bandit — they guard the slot
-      // but won't fire (combat.js skips crew on auto-weapon mounts)
       this.targetSlot._bandit = null;
     }
     this.state = STATES.DEAD;
     this.timer = 0.6;
-    // Fling off to the side
+    this.justDied = true; // signals BanditSystem to add spawn breathing room
     this.deathVx = (Math.random() - 0.5) * 100;
     this.deathVy = -120 - Math.random() * 60;
   }
@@ -197,6 +201,14 @@ export class BanditSystem {
       if (b.active) b.update(dt, train);
     }
 
+    // Defeating a bandit earns a short spawn reprieve
+    for (const b of this.pool) {
+      if (b.justDied) {
+        this.spawnTimer = Math.max(this.spawnTimer, 3);
+        b.justDied = false;
+      }
+    }
+
     // Spawn new bandits
     const interval = Math.max(3, BANDIT_SPAWN_INTERVAL - difficulty * 1.0);
     this.spawnTimer -= dt;
@@ -205,7 +217,7 @@ export class BanditSystem {
       this.trySpawn(train);
     }
 
-    // Steal sound: loop only when a bandit is past the grace period and actually stealing
+    // Steal sound: loop only when a bandit is actually draining gold
     const anyStealing = this.pool.some(b =>
       b.active && b.state === STATES.ON_TRAIN && !b.targetSlot?.autoWeaponId
       && b.dwellTime > BANDIT_GRACE_PERIOD

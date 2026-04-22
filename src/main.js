@@ -511,6 +511,8 @@ function updateRun(dt) {
       train.shakeIntensity = 1.0;
     } else if (currentPhase === 0 /* CALM */ && prevWavePhase === 2 /* was SURGE */) {
       playWaveClear();
+      // Guarantee a bandit-free recovery window after each wave
+      banditSystem.spawnTimer = Math.max(banditSystem.spawnTimer, 4);
     }
   }
   prevWavePhase = currentPhase;
@@ -611,28 +613,28 @@ function renderRun() {
   }
   if (banditCount > 0) {
     const dctx2 = renderer.ctx;
-    // Pulse speed increases with dwell time (faster = more urgent)
-    const pulseSpeed = maxDwell >= 6 ? 0.016 : (maxDwell >= 3 ? 0.010 : 0.006);
+    // Pulse speed ramps with dwell time
+    const pulseSpeed = maxDwell >= 10 ? 0.016 : (maxDwell >= 4 ? 0.010 : 0.006);
     const pulse = 0.5 + Math.sin(performance.now() * pulseSpeed) * 0.5;
     const bannerW = 340;
     const bannerH = 38;
     const bannerX = CANVAS_WIDTH / 2 - bannerW / 2;
     const bannerY = 44;
-    // Color shifts: yellow (grace) → red (stealing) → bright red (escalated)
+    // Color shifts: amber (grace) → orange (stealing ramp) → red (draining HP)
     let bgR = 180, bgG = 30, bgB = 20;
     let msg;
-    if (maxDwell < 3) {
-      // Grace period — yellow/amber, less alarming
+    if (maxDwell < 4) {
+      // Grace period — amber, informational
       bgR = 180; bgG = 130; bgB = 20;
-      msg = banditCount === 1 ? '⚠ Bandit boarding! Move crew to intercept' : `⚠ ${banditCount} bandits boarding!`;
-    } else if (maxDwell < 6) {
-      // Normal steal — red
-      bgR = 180; bgG = 30; bgB = 20;
-      msg = banditCount === 1 ? '⚠ BANDIT STEALING! Move crew to fight!' : `⚠ ${banditCount} BANDITS STEALING!`;
+      msg = banditCount === 1 ? '⚠ Bandit boarding!' : `⚠ ${banditCount} bandits boarding!`;
+    } else if (maxDwell < 10) {
+      // Stealing (ramping up) — orange/red
+      bgR = 190; bgG = 60; bgB = 20;
+      msg = banditCount === 1 ? '⚠ BANDIT STEALING!' : `⚠ ${banditCount} BANDITS STEALING!`;
     } else {
-      // Escalated — bright red, damage warning
+      // HP drain active — bright red
       bgR = 220; bgG = 20; bgB = 20;
-      msg = banditCount === 1 ? '⚠ BANDIT DAMAGING TRAIN! RESPOND NOW!' : `⚠ ${banditCount} BANDITS DAMAGING TRAIN!`;
+      msg = banditCount === 1 ? '⚠ BANDIT DAMAGING HULL!' : `⚠ ${banditCount} BANDITS DAMAGING HULL!`;
     }
     dctx2.fillStyle = `rgba(${bgR}, ${bgG}, ${bgB}, ${0.85 * pulse})`;
     dctx2.fillRect(bannerX, bannerY, bannerW, bannerH);

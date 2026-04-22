@@ -216,40 +216,53 @@ export class CombatSystem {
     // Phase 2: fire crew weapons (manned at full power, unmanned at reduced)
     for (const mount of train.allMounts) {
       if (mount.hasAutoWeapon) continue; // auto-weapons handled separately
-      if (mount._bandit) continue; // bandit on mount suppresses all fire
       const manned = mount.isManned;
+
+      // Bandit suppression: weakens over time instead of instant hard-lock
+      let banditMult = 1.0;
+      if (mount._bandit) {
+        // state 2 = ON_TRAIN; anything else (FIGHTING) = crew is busy, fully suppressed
+        if (mount._bandit.state !== 2) { banditMult = 0; }
+        else {
+          const dwell = mount._bandit.dwellTime;
+          if (dwell < 4)       banditMult = 0.8;  // barely interfering yet
+          else if (dwell < 9)  banditMult = 0.3;  // actively disrupting
+          else                 banditMult = 0;     // fully jammed
+        }
+      }
+      if (banditMult <= 0) continue;
 
       mount.cooldownTimer -= dt;
       if (mount.cooldownTimer > 0) continue;
 
       if (manned) {
-        // --- Manned: full power, crew bonuses apply ---
+        // --- Manned: full power, crew bonuses apply (rare — crew triggers fight) ---
         const target = this.findTarget(mount, enemies, areaMult);
         if (!target) continue;
         const angle = this.leadAngle(mount, target);
 
-        let damage = mount.damage * train.totalDamageMultiplier;
+        let damage = mount.damage * train.totalDamageMultiplier * banditMult;
         if (hasDriver) damage *= DRIVER_DAMAGE_BUFF;
         if (mount.crew.role === 'Gunner') damage *= 1.2;
 
         this.fireProjectile(mount.worldX, mount.worldY, angle, damage, 'crew', mount.crew.color);
-        mount.cooldownTimer = (1 / mount.fireRate) * train.totalCooldownMultiplier;
+        mount.cooldownTimer = (1 / (mount.fireRate * banditMult)) * train.totalCooldownMultiplier;
         if (mount.screenX !== undefined && mount.screenY !== undefined) {
           this.muzzleFlashes.push({ x: mount.screenX, y: mount.screenY });
         }
         playShoot();
       } else {
-        // --- Unmanned: degraded auto-fire, no crew bonuses ---
+        // --- Unmanned: degraded auto-fire, stacks with bandit suppression ---
         const target = this.findTarget(mount, enemies, areaMult);
         if (!target) continue;
         const angle = this.leadAngle(mount, target);
 
-        const baseDmg = mount.damage; // level-1 stats, no crew multipliers
-        const damage = baseDmg * train.totalDamageMultiplier * UNMANNED_DAMAGE_MULT;
+        const baseDmg = mount.damage;
+        const damage = baseDmg * train.totalDamageMultiplier * UNMANNED_DAMAGE_MULT * banditMult;
 
         this.fireProjectile(mount.worldX, mount.worldY, angle, damage, 'unmanned', '#888888');
-        mount.cooldownTimer = (1 / (mount.fireRate * UNMANNED_RATE_MULT)) * train.totalCooldownMultiplier;
-        // No muzzle flash for unmanned (visually distinguishable)
+        const effectiveRate = mount.fireRate * UNMANNED_RATE_MULT * banditMult;
+        mount.cooldownTimer = (1 / effectiveRate) * train.totalCooldownMultiplier;
       }
     }
 
@@ -368,12 +381,12 @@ export class CombatSystem {
     if (train.hasAutoWeapon('turret')) {
       const w = train.autoWeapons.turret;
       const m = w.mount;
-      if (!m._bandit) {
+      const tbm = this._banditMult(m);
+      if (tbm > 0) {
         const mx = m.worldX, my = m.worldY;
         const stats = train.getAutoWeaponStats('turret');
         w.cooldownTimer -= dt;
         if (w.cooldownTimer <= 0) {
-          // Find closest enemy within cone
           let closest = null;
           const range = stats.range * areaMult;
           let closestDist = range * range;
@@ -388,7 +401,7 @@ export class CombatSystem {
             closest = e; closestDist = d;
           }
           if (closest) {
-            const dmg = stats.damage * dmgMult;
+            const dmg = stats.damage * dmgMult * tbm;
             for (let s = 0; s < stats.shotsPerBurst; s++) {
               const dist = Math.sqrt(closestDist);
               const t = dist / PROJECTILE_SPEED;
@@ -399,7 +412,7 @@ export class CombatSystem {
             }
             m.coneDirection = m.clampAngle(Math.atan2(closest.y - my, closest.x - mx));
             playShoot();
-            w.cooldownTimer = stats.fireInterval * cdMult;
+            w.cooldownTimer = stats.fireInterval * cdMult / tbm;
           }
         }
       }
@@ -409,15 +422,16 @@ export class CombatSystem {
     if (train.hasAutoWeapon('steamBlast')) {
       const w = train.autoWeapons.steamBlast;
       const m = w.mount;
-      if (!m._bandit) {
+      const sbm = this._banditMult(m);
+      if (sbm > 0) {
         const mx = m.worldX, my = m.worldY;
         const stats = train.getAutoWeaponStats('steamBlast');
         w.tickTimer -= dt;
         if (w.tickTimer <= 0) {
-          w.tickTimer = stats.tickRate * cdMult;
+          w.tickTimer = stats.tickRate * cdMult / sbm;
           const r = stats.radius * areaMult;
           const r2 = r * r;
-          const dmg = stats.damage * dmgMult;
+          const dmg = stats.damage * dmgMult * sbm;
           for (const e of enemies) {
             if (!e.active) continue;
             const dx = e.x - mx, dy = e.y - my;
@@ -436,15 +450,16 @@ export class CombatSystem {
     if (train.hasAutoWeapon('ricochetShot')) {
       const w = train.autoWeapons.ricochetShot;
       const m = w.mount;
-      if (!m._bandit) {
+      const rbm = this._banditMult(m);
+      if (rbm > 0) {
         const mx = m.worldX, my = m.worldY;
         const stats = train.getAutoWeaponStats('ricochetShot');
         w.cooldownTimer -= dt;
         if (w.cooldownTimer <= 0) {
-          w.cooldownTimer = stats.fireInterval * cdMult;
+          w.cooldownTimer = stats.fireInterval * cdMult / rbm;
           const angle = Math.random() * Math.PI * 2;
           const bolt = this.ricochetBolts.find(b => !b.active);
-          if (bolt) bolt.spawn(mx, my, angle, stats.damage * dmgMult, stats.bounces, stats.speed);
+          if (bolt) bolt.spawn(mx, my, angle, stats.damage * dmgMult * rbm, stats.bounces, stats.speed);
         }
       }
     }
@@ -486,6 +501,16 @@ export class CombatSystem {
         }
       }
     }
+  }
+
+  // Returns 1.0 (no bandit) down to 0.0 (fully jammed) based on bandit dwell time
+  _banditMult(mount) {
+    if (!mount._bandit) return 1.0;
+    if (mount._bandit.state !== 2) return 0.0; // FIGHTING = fully occupied
+    const dwell = mount._bandit.dwellTime;
+    if (dwell < 4)  return 0.8;  // barely interfering
+    if (dwell < 9)  return 0.3;  // actively disrupting
+    return 0.0;                   // fully jammed
   }
 
   reset() {

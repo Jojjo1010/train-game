@@ -191,13 +191,21 @@
       <h2 style="color:var(--accent); margin-bottom:24px;">Changelog</h2>
 
       <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
+        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Decision Quality &amp; Feel Refinement</h3>
+        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
+          <li><strong>Smooth escalation:</strong> Bandits ramp steal from 0→6g/s over 5s after grace (was instant 8g/s step). HP drain starts at 10s, ramps to 0.5 HP/s over 4s (was 1 HP/s step at 6s)</li>
+          <li><strong>No more hard locks:</strong> Bandits degrade weapons gradually (80%→30%→0% over 9s) instead of instant disable</li>
+          <li><strong>Recovery windows:</strong> 4s bandit-free reprieve after each wave surge. 3s spawn cooldown after defeating a bandit</li>
+          <li><strong>Grace period:</strong> 3s → 4s. Fight duration: 2.0s → 1.5s. Steal rate: 8 → 6 gold/s</li>
+          <li><strong>Banner:</strong> Thresholds updated to match new timing (4s/10s instead of 3s/6s)</li>
+        </ul>
+      </div>
+
+      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
         <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Bandit Escalation &amp; Unmanned Weapons</h3>
         <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li><strong>Bandit escalation:</strong> 3 phases — 0–3s grace (no impact), 3–6s normal steal (8g/s), 6s+ escalated (16g/s + 1 HP/s hull damage)</li>
           <li><strong>Unmanned weapons:</strong> Mounts without crew auto-fire at 30% damage / 40% fire rate (grey projectiles, slow rotation)</li>
           <li><strong>First bandit delay:</strong> 5s → 9s — calm orientation window before internal pressure</li>
-          <li><strong>Fight duration:</strong> 2.5s → 2.0s. Steal rate: 12 → 8 gold/s (escalation doubles to 16)</li>
-          <li><strong>Banner escalation:</strong> Amber (grace) → red (stealing) → bright red (damaging hull) with increasing pulse</li>
         </ul>
       </div>
 
