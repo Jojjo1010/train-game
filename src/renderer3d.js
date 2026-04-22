@@ -665,7 +665,7 @@ export class Renderer3D {
         const mountInCar = i % 4;
         const screenAngles = [-3*Math.PI/4, -Math.PI/4, 3*Math.PI/4, Math.PI/4];
         const screenCenter = screenAngles[mountInCar];
-        const screenHalf = Math.PI / 4; // 90° total cone per mount
+        const screenHalf = Math.PI / 2; // 180° total cone per mount
 
         const coneColor = mount.crew.color;
         const coneRadius = 70;
