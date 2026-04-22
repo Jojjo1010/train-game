@@ -1086,10 +1086,7 @@ export class Renderer3D {
     // Collect active passives (only ones with level > 0)
     const PASSIVE_COLORS = {
       damage:   '#ff5722',
-      shield:   '#3498db',
       maxHp:    '#e74c3c',
-      coolOff:  '#00bcd4',
-      baseArea: '#9b59b6',
     };
 
     const activePips = [];
@@ -3453,13 +3450,7 @@ export class Renderer3D {
 
       // Level pips
       const pipX = rowX + rowW - 280;
-      if (key === 'crewSlots') {
-        ctx.fillStyle = u.color;
-        ctx.font = 'bold 13px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${1 + u.level} crew`, pipX + 40, y + rowH / 2 + 5);
-        ctx.textAlign = 'left';
-      } else {
+      {
         for (let l = 0; l < u.maxLevel; l++) {
           const px = pipX + l * 22;
           const filled = l < u.level;
@@ -3576,13 +3567,7 @@ export class Renderer3D {
       ctx.fillText(u.desc, rowX + 40, y + 35);
 
       const checkX = rowX + rowW - 200;
-      if (key === 'crewSlots') {
-        ctx.fillStyle = u.color;
-        ctx.font = 'bold 13px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${1 + u.level} crew`, checkX + 20, y + 26);
-        ctx.textAlign = 'left';
-      } else {
+      {
         for (let l = 0; l < u.maxLevel; l++) {
           const cx = checkX + l * 22;
           ctx.fillStyle = l < u.level ? u.color : '#333';
@@ -3951,10 +3936,9 @@ export class Renderer3D {
       ctx.fillStyle = '#aaa';
       ctx.font = '10px monospace';
       const stats = [
-        `Crew: ${1 + u.crewSlots.level}`,
-        `Dmg: +${u.damage.level * 15}%  Shield: ${u.shield.level}`,
-        `Cool-off: -${u.coolOff.level * 10}%  Range: +${u.baseArea.level * 15}%`,
-        `HP: +${u.maxHp.level * 15}  Greed: +${u.greed.level * 20}%`,
+        `Gun Power: +${u.damage.level * 15}%`,
+        `Kick Force: Lv${u.kickForce ? u.kickForce.level : 0}`,
+        `HP: +${u.maxHp.level * 25}`,
       ];
       stats.forEach((s, i) => {
         ctx.fillText(s, panelX + 8, panelY + 28 + i * 14);

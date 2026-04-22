@@ -245,11 +245,8 @@ export class Train {
 
     // In-run passives (defence + modifiers, gained via level-up)
     this.passives = {
-      shield:   0, // level 0-5, each = -2 damage taken
-      maxHp:    0, // level 0-5, each = +15 max HP
-      coolOff:  0, // level 0-5, each = -10% cooldown
-      baseArea: 0, // level 0-5, each = +15% range/radius
-      damage:   0, // level 0-5, each = +15% damage
+      damage:   0, // shop: +15% damage per level
+      maxHp:    0, // shop: +25 max HP per level
     };
 
     // Start with 2 crew — third recruited via level-up or shop
