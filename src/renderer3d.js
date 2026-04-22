@@ -265,6 +265,7 @@ export class Renderer3D {
     );
     placeholderTrain.position.y = 8;
     this.trainMesh = placeholderTrain;
+    this._trainOrigRotY = 0;
     this.scene.add(placeholderTrain);
 
     // Fixed 3D mount positions ON the train (offsets from train center)
@@ -343,6 +344,7 @@ export class Renderer3D {
       const trainModel = this.models.Train.clone();
       trainModel.visible = true;
       this.trainMesh = trainModel;
+      this._trainOrigRotY = trainModel.rotation.y;
       this.scene.add(trainModel);
     }
 
@@ -542,9 +544,11 @@ export class Renderer3D {
 
   drawTrain(train) {
     if (!this.trainMesh) return;
-    // Train always at scene origin, reset rotation from start screen
+    // Train always at scene origin, restore original rotation from FBX
     this.trainMesh.position.set(0, 0, 0);
-    this.trainMesh.rotation.y = 0;
+    if (this._trainOrigRotY !== undefined) {
+      this.trainMesh.rotation.y = this._trainOrigRotY;
+    }
     this.trainMesh.visible = true;
 
     // Project driver seat to screen coords
