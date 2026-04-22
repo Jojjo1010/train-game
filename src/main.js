@@ -13,7 +13,7 @@ import { CombatSystem } from './combat.js';
 import { CoinSystem } from './coins.js';
 import { BanditSystem, BANDIT_STATES } from './bandits.js';
 import { Zone, STATION_TYPES } from './zone.js';
-import { playPowerup, startMusic, stopMusic, getMusicVolume, getSfxVolume, setMusicVolume, setSfxVolume, playLevelUpMp3, playZoneCompleteMp3, playWinWorldMp3, playDefeatMp3, preloadSfx, playWeaponAcquire, playWaveClear } from './audio.js';
+import { playPowerup, startMusic, stopMusic, getMusicVolume, getSfxVolume, setMusicVolume, setSfxVolume, playLevelUpMp3, playZoneCompleteMp3, playWinWorldMp3, playDefeatMp3, preloadSfx, playWeaponAcquire, playWaveClear, updateLowHPWarning, stopLowHPWarning } from './audio.js';
 
 const STATES = {
   ZONE_MAP: 0, SETUP: 1, RUNNING: 2, LEVELUP: 3, PLACE_WEAPON: 4,
@@ -169,6 +169,7 @@ function prepareForCombat(isBossStation = false, modifier = null) {
   train.damageFlash = 0;
   train.shakeTimer = 0;
   train.hpFlashTimer = 0;
+  train.hpGreenFlashTimer = 0;
   selectedCrew = null;
   spawner.reset();
   spawner.isBossStation = isBossStation;
@@ -439,6 +440,9 @@ function updateRun(dt) {
   if (regenRate > 0) {
     train.hp = Math.min(train.hp + regenRate * dt, train.maxHp);
   }
+  // Low-HP heartbeat warning
+  updateLowHPWarning(train.hp / train.maxHp);
+
   if (train.distance >= TARGET_DISTANCE) { won = true; enterGameOver(); return; }
   if (train.hp <= 0) { train.hp = 0; won = false; enterGameOver(); return; }
 
@@ -513,6 +517,8 @@ function updateRun(dt) {
       playWaveClear();
       // Guarantee a bandit-free recovery window after each wave
       banditSystem.spawnTimer = Math.max(banditSystem.spawnTimer, 4);
+      // Green flash on HP bar — "survived" visual beat
+      train.hpGreenFlashTimer = 0.5;
     }
   }
   prevWavePhase = currentPhase;
@@ -958,6 +964,7 @@ let goldEarned = 0;
 let gameOverType = 'death'; // 'death' | 'combat' | 'zone' | 'world'
 
 function enterGameOver() {
+  stopLowHPWarning();
   const cargoMultiplier = train.cargoMultiplier;
   const modGoldMult = spawner.modifier ? spawner.modifier.goldMult : 1;
   if (won) {

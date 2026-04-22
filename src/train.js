@@ -216,6 +216,7 @@ export class Train {
     this.damageFlash = 0;
     this.shakeTimer = 0;
     this.hpFlashTimer = 0;
+    this.hpGreenFlashTimer = 0; // green flash when surge ends (relief)
     this.armorReduction = 0;
     this.greedMultiplier = 1;
     this._regenRate = 0;

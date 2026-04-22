@@ -336,3 +336,102 @@ export function stopMusic() {
     musicSource = null;
   }
 }
+
+// --- LOW-HP HEARTBEAT WARNING ---
+let heartbeatOsc = null;
+let heartbeatGain = null;
+let heartbeatLFO = null;
+let heartbeatActive = false;
+let heartbeatBPM = 60;
+
+/**
+ * Update the low-HP heartbeat warning. Call each frame with current HP ratio (0..1).
+ * Below 25% HP: plays a subtle low-frequency pulse that speeds up as HP drops.
+ * Above 25%: silences the warning.
+ */
+export function updateLowHPWarning(hpPercent) {
+  const threshold = 0.25;
+
+  if (hpPercent >= threshold || hpPercent <= 0) {
+    // Stop heartbeat
+    if (heartbeatActive) {
+      stopLowHPWarning();
+    }
+    return;
+  }
+
+  // HP is below 25% — calculate tempo
+  // hpPercent goes from 0.25 (just entered danger) down to ~0.01
+  // Map to BPM: 60 at 25% → 140 at 5% (clamped)
+  const t = 1 - Math.max(0, (hpPercent - 0.05) / (threshold - 0.05)); // 0 at 25%, 1 at 5%
+  const targetBPM = 60 + t * 80; // 60..140 BPM
+
+  if (!heartbeatActive) {
+    _startHeartbeat(targetBPM);
+  } else {
+    // Smoothly update tempo
+    _updateHeartbeatTempo(targetBPM);
+  }
+}
+
+function _startHeartbeat(bpm) {
+  const c = getCtx();
+  heartbeatActive = true;
+  heartbeatBPM = bpm;
+
+  // Main oscillator: low sine for the "thump"
+  heartbeatOsc = c.createOscillator();
+  heartbeatOsc.type = 'sine';
+  heartbeatOsc.frequency.value = 45; // very low, sub-bass heartbeat
+
+  // Gain node — kept quiet (30% of SFX volume)
+  heartbeatGain = c.createGain();
+  heartbeatGain.gain.value = 0; // LFO will modulate this
+
+  // LFO (low-frequency oscillator) to create the pulsing rhythm
+  heartbeatLFO = c.createOscillator();
+  heartbeatLFO.type = 'sine';
+  heartbeatLFO.frequency.value = bpm / 60; // convert BPM to Hz
+
+  // LFO modulates gain: use a GainNode as a modulator
+  const lfoGain = c.createGain();
+  lfoGain.gain.value = 0.12; // pulse depth — subtle (30-40% of typical SFX at 0.3)
+  heartbeatLFO._lfoGain = lfoGain;
+
+  heartbeatLFO.connect(lfoGain);
+  lfoGain.connect(heartbeatGain.gain);
+
+  heartbeatOsc.connect(heartbeatGain);
+  heartbeatGain.connect(sfxGainNode);
+
+  heartbeatOsc.start();
+  heartbeatLFO.start();
+}
+
+function _updateHeartbeatTempo(bpm) {
+  if (!heartbeatLFO) return;
+  const c = getCtx();
+  heartbeatLFO.frequency.setTargetAtTime(bpm / 60, c.currentTime, 0.1);
+  heartbeatBPM = bpm;
+}
+
+export function stopLowHPWarning() {
+  heartbeatActive = false;
+  if (heartbeatOsc) {
+    try { heartbeatOsc.stop(); } catch(e) {}
+    try { heartbeatOsc.disconnect(); } catch(e) {}
+    heartbeatOsc = null;
+  }
+  if (heartbeatLFO) {
+    try { heartbeatLFO.stop(); } catch(e) {}
+    try { heartbeatLFO.disconnect(); } catch(e) {}
+    if (heartbeatLFO._lfoGain) {
+      try { heartbeatLFO._lfoGain.disconnect(); } catch(e) {}
+    }
+    heartbeatLFO = null;
+  }
+  if (heartbeatGain) {
+    try { heartbeatGain.disconnect(); } catch(e) {}
+    heartbeatGain = null;
+  }
+}

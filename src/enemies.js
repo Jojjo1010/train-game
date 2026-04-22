@@ -129,6 +129,7 @@ export class Spawner {
     this.waveCycleTimer = WAVE_CYCLE_DURATION; // time until next surge
     this.wavePhaseTimer = 0; // time remaining in current phase
     this.isBossStation = false;
+    this.postSurgeSilenceTimer = 0; // seconds of near-silence after surge ends
   }
 
   get activeEnemies() {
@@ -198,6 +199,8 @@ export class Spawner {
           this.wavePhase = WAVE_PHASE.CALM;
           this.wavePhaseTimer = WAVE_CALM_DURATION;
           this.waveCycleTimer = WAVE_CYCLE_DURATION;
+          // Brief silence after surge for "relief" feeling
+          this.postSurgeSilenceTimer = 2.0;
         }
         break;
     }
@@ -212,6 +215,13 @@ export class Spawner {
         return baseMult * escalation;
       }
       case WAVE_PHASE.CALM:
+        // Post-surge silence: near-zero spawns for first 2s, then ramp to normal calm rate
+        if (this.postSurgeSilenceTimer > 0) {
+          // t goes from 1 (just started silence) to 0 (silence ending)
+          const t = this.postSurgeSilenceTimer / 2.0;
+          // Exponential ramp: almost nothing at start, approaches calm rate at end
+          return WAVE_CALM_SPAWN_MULT * (1 - t) * (1 - t) * 0.15;
+        }
         // During the post-surge calm, reduce rate
         return this.waveNumber > 0 ? WAVE_CALM_SPAWN_MULT : 1;
       case WAVE_PHASE.WARNING:
@@ -224,6 +234,8 @@ export class Spawner {
   update(dt, distance, carBounds, stationDifficulty = 1) {
     // Update wave state
     this.updateWave(dt);
+    // Tick post-surge silence timer
+    if (this.postSurgeSilenceTimer > 0) this.postSurgeSilenceTimer -= dt;
     const waveMult = this.getWaveSpawnMultiplier();
 
     // Difficulty scales with distance AND station depth (unchanged)
@@ -336,6 +348,7 @@ export class Spawner {
     this.waveCycleTimer = WAVE_CYCLE_DURATION;
     this.wavePhaseTimer = 0;
     this.isBossStation = false;
+    this.postSurgeSilenceTimer = 0;
     this.modifier = null;
     this.waveDirection = 'right';
   }

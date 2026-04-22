@@ -1764,6 +1764,14 @@ export class Renderer3D {
       ctx.fillRect(hpX + 4, hpY + 4, hpBarW, hpBarH);
     }
 
+    // HP bar green flash — "survived the surge" relief beat
+    if (train.hpGreenFlashTimer > 0) {
+      train.hpGreenFlashTimer -= 0.016;
+      const greenAlpha = Math.min(0.7, (train.hpGreenFlashTimer / 0.5) * 0.7);
+      ctx.fillStyle = `rgba(80, 255, 80, ${greenAlpha})`;
+      ctx.fillRect(hpX + 4, hpY + 4, hpBarW, hpBarH);
+    }
+
     // === XP BAR — top-center ===
     const xpBarW = 200;
     const xpBarH = 18;
