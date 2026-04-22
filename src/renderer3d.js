@@ -13,7 +13,7 @@ window.__mountDebug = window.__mountDebug || {
   upperGunRot: 71,       // direct rotation.y for upper gun (degrees)
   lowerGunRot: -15,      // direct rotation.y for lower gun (degrees)
   coneHalf: 90,          // half of total cone (degrees)
-  upperMouseScale: 1,    // multiplier for upper mouse delta → rotation.y
+  upperMouseScale: -1,   // multiplier for upper mouse delta → rotation.y
   lowerMouseScale: -1,   // multiplier for lower mouse delta → rotation.y
 };
 const MD = window.__mountDebug;
