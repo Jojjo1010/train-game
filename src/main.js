@@ -1697,8 +1697,18 @@ function getWorldMapZones() {
   }));
 }
 
+function autoPlaceGarlic() {
+  if (train.hasAutoWeapon('steamBlast')) return;
+  const mount = train.allMounts.find(m => !m.isOccupied && !m.crew);
+  if (!mount) return;
+  mount.autoWeaponId = 'steamBlast';
+  mount.coneHalfAngle = AUTO_WEAPON_CONE_HALF_ANGLE;
+  train.autoWeapons.steamBlast = { level: 1, cooldownTimer: 0, tickTimer: 0, mount };
+  garlicPlaced = true;
+}
+
 function updateWorldMap() {
-  // Phase 1: Role pick (once per world)
+  // Loadout pick (once per world) — crew roles + weapon
   if (!rolesChosen) {
     hoveredRoleBtn = null;
     for (const btn of rolePickButtons) {
@@ -1712,35 +1722,23 @@ function updateWorldMap() {
         if (btn.type === 'roster') {
           const emptyIdx = train.crew.findIndex(c => c.role === null);
           if (emptyIdx >= 0) train.crew[emptyIdx].role = btn.roleId;
+        } else if (btn.type === 'roster_weapon') {
+          if (!garlicPlaced) garlicPlaced = true; // assign garlic to weapon slot
         } else if (btn.type === 'slot') {
           train.crew[btn.crewIdx].role = null;
+        } else if (btn.type === 'slot_weapon') {
+          garlicPlaced = false; // remove garlic from weapon slot
         } else if (btn.type === 'confirm') {
           rolesChosen = true;
+          // Auto-place garlic on a mount when confirming
+          autoPlaceGarlic();
         }
       }
     }
     return;
   }
 
-  // Phase 2: Garlic placement (once per world)
-  if (!garlicPlaced) {
-    train.updateWorldPositions(trainScreenX, trainScreenY);
-    if (input.leftClicked) {
-      for (const mount of train.allMounts) {
-        if (mount.isOccupied || mount.crew) continue;
-        if (input.hitCircle(slotScreenX(mount), slotScreenY(mount), 22)) {
-          mount.autoWeaponId = 'steamBlast';
-          mount.coneHalfAngle = AUTO_WEAPON_CONE_HALF_ANGLE;
-          train.autoWeapons.steamBlast = { level: 1, cooldownTimer: 0, tickTimer: 0, mount };
-          garlicPlaced = true;
-          return;
-        }
-      }
-    }
-    return;
-  }
-
-  // Phase 3: Normal world map
+  // Normal world map
   const zones = getWorldMapZones();
   for (const z of zones) {
     if (!z.isCurrent) continue;
@@ -1755,56 +1753,15 @@ function updateWorldMap() {
 }
 
 function renderWorldMap() {
-  // Phase 1: Role pick
+  // Loadout pick
   if (!rolesChosen) {
     renderer.drawTerrain(0);
-    rolePickButtons = renderer.drawRolePickUI(train.crew, hoveredRoleBtn);
+    rolePickButtons = renderer.drawRolePickUI(train.crew, hoveredRoleBtn, garlicPlaced);
     renderer.flush();
     return;
   }
 
-  // Phase 2: Garlic placement
-  if (!garlicPlaced) {
-    train.updateWorldPositions(trainScreenX, trainScreenY);
-    renderer.drawTerrain(0);
-    renderer.drawTrain(train);
-    renderer.drawWeaponMounts(train, null, true);
-
-    // Dark overlay with instructions
-    const ctx = renderer.ctx;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, 60);
-    ctx.fillStyle = '#8ecae6';
-    ctx.font = 'bold 18px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('PLACE YOUR GARLIC \uD83D\uDCA8', CANVAS_WIDTH / 2, 28);
-    ctx.fillStyle = '#aaa';
-    ctx.font = '12px monospace';
-    ctx.fillText('Click an empty mount to place the protective aura', CANVAS_WIDTH / 2, 48);
-
-    // Highlight empty mounts
-    for (const mount of train.allMounts) {
-      if (mount.isOccupied || mount.crew) continue;
-      const sx = slotScreenX(mount), sy = slotScreenY(mount);
-      const hovered = input.hitCircle(sx, sy, 22);
-      ctx.beginPath();
-      ctx.arc(sx, sy, MOUNT_RADIUS + 6, 0, Math.PI * 2);
-      ctx.strokeStyle = hovered ? '#8ecae6' : '#446';
-      ctx.lineWidth = hovered ? 3 : 1.5;
-      ctx.stroke();
-      if (hovered) {
-        ctx.fillStyle = 'rgba(142, 202, 230, 0.15)';
-        ctx.beginPath();
-        ctx.arc(sx, sy, MOUNT_RADIUS + 6, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    renderer.flush();
-    return;
-  }
-
-  // Phase 3: Normal world map
+  // Normal world map
   renderer.drawWorldMap(getWorldMapZones(), selectedWorld, zoneNumber, input);
   renderer.flush();
 }

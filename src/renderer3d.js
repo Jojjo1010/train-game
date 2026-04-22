@@ -2241,8 +2241,8 @@ export class Renderer3D {
     }
   }
 
-  // Role pick UI — crew slots on top, character roster below, confirm button.
-  drawRolePickUI(crew, hoveredBtn) {
+  // Role pick UI — loadout slots on top, roster below, confirm button.
+  drawRolePickUI(crew, hoveredBtn, weaponChosen = false) {
     const ctx = this.ctx;
     const now = performance.now();
 
@@ -2355,46 +2355,82 @@ export class Renderer3D {
       }
     }
 
-    // --- Weapon slot (Garlic) ---
+    // --- Weapon slot ---
     const weapX = slotsStartX + crew.length * (slotW + slotGap);
     const weapColor = '#8ecae6';
+    const weapSlotKey = 'slot_weapon';
+    const weapHovered = hoveredBtn === weapSlotKey;
 
-    ctx.fillStyle = 'rgba(40, 50, 60, 0.8)';
+    ctx.fillStyle = weaponChosen ? 'rgba(142, 202, 230, 0.12)' : 'rgba(40, 50, 60, 0.8)';
     ctx.beginPath();
     this.roundRect(weapX, slotsY, slotW, slotH, 10);
     ctx.fill();
 
-    ctx.strokeStyle = weapColor + '88';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = weaponChosen ? weapColor : (weapHovered ? '#888' : '#555');
+    ctx.lineWidth = weaponChosen ? 2 : (weapHovered ? 2 : 1);
+    if (weaponChosen) { ctx.shadowColor = weapColor; ctx.shadowBlur = 8; }
     ctx.beginPath();
     this.roundRect(weapX, slotsY, slotW, slotH, 10);
     ctx.stroke();
+    ctx.shadowBlur = 0;
 
     ctx.fillStyle = '#888';
     ctx.font = 'bold 9px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('WEAPON', weapX + slotW / 2, slotsY + 13);
 
-    ctx.font = '28px serif';
-    ctx.fillText('\uD83D\uDCA8', weapX + slotW / 2, slotsY + 46);
+    if (weaponChosen) {
+      ctx.font = '28px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('\uD83D\uDCA8', weapX + slotW / 2, slotsY + 46);
 
-    ctx.fillStyle = weapColor;
-    ctx.font = 'bold 11px monospace';
-    ctx.fillText('GARLIC', weapX + slotW / 2, slotsY + 66);
+      ctx.fillStyle = weapColor;
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText('GARLIC', weapX + slotW / 2, slotsY + 66);
 
-    ctx.fillStyle = '#777';
-    ctx.font = '9px monospace';
-    ctx.fillText('AOE aura', weapX + slotW / 2, slotsY + 80);
-    ctx.fillText('Place after confirm', weapX + slotW / 2, slotsY + 92);
+      ctx.fillStyle = '#777';
+      ctx.font = '9px monospace';
+      ctx.fillText('AOE aura', weapX + slotW / 2, slotsY + 80);
 
-    // ========== CHARACTER ROSTER (bottom) ==========
-    const cardW = 200;
-    const cardH = 200;
-    const cardGap = 30;
-    const rosterTotal = roles.length * cardW + (roles.length - 1) * cardGap;
+      if (weapHovered) {
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.beginPath();
+        this.roundRect(weapX, slotsY, slotW, slotH, 10);
+        ctx.fill();
+        ctx.fillStyle = '#f44';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('\u2715 REMOVE', weapX + slotW / 2, slotsY + slotH / 2 + 4);
+      }
+    } else {
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = weapHovered ? '#aaa' : '#555';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      this.roundRect(weapX + 8, slotsY + 20, slotW - 16, slotH - 28, 6);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#555';
+      ctx.font = '11px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('Empty', weapX + slotW / 2, slotsY + 52);
+    }
+
+    if (weaponChosen) {
+      buttons.push({ type: 'slot_weapon', x: weapX, y: slotsY, w: slotW, h: slotH, key: weapSlotKey });
+    }
+
+    // ========== ROSTER (bottom) — crew roles + weapon ==========
+    const cardW = 170;
+    const cardH = 180;
+    const cardGap = 16;
+    const rosterItems = 3; // Gunner, Brawler, Garlic
+    const rosterTotal = rosterItems * cardW + (rosterItems - 1) * cardGap;
     const rosterStartX = CANVAS_WIDTH / 2 - rosterTotal / 2;
-    const rosterY = slotsY + slotH + 20;
+    const rosterY = slotsY + slotH + 16;
 
+    // --- Crew role cards ---
     for (let ri = 0; ri < roles.length; ri++) {
       const role = roles[ri];
       const rx = rosterStartX + ri * (cardW + cardGap);
@@ -2402,44 +2438,35 @@ export class Renderer3D {
       const isHovered = hoveredBtn === btnKey;
       const assignedCount = crew.filter(c => c.role === role.id).length;
       const hasEmptySlot = crew.some(c => c.role === null);
+      const canAssign = hasEmptySlot;
 
-      // Card background
-      ctx.fillStyle = isHovered && hasEmptySlot ? role.bg : 'rgba(20, 22, 35, 0.95)';
+      ctx.fillStyle = isHovered && canAssign ? role.bg : 'rgba(20, 22, 35, 0.95)';
       ctx.beginPath();
       this.roundRect(rx, rosterY, cardW, cardH, 10);
       ctx.fill();
 
-      // Border
-      ctx.strokeStyle = isHovered && hasEmptySlot ? role.color : '#444';
-      ctx.lineWidth = isHovered && hasEmptySlot ? 2.5 : 1;
+      ctx.strokeStyle = isHovered && canAssign ? role.color : '#444';
+      ctx.lineWidth = isHovered && canAssign ? 2.5 : 1;
       ctx.beginPath();
       this.roundRect(rx, rosterY, cardW, cardH, 10);
       ctx.stroke();
 
-      // Avatar
-      ctx.font = '40px serif';
+      ctx.font = '36px serif';
       ctx.textAlign = 'center';
-      ctx.fillText(role.avatar, rx + cardW / 2, rosterY + 44);
+      ctx.fillText(role.avatar, rx + cardW / 2, rosterY + 40);
 
-      // Title
       ctx.fillStyle = role.color;
-      ctx.font = 'bold 15px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText(role.title, rx + cardW / 2, rosterY + 66);
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText(role.title, rx + cardW / 2, rosterY + 60);
 
-      // Tagline
       ctx.fillStyle = '#666';
       ctx.font = '10px monospace';
-      ctx.fillText(role.tagline, rx + cardW / 2, rosterY + 80);
+      ctx.fillText(role.tagline, rx + cardW / 2, rosterY + 74);
 
-      // Stat bars — visual comparison
       const barX = rx + 10;
       const barW = cardW - 20;
-      const barStartY = rosterY + 94;
-      const barGap = 18;
-
-      this._drawStatBar(ctx, 'DAMAGE',    barX, barStartY,            barW, role.stats.damage,      5, '#e57373');
-      this._drawStatBar(ctx, 'VS BANDIT', barX, barStartY + barGap,  barW, role.stats.banditSpeed,  5, '#81c784');
+      this._drawStatBar(ctx, 'DAMAGE',    barX, rosterY + 88,  barW, role.stats.damage,     5, '#e57373');
+      this._drawStatBar(ctx, 'VS BANDIT', barX, rosterY + 106, barW, role.stats.banditSpeed, 5, '#81c784');
 
       // Assigned count badge
       if (assignedCount > 0) {
@@ -2455,8 +2482,7 @@ export class Renderer3D {
         ctx.fillText(`${assignedCount}`, badgeX, badgeY + 4);
       }
 
-      // Dim if no empty slots
-      if (!hasEmptySlot) {
+      if (!canAssign) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         ctx.beginPath();
         this.roundRect(rx, rosterY, cardW, cardH, 10);
@@ -2466,8 +2492,69 @@ export class Renderer3D {
       buttons.push({ type: 'roster', roleId: role.id, x: rx, y: rosterY, w: cardW, h: cardH, key: btnKey });
     }
 
+    // --- Garlic weapon card ---
+    {
+      const gx = rosterStartX + roles.length * (cardW + cardGap);
+      const gColor = '#8ecae6';
+      const gKey = 'roster_garlic';
+      const gHovered = hoveredBtn === gKey;
+      const canAssignWeapon = !weaponChosen;
+
+      ctx.fillStyle = gHovered && canAssignWeapon ? 'rgba(142, 202, 230, 0.15)' : 'rgba(20, 22, 35, 0.95)';
+      ctx.beginPath();
+      this.roundRect(gx, rosterY, cardW, cardH, 10);
+      ctx.fill();
+
+      ctx.strokeStyle = gHovered && canAssignWeapon ? gColor : '#444';
+      ctx.lineWidth = gHovered && canAssignWeapon ? 2.5 : 1;
+      ctx.beginPath();
+      this.roundRect(gx, rosterY, cardW, cardH, 10);
+      ctx.stroke();
+
+      ctx.font = '36px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('\uD83D\uDCA8', gx + cardW / 2, rosterY + 40);
+
+      ctx.fillStyle = gColor;
+      ctx.font = 'bold 14px monospace';
+      ctx.fillText('GARLIC', gx + cardW / 2, rosterY + 60);
+
+      ctx.fillStyle = '#666';
+      ctx.font = '10px monospace';
+      ctx.fillText('Protective aura', gx + cardW / 2, rosterY + 74);
+
+      // Stat bars for garlic
+      const barX = gx + 10;
+      const barW = cardW - 20;
+      this._drawStatBar(ctx, 'AOE DMG',  barX, rosterY + 88,  barW, 2, 5, '#e57373');
+      this._drawStatBar(ctx, 'RADIUS',   barX, rosterY + 106, barW, 3, 5, '#64b5f6');
+
+      // Badge if assigned
+      if (weaponChosen) {
+        const badgeX = gx + cardW - 18;
+        const badgeY = rosterY + 14;
+        ctx.beginPath();
+        ctx.arc(badgeX, badgeY, 10, 0, Math.PI * 2);
+        ctx.fillStyle = gColor;
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('1', badgeX, badgeY + 4);
+      }
+
+      if (!canAssignWeapon) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.beginPath();
+        this.roundRect(gx, rosterY, cardW, cardH, 10);
+        ctx.fill();
+      }
+
+      buttons.push({ type: 'roster_weapon', x: gx, y: rosterY, w: cardW, h: cardH, key: gKey });
+    }
+
     // ========== BOTTOM: CONFIRM BUTTON or HINT ==========
-    const allChosen = crew.every(c => c.role !== null);
+    const allChosen = crew.every(c => c.role !== null) && weaponChosen;
     const bottomY = rosterY + cardH + 16;
 
     if (allChosen) {
@@ -2501,16 +2588,21 @@ export class Renderer3D {
 
       buttons.push({ type: 'confirm', x: btnX, y: bottomY, w: btnW, h: btnH, key: confirmKey });
     } else {
+      const emptyCrewCount = crew.filter(c => c.role === null).length;
+      const needs = [];
+      if (emptyCrewCount > 0) needs.push(`${emptyCrewCount} crew`);
+      if (!weaponChosen) needs.push('1 weapon');
+
       ctx.fillStyle = '#777';
       ctx.font = '12px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('You can pick the same role twice!', CANVAS_WIDTH / 2, bottomY + 6);
+      ctx.fillText(`Fill all slots: ${needs.join(' + ')} remaining`, CANVAS_WIDTH / 2, bottomY + 6);
 
-      // Composition examples
-      ctx.fillStyle = '#555';
-      ctx.font = '10px monospace';
-      const tipY = bottomY + 22;
-      ctx.fillText('\uD83D\uDC31\uD83D\uDC31 = Max damage    \uD83D\uDC31\u26C4 = Balanced    \u26C4\u26C4 = Bandit-proof', CANVAS_WIDTH / 2, tipY);
+      if (emptyCrewCount > 0) {
+        ctx.fillStyle = '#555';
+        ctx.font = '10px monospace';
+        ctx.fillText('You can pick the same crew role twice!', CANVAS_WIDTH / 2, bottomY + 22);
+      }
     }
 
     return buttons;
