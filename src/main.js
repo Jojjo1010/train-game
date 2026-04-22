@@ -732,7 +732,9 @@ function updateRun(dt) {
     train.shakeTimer = Math.max(train.shakeTimer, 0.4);
     train.shakeIntensity = 3.0;
     hitStopTimer = 0.12;
-    renderer.spawnBrawlerKick(kx, ky, kickR);
+    // Project landing position from pixel-space to screen-space
+    const landScreen = renderer._project(kx - CANVAS_WIDTH / 2, ky - CANVAS_HEIGHT / 2);
+    renderer.spawnBrawlerKick(landScreen.x, landScreen.y, kickR);
     train.hpGreenFlashTimer = 0.4;
   }
 
