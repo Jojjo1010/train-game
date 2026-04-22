@@ -521,7 +521,7 @@ function updateRun(dt) {
   combat.update(dt, train, spawner.pool, selectedCrew);
 
   // Bandits
-  banditSystem.update(dt, train, train.combatDifficulty || 1);
+  banditSystem.update(dt, train, train.combatDifficulty || 1, currentPhase);
 
   // FEATURE 2: detect first boarding and start tooltip timer
   if (!banditBoardingTooltipShown) {

@@ -195,7 +195,7 @@ export class BanditSystem {
     this.spawnTimer = 9; // initial delay — player gets ~9s to orient before first bandit
   }
 
-  update(dt, train, difficulty) {
+  update(dt, train, difficulty, wavePhase) {
     // Update existing bandits
     for (const b of this.pool) {
       if (b.active) b.update(dt, train);
@@ -210,8 +210,11 @@ export class BanditSystem {
     }
 
     // Spawn new bandits
+    // During SURGE (phase 2), bandits spawn ~50% faster via accelerated countdown
+    const isSurge = wavePhase === 2;
+    const spawnTickRate = isSurge ? 1.5 : 1.0;
     const interval = Math.max(3, BANDIT_SPAWN_INTERVAL - difficulty * 1.0);
-    this.spawnTimer -= dt;
+    this.spawnTimer -= dt * spawnTickRate;
     if (this.spawnTimer <= 0) {
       this.spawnTimer = interval;
       this.trySpawn(train);
