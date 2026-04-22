@@ -12,6 +12,7 @@ import { Spawner } from './enemies.js';
 import { CombatSystem } from './combat.js';
 import { CoinSystem } from './coins.js';
 import { BanditSystem, BANDIT_STATES } from './bandits.js';
+import { updateDamageAttribution, drawDamageAttribution, resetDamageAttribution } from './damageAttribution.js';
 import { Zone, STATION_TYPES } from './zone.js';
 import { playPowerup, startMusic, stopMusic, getMusicVolume, getSfxVolume, setMusicVolume, setSfxVolume, playLevelUpMp3, playZoneCompleteMp3, playWinWorldMp3, playDefeatMp3, preloadSfx, playWeaponAcquire, playWaveClear } from './audio.js';
 
@@ -178,6 +179,7 @@ function prepareForCombat(isBossStation = false, modifier = null) {
   coinSystem.modifier = modifier || null;
   combat.reset();
   banditSystem.reset();
+  resetDamageAttribution();
   banditBoardingTooltipShown = false;
   banditBoardingTooltipTimer = 0;
   prevWavePhase = -1;
@@ -523,6 +525,9 @@ function updateRun(dt) {
   // Bandits
   banditSystem.update(dt, train, train.combatDifficulty || 1);
 
+  // Floating damage attribution numbers
+  updateDamageAttribution(dt);
+
   // FEATURE 2: detect first boarding and start tooltip timer
   if (!banditBoardingTooltipShown) {
     const anyOnTrain = banditSystem.pool.some(b => b.active && b.state === BANDIT_STATES.ON_TRAIN);
@@ -593,6 +598,8 @@ function renderRun() {
   renderer.drawFlyingCoins(coinSystem.flyingCoins);
   renderer.drawDamageFlash(train);
   renderer.drawMagnetFlash(coinSystem);
+  // Floating damage attribution numbers (train damage/gold loss)
+  drawDamageAttribution(renderer.ctx);
   // Show crew panel if any crew is unassigned (at bottom of screen, away from train)
   if (train.crew.some(c => !c.assignment && !c.isMoving)) {
     renderer.drawCrewPanel(train.crew, CANVAS_HEIGHT - 70);

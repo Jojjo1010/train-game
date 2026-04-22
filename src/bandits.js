@@ -4,6 +4,7 @@ import {
   BANDIT_STEAL_RATE, BANDIT_FIGHT_DURATION, MAX_BANDITS
 } from './constants.js';
 import { startStealLoop, stopStealLoop, playStealCoin } from './audio.js';
+import { spawnDamageNumber as spawnAttribution } from './damageAttribution.js';
 
 const STATES = {
   RUNNING: 0,    // running alongside the track
@@ -122,10 +123,13 @@ export class Bandit {
           if (this.stealAccumulator >= 1) {
             const stolen = Math.floor(this.stealAccumulator);
             if (train.runGold > 0) {
+              const actualStolen = Math.min(stolen, train.runGold);
               train.runGold = Math.max(0, train.runGold - stolen);
               this.totalStolen += stolen;
               this.stealFlash = 0.8;
               playStealCoin();
+              // Floating damage attribution (gold — stolen gold)
+              spawnAttribution(`-${actualStolen}g`, this.x, this.y - 10, '#f5c842', `bandit-gold-${this.targetSlot?.worldX}`);
             }
             this.stealAccumulator -= stolen;
           }
@@ -134,8 +138,12 @@ export class Bandit {
         // HP damage: starts late, ramps slowly, caps low per bandit
         if (this.dwellTime >= BANDIT_HP_START) {
           const hpFraction = Math.min(1, (this.dwellTime - BANDIT_HP_START) / BANDIT_HP_RAMP);
-          train.hp -= BANDIT_MAX_HP_RATE * hpFraction * dt;
+          const hpDmg = BANDIT_MAX_HP_RATE * hpFraction * dt;
+          train.hp -= hpDmg;
           if (train.damageFlash <= 0) train.damageFlash = 0.1;
+          // Floating damage attribution (purple — bandit HP drain, throttled)
+          const drainRate = BANDIT_MAX_HP_RATE * hpFraction;
+          spawnAttribution(`-${drainRate.toFixed(1)}`, this.x, this.y - 20, '#cc66ff', `bandit-hp-${this.targetSlot?.worldX}`);
         }
 
         if (this.stealFlash > 0) this.stealFlash -= dt;
