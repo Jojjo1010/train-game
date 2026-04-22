@@ -915,7 +915,7 @@ function renderLevelUp() {
   renderer.drawWeaponMounts(train, null);
   renderer.drawMovingCrew(train.crew);
   renderer.drawHUD(train);
-  renderer.drawLevelUpMenu(train.level, levelUpChoices, hoveredPowerup);
+  renderer.drawLevelUpMenu(train.level, levelUpChoices, hoveredPowerup, train);
   renderer.updateAndDrawConfetti(0.016);
   renderer.flush();
 }
