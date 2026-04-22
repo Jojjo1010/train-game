@@ -395,6 +395,7 @@ function renderSetup() {
   renderer.drawDepartButton(departBtn.x, departBtn.y, departBtn.w, departBtn.h,
     crewReady && input.hitRect(departBtn.x, departBtn.y, departBtn.w, departBtn.h), !crewReady);
   if (selectedCrew) renderer.drawSelectedIndicator(selectedCrew);
+  renderer.drawMountDebug();
   renderer.flush();
 }
 

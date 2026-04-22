@@ -1916,27 +1916,30 @@ export class Renderer3D {
     // === MINI-MAP — bottom-right ===
     this.drawMiniMap(train.distance);
 
-    // === DEBUG MOUNT TUNING PANEL (F4 to toggle) ===
-    if (MD.enabled) {
-      const dx = 10, dy = CANVAS_HEIGHT - 120;
-      ctx.fillStyle = 'rgba(0,0,0,0.85)';
-      ctx.fillRect(dx, dy, 320, 110);
-      ctx.strokeStyle = '#ff0';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(dx, dy, 320, 110);
-      ctx.fillStyle = '#ff0';
-      ctx.font = 'bold 11px monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText('MOUNT DEBUG (F4 toggle, Shift=1°)', dx + 6, dy + 14);
-      ctx.fillStyle = '#fff';
-      ctx.font = '11px monospace';
-      ctx.fillText(`Q/W  Upper cone: ${MD.upperConeAngle}°`, dx + 6, dy + 32);
-      ctx.fillText(`E/R  Lower cone: ${MD.lowerConeAngle}°`, dx + 6, dy + 48);
-      ctx.fillText(`A/S  Gun offset: ${MD.gunOffset}°`, dx + 6, dy + 64);
-      ctx.fillText(`D/F  Cone half:  ${MD.coneHalf}°`, dx + 6, dy + 80);
-      ctx.fillStyle = '#888';
-      ctx.fillText('Copy these values when aligned!', dx + 6, dy + 100);
-    }
+    this.drawMountDebug();
+  }
+
+  drawMountDebug() {
+    if (!MD.enabled) return;
+    const ctx = this.ctx;
+    const dx = 10, dy = CANVAS_HEIGHT - 130;
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillRect(dx, dy, 320, 120);
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(dx, dy, 320, 120);
+    ctx.fillStyle = '#ff0';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('MOUNT DEBUG (F4 toggle, Shift=1\u00B0)', dx + 6, dy + 14);
+    ctx.fillStyle = '#fff';
+    ctx.font = '11px monospace';
+    ctx.fillText(`Q/W  Upper cone: ${MD.upperConeAngle}\u00B0`, dx + 6, dy + 32);
+    ctx.fillText(`E/R  Lower cone: ${MD.lowerConeAngle}\u00B0`, dx + 6, dy + 48);
+    ctx.fillText(`A/S  Gun offset: ${MD.gunOffset}\u00B0`, dx + 6, dy + 64);
+    ctx.fillText(`D/F  Cone half:  ${MD.coneHalf}\u00B0`, dx + 6, dy + 80);
+    ctx.fillStyle = '#888';
+    ctx.fillText('Copy these values when aligned!', dx + 6, dy + 100);
   }
 
   drawWaveHUD(waveInfo) {
