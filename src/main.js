@@ -1585,9 +1585,9 @@ function renderZoneMap() {
 
 // --- START SCREEN ---
 const startScreenBtns = {
-  start:    { x: CANVAS_WIDTH / 2 - 110, y: CANVAS_HEIGHT / 2 + 20,  w: 220, h: 56 },
-  powerups: { x: CANVAS_WIDTH / 2 - 120, y: CANVAS_HEIGHT / 2 + 96,  w: 110, h: 42 },
-  settings: { x: CANVAS_WIDTH / 2 + 10,  y: CANVAS_HEIGHT / 2 + 96,  w: 110, h: 42 },
+  start:    { x: CANVAS_WIDTH / 2 - 120, y: CANVAS_HEIGHT / 2 + 20,  w: 240, h: 50 },
+  powerups: { x: CANVAS_WIDTH / 2 - 120, y: CANVAS_HEIGHT / 2 + 82,  w: 240, h: 50 },
+  settings: { x: CANVAS_WIDTH / 2 - 120, y: CANVAS_HEIGHT / 2 + 144, w: 240, h: 50 },
 };
 
 function updateStartScreen() {

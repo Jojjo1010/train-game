@@ -169,6 +169,7 @@
       <div class="sep"></div>
       <div class="tabs">
         <button class="tab active" onclick="switchTab('tuner')">Tuner</button>
+        <button class="tab" onclick="switchTab('changelog')">Changelog</button>
         <button class="tab" onclick="switchTab('docs')">UE5 Port Guide</button>
       </div>
       <span class="status" id="status">Loading...</span>
@@ -182,6 +183,22 @@
   <div class="tab-content active" id="tab-tuner">
     <div class="content">
       <div class="grid" id="sections"></div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-changelog">
+    <div class="content" style="max-width:720px; margin:0 auto;">
+      <h2 style="color:var(--accent); margin-bottom:24px;">Changelog</h2>
+
+      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
+        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Start Screen Overhaul</h3>
+        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
+          <li>Title text no longer animates (removed pulsing effect)</li>
+          <li>Removed train silhouette placeholder boxes — replaced with rotating 3D train model</li>
+          <li>Removed subtitle text ("Transport medical supplies..." / "Survive the wasteland...")</li>
+          <li>All buttons (Start Game, Power Ups, Settings) now share the same golden style and are stacked vertically</li>
+        </ul>
+      </div>
     </div>
   </div>
 

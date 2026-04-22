@@ -3179,77 +3179,43 @@ export class Renderer3D {
       ctx.fillRect(px, py, 1.5, 1.5);
     }
 
-    // Title
-    const pulse = 1 + Math.sin(t * 1.8) * 0.02;
-    ctx.save();
-    ctx.translate(cx, 180);
-    ctx.scale(pulse, pulse);
+    // Title (static, no animation)
     ctx.fillStyle = '#f5a623';
     ctx.font = 'bold 64px monospace';
     ctx.textAlign = 'center';
     ctx.shadowColor = '#c88a1a';
     ctx.shadowBlur = 24;
-    ctx.fillText('TRAIN DEFENSE', 0, 0);
+    ctx.fillText('TRAIN DEFENSE', cx, 180);
     ctx.shadowBlur = 0;
-    ctx.restore();
 
-    // Subtitle
-    ctx.fillStyle = '#c8a96e';
-    ctx.font = '18px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('Transport medical supplies to Eastport.', cx, 230);
-    ctx.fillStyle = '#7a6040';
-    ctx.font = '13px monospace';
-    ctx.fillText('Survive the wasteland — or die trying.', cx, 254);
-
-    // Train silhouette decoration
-    ctx.fillStyle = 'rgba(245, 166, 35, 0.08)';
-    for (let c = 0; c < 4; c++) {
-      const carX = cx - 180 + c * 90;
-      const carY = 290;
-      this.roundRect(carX, carY, 80, 36, 4);
-      ctx.fill();
+    // Show 3D train model on start screen
+    if (this.trainMesh) {
+      this.trainMesh.visible = true;
+      this.trainMesh.position.set(0, 0, 0);
+      this.trainMesh.rotation.y = t * 0.3;
     }
 
-    // START GAME button (primary — glowing)
+    // Buttons — all same style, stacked vertically
+    const buttons = [
+      { key: 'start', label: 'START GAME' },
+      { key: 'powerups', label: '⚡ POWER UPS' },
+      { key: 'settings', label: '⚙ SETTINGS' },
+    ];
     const glow = 0.6 + Math.sin(t * 3) * 0.4;
-    const hStart = input.hitRect(btn.start.x, btn.start.y, btn.start.w, btn.start.h);
-    ctx.fillStyle = hStart ? '#3a2800' : '#2a1c00';
-    ctx.strokeStyle = hStart ? `rgba(245,166,35,${0.9 + glow * 0.1})` : `rgba(245,166,35,${0.5 + glow * 0.5})`;
-    ctx.lineWidth = hStart ? 2.5 : 2;
-    this.roundRect(btn.start.x, btn.start.y, btn.start.w, btn.start.h, 8);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = hStart ? '#f5a623' : '#c8a96e';
-    ctx.font = 'bold 22px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('START GAME', btn.start.x + btn.start.w / 2, btn.start.y + btn.start.h / 2 + 8);
-
-    // POWER UPS button (secondary)
-    const hPU = input.hitRect(btn.powerups.x, btn.powerups.y, btn.powerups.w, btn.powerups.h);
-    ctx.fillStyle = hPU ? '#1e2a1a' : '#141e10';
-    ctx.strokeStyle = hPU ? '#4caf50' : '#2a4020';
-    ctx.lineWidth = 1.5;
-    this.roundRect(btn.powerups.x, btn.powerups.y, btn.powerups.w, btn.powerups.h, 6);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = hPU ? '#6fcf6f' : '#4a8a4a';
-    ctx.font = 'bold 13px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('⚡ POWER UPS', btn.powerups.x + btn.powerups.w / 2, btn.powerups.y + btn.powerups.h / 2 + 5);
-
-    // SETTINGS button (secondary)
-    const hSet = input.hitRect(btn.settings.x, btn.settings.y, btn.settings.w, btn.settings.h);
-    ctx.fillStyle = hSet ? '#1a1e2a' : '#10141e';
-    ctx.strokeStyle = hSet ? '#5588cc' : '#203050';
-    ctx.lineWidth = 1.5;
-    this.roundRect(btn.settings.x, btn.settings.y, btn.settings.w, btn.settings.h, 6);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = hSet ? '#88aadd' : '#4a6080';
-    ctx.font = 'bold 13px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('⚙ SETTINGS', btn.settings.x + btn.settings.w / 2, btn.settings.y + btn.settings.h / 2 + 5);
+    for (const b of buttons) {
+      const r = btn[b.key];
+      const hover = input.hitRect(r.x, r.y, r.w, r.h);
+      ctx.fillStyle = hover ? '#3a2800' : '#2a1c00';
+      ctx.strokeStyle = hover ? `rgba(245,166,35,${0.9 + glow * 0.1})` : `rgba(245,166,35,${0.5 + glow * 0.5})`;
+      ctx.lineWidth = hover ? 2.5 : 2;
+      this.roundRect(r.x, r.y, r.w, r.h, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = hover ? '#f5a623' : '#c8a96e';
+      ctx.font = 'bold 18px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(b.label, r.x + r.w / 2, r.y + r.h / 2 + 6);
+    }
 
     ctx.fillStyle = '#444';
     ctx.font = '11px monospace';
