@@ -386,6 +386,12 @@ function updateSetup(dt) {
   train.updateCrewMovement(dt);
   handleKeyboardRotation(dt);
 
+  // G key: toggle garlic selection (reliable shortcut)
+  if (input.keyPressed('KeyG')) {
+    garlicSelected = !garlicSelected;
+    if (garlicSelected) selectedCrew = null;
+  }
+
   // Left click: select crew, place garlic, or UI buttons
   if (input.leftClicked) {
     const crewPlaced = train.crew.some(c => c.assignment && !c.assignment.isDriverSeat);
@@ -509,6 +515,13 @@ function renderSetup() {
     if (gMount && gMount.screenX !== undefined) {
       const gsx = slotScreenX(gMount), gsy = slotScreenY(gMount);
       const ctx = renderer.ctx;
+      // Debug: draw click target circle so we can see where it thinks the mount is
+      ctx.strokeStyle = '#8ecae6';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(gsx, gsy, 30, 0, Math.PI * 2);
+      ctx.stroke();
+
       if (!garlicSelected) {
         // Subtle label
         ctx.fillStyle = 'rgba(142, 202, 230, 0.7)';
@@ -517,7 +530,7 @@ function renderSetup() {
         ctx.fillText('\uD83D\uDCA8 GARLIC', gsx, gsy - MOUNT_RADIUS - 6);
         ctx.fillStyle = '#8ecae6';
         ctx.font = '8px monospace';
-        ctx.fillText('L-click to move', gsx, gsy + MOUNT_RADIUS + 12);
+        ctx.fillText('Click or press G to select', gsx, gsy + MOUNT_RADIUS + 12);
       }
     }
   }
