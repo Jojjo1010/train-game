@@ -662,7 +662,7 @@ export class Renderer3D {
         const coneColor = mount.crew.color;
         const coneRadius = 70;
         const projDist = 30; // distance in 3D units to project cone edges
-        const aimDir = mount.baseDirection; // fixed arc, not current aim
+        const aimDir = mount.baseDirection + Math.PI; // flip for isometric projection
         const half = mount.coneHalfAngle;
 
         // Project cone edges using 3D offsets directly (not pixel space)
