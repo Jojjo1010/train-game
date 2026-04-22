@@ -614,10 +614,10 @@ export class Renderer3D {
       const sy = screenPos.y;
 
       // Firing cone visualization — fixed allowed arc + current aim
-      // Skip steam blast (area effect, no directional cone)
+      // Skip steam blast (area effect) and laser (random direction)
       const hasAuto = mount.hasAutoWeapon;
-      const isAreaWeapon = mount.autoWeaponId === 'steamBlast';
-      if ((mount.isManned || hasAuto) && !isAreaWeapon) {
+      const skipCone = mount.autoWeaponId === 'steamBlast' || mount.autoWeaponId === 'ricochetShot';
+      if ((mount.isManned || hasAuto) && !skipCone) {
         const coneColor = mount.isManned && mount.crew
           ? mount.crew.color
           : (hasAuto && AUTO_WEAPONS[mount.autoWeaponId] ? AUTO_WEAPONS[mount.autoWeaponId].color : '#ffffff');

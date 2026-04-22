@@ -95,6 +95,7 @@ class RicochetBolt {
     this.damage = damage;
     this.speed = speed;
     this.bouncesLeft = bounces;
+    this.lifetime = 4; // seconds before expiring if no hits
     this.hitEnemies.clear();
   }
 
@@ -104,14 +105,14 @@ class RicochetBolt {
     this.prevY = this.y;
     this.x += this.vx * dt;
     this.y += this.vy * dt;
+    this.lifetime -= dt;
+    if (this.lifetime <= 0) { this.active = false; return; }
 
-    // Bounce off screen edges (costs a bounce)
-    if (this.x < 0) { this.x = 0; this.vx = Math.abs(this.vx); this.bouncesLeft--; }
-    else if (this.x > CANVAS_WIDTH) { this.x = CANVAS_WIDTH; this.vx = -Math.abs(this.vx); this.bouncesLeft--; }
-    if (this.y < 0) { this.y = 0; this.vy = Math.abs(this.vy); this.bouncesLeft--; }
-    else if (this.y > CANVAS_HEIGHT) { this.y = CANVAS_HEIGHT; this.vy = -Math.abs(this.vy); this.bouncesLeft--; }
-
-    if (this.bouncesLeft < 0) this.active = false;
+    // Bounce off screen edges (free, doesn't cost a bounce)
+    if (this.x < 0) { this.x = 0; this.vx = Math.abs(this.vx); }
+    else if (this.x > CANVAS_WIDTH) { this.x = CANVAS_WIDTH; this.vx = -Math.abs(this.vx); }
+    if (this.y < 0) { this.y = 0; this.vy = Math.abs(this.vy); }
+    else if (this.y > CANVAS_HEIGHT) { this.y = CANVAS_HEIGHT; this.vy = -Math.abs(this.vy); }
   }
 
   redirectToward(tx, ty) {
@@ -485,7 +486,7 @@ export class CombatSystem {
           } else {
             // Find nearest un-hit enemy to bounce toward
             let nextTarget = null;
-            let nextDist = 300 * 300;
+            let nextDist = 500 * 500;
             for (const e2 of enemies) {
               if (!e2.active || bolt.hitEnemies.has(e2)) continue;
               const d2 = (bolt.x - e2.x) ** 2 + (bolt.y - e2.y) ** 2;
@@ -493,9 +494,9 @@ export class CombatSystem {
             }
             if (nextTarget) {
               bolt.redirectToward(nextTarget.x, nextTarget.y);
-            } else {
-              bolt.active = false;
             }
+            // No nearby target: bolt keeps flying in current direction
+            // and can still bounce off screen edges or hit enemies later
           }
           break;
         }
