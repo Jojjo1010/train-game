@@ -670,7 +670,8 @@ export class Renderer3D {
         // Project car center and this mount to screen
         const carCenterScr = this._project(ccx, ccz);
         // Screen direction from car center to this mount = outward direction
-        const screenCenter = Math.atan2(sy - carCenterScr.y, sx - carCenterScr.x);
+        // The projection flips the direction, so add π to correct
+        const screenCenter = Math.atan2(sy - carCenterScr.y, sx - carCenterScr.x) + Math.PI;
         const screenHalf = Math.PI / 2; // 180° total cone
 
         const coneColor = mount.crew.color;
