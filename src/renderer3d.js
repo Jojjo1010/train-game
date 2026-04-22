@@ -2750,27 +2750,59 @@ export class Renderer3D {
   // =============================================
   // LEVEL UP MENU
   // =============================================
-  drawLevelUpMenu(level, powerups, hoveredIndex, train) {
+  drawLevelUpMenu(level, powerups, hoveredIndex, train, chosenInfo) {
     const ctx = this.ctx;
 
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     ctx.fillStyle = '#f5a623';
-    ctx.font = 'bold 32px monospace';
+    ctx.font = 'bold 24px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(`LEVEL ${level}!`, CANVAS_WIDTH / 2, 120);
+    ctx.fillText(`LEVEL ${level}!`, CANVAS_WIDTH / 2, 40);
 
-    ctx.fillStyle = '#ccc';
-    ctx.font = '16px monospace';
-    ctx.fillText('Choose a powerup:', CANVAS_WIDTH / 2, 155);
+    // ========== CREW IDENTITY BANNER ==========
+    if (chosenInfo) {
+      const bannerY = 55;
+      const bannerH = 70;
+
+      // Colored banner background
+      ctx.fillStyle = chosenInfo.color + '20'; // very transparent crew color
+      ctx.fillRect(0, bannerY, CANVAS_WIDTH, bannerH);
+      // Color bar at top
+      ctx.fillStyle = chosenInfo.color;
+      ctx.fillRect(0, bannerY, CANVAS_WIDTH, 3);
+
+      // Big emoji
+      ctx.font = '40px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(chosenInfo.emoji, CANVAS_WIDTH / 2 - 80, bannerY + 50);
+
+      // Name — big and in their color
+      ctx.fillStyle = chosenInfo.color;
+      ctx.font = 'bold 28px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(chosenInfo.name.toUpperCase(), CANVAS_WIDTH / 2 - 45, bannerY + 38);
+
+      // Role label
+      const roleColor = chosenInfo.role === 'Gunner' ? '#ffb74d' : chosenInfo.role === 'Brawler' ? '#66bb6a' : '#8ecae6';
+      ctx.fillStyle = roleColor;
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(chosenInfo.role, CANVAS_WIDTH / 2 - 45, bannerY + 56);
+
+      // "Choose upgrade:" text
+      ctx.fillStyle = '#aaa';
+      ctx.font = '13px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('Choose an upgrade:', CANVAS_WIDTH / 2, bannerY + bannerH + 18);
+    }
 
     const cardW = 200;
-    const cardH = 200;
+    const cardH = 180;
     const gap = 24;
     const totalW = powerups.length * cardW + (powerups.length - 1) * gap;
     const startX = CANVAS_WIDTH / 2 - totalW / 2;
-    const cardY = 180;
+    const cardY = chosenInfo ? 150 : 180;
 
     for (let i = 0; i < powerups.length; i++) {
       const p = powerups[i];

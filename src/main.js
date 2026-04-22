@@ -1098,7 +1098,14 @@ function renderLevelUp() {
     }
   } else {
     // Card selection phase
-    renderer.drawLevelUpMenu(train.level, levelUpChoices, hoveredPowerup, train);
+    // Pass the chosen crew/garlic info for the identity banner
+    const chosenInfo = slotMachineCrewIdx === -1
+      ? { emoji: '\uD83D\uDCA8', name: 'Garlic', color: '#8ecae6', role: 'WEAPON' }
+      : { emoji: train.crew[slotMachineCrewIdx].role === 'Gunner' ? '\uD83D\uDC31' : '\u26C4\uFE0F',
+          name: train.crew[slotMachineCrewIdx].name,
+          color: train.crew[slotMachineCrewIdx].color,
+          role: train.crew[slotMachineCrewIdx].role };
+    renderer.drawLevelUpMenu(train.level, levelUpChoices, hoveredPowerup, train, chosenInfo);
   }
 
   renderer.drawAutoWeaponHUD(train);
