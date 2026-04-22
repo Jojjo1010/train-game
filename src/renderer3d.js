@@ -613,6 +613,53 @@ export class Renderer3D {
       const sx = screenPos.x;
       const sy = screenPos.y;
 
+      // --- Mount status glow ---
+      // Green = crewed & operational, Amber = unmanned auto-fire,
+      // Red = bandit on mount, Pulsing red = bandit stealing/draining
+      {
+        const hasBandit = mount._bandit && mount._bandit.active &&
+          (mount._bandit.state === 2 /* ON_TRAIN */ || mount._bandit.state === 3 /* FIGHTING */);
+        let glowColor = null;
+        let glowAlpha = 0;
+        let glowRadius = 14;
+
+        if (hasBandit) {
+          const dwellTime = mount._bandit.dwellTime || 0;
+          if (dwellTime > 2.5) {
+            // Pulsing red — bandit is stealing gold or draining HP
+            const pulse = 0.25 + 0.2 * Math.sin(performance.now() * 0.006);
+            glowColor = '255, 50, 30';
+            glowAlpha = pulse;
+            glowRadius = 15 + 2 * Math.sin(performance.now() * 0.006);
+          } else {
+            // Steady red — bandit present but not yet stealing
+            glowColor = '220, 50, 30';
+            glowAlpha = 0.22;
+          }
+        } else if (mount.isManned) {
+          // Green — crewed and operational
+          glowColor = '60, 220, 80';
+          glowAlpha = 0.18;
+        } else if (mount.hasAutoWeapon) {
+          // Amber — unmanned auto-fire at reduced effectiveness
+          glowColor = '240, 180, 40';
+          glowAlpha = 0.2;
+        }
+
+        if (glowColor) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(sx, sy, glowRadius, 0, Math.PI * 2);
+          const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, glowRadius);
+          grad.addColorStop(0, `rgba(${glowColor}, ${glowAlpha})`);
+          grad.addColorStop(0.6, `rgba(${glowColor}, ${glowAlpha * 0.5})`);
+          grad.addColorStop(1, `rgba(${glowColor}, 0)`);
+          ctx.fillStyle = grad;
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
       // Firing cone visualization — fixed allowed arc + current aim
       const hasAuto = mount.hasAutoWeapon;
       if (mount.isManned || hasAuto) {
