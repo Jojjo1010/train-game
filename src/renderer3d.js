@@ -614,8 +614,6 @@ export class Renderer3D {
       const sy = screenPos.y;
 
       // --- Mount status glow ---
-      // Green = crewed & operational, Amber = unmanned auto-fire,
-      // Red = bandit on mount, Pulsing red = bandit stealing/draining
       {
         const hasBandit = mount._bandit && mount._bandit.active &&
           (mount._bandit.state === 2 /* ON_TRAIN */ || mount._bandit.state === 3 /* FIGHTING */);
@@ -626,22 +624,18 @@ export class Renderer3D {
         if (hasBandit) {
           const dwellTime = mount._bandit.dwellTime || 0;
           if (dwellTime > 2.5) {
-            // Pulsing red — bandit is stealing gold or draining HP
             const pulse = 0.25 + 0.2 * Math.sin(performance.now() * 0.006);
             glowColor = '255, 50, 30';
             glowAlpha = pulse;
             glowRadius = 15 + 2 * Math.sin(performance.now() * 0.006);
           } else {
-            // Steady red — bandit present but not yet stealing
             glowColor = '220, 50, 30';
             glowAlpha = 0.22;
           }
         } else if (mount.isManned) {
-          // Green — crewed and operational
           glowColor = '60, 220, 80';
           glowAlpha = 0.18;
         } else if (mount.hasAutoWeapon) {
-          // Amber — unmanned auto-fire at reduced effectiveness
           glowColor = '240, 180, 40';
           glowAlpha = 0.2;
         }
@@ -660,50 +654,50 @@ export class Renderer3D {
         }
       }
 
-      // Firing cone visualization — fixed allowed arc + current aim
+      // Firing cone visualization — single cone pointing outward from train
+      // Skip steam blast (area effect) and laser (random direction)
       const hasAuto = mount.hasAutoWeapon;
-      if (mount.isManned || hasAuto) {
+      const skipCone = mount.autoWeaponId === 'steamBlast' || mount.autoWeaponId === 'ricochetShot';
+      if ((mount.isManned || hasAuto) && !skipCone) {
         const coneColor = mount.isManned && mount.crew
           ? mount.crew.color
           : (hasAuto && AUTO_WEAPONS[mount.autoWeaponId] ? AUTO_WEAPONS[mount.autoWeaponId].color : '#ffffff');
 
-        const dirDist = 40;
         const coneRadius = 56;
+        const projDist = 50;
 
-        // Project base direction (fixed outward angle) to screen space
-        const baseDirX = offset.x + Math.cos(mount.baseDirection) * dirDist;
-        const baseDirZ = offset.z + Math.sin(mount.baseDirection) * dirDist;
-        const baseScreen = this._project(baseDirX, baseDirZ);
-        const baseScreenAngle = Math.atan2(baseScreen.y - sy, baseScreen.x - sx);
+        // Project the game's actual baseDirection into isometric screen space.
+        // In 2D pixel space: cos→X, sin→Y(down). Pixel X→world X, pixel Y→world Z.
+        // So a 2D direction (cos(a), sin(a)) maps to 3D offset (cos(a), sin(a)) on (X, Z).
+        const half = mount.coneHalfAngle;
+        const centerPx = mount.worldX + Math.cos(mount.baseDirection) * projDist;
+        const centerPy = mount.worldY + Math.sin(mount.baseDirection) * projDist;
+        const centerW = toWorld(centerPx, centerPy);
+        const centerScr = this._project(centerW.x, centerW.z);
+        const screenBaseAngle = Math.atan2(centerScr.y - sy, centerScr.x - sx);
 
-        // Full allowed arc (faint)
+        // Project both cone edges the same way to get the screen half angle
+        const edge1Px = mount.worldX + Math.cos(mount.baseDirection - half) * projDist;
+        const edge1Py = mount.worldY + Math.sin(mount.baseDirection - half) * projDist;
+        const edge1W = toWorld(edge1Px, edge1Py);
+        const edge1Scr = this._project(edge1W.x, edge1W.z);
+        const screenEdge1 = Math.atan2(edge1Scr.y - sy, edge1Scr.x - sx);
+
+        let screenHalf = Math.abs(screenEdge1 - screenBaseAngle);
+        if (screenHalf > Math.PI) screenHalf = Math.PI * 2 - screenHalf;
+
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(sx, sy);
-        ctx.arc(sx, sy, coneRadius, baseScreenAngle - mount.coneHalfAngle, baseScreenAngle + mount.coneHalfAngle, false);
+        ctx.arc(sx, sy, coneRadius, screenBaseAngle - screenHalf, screenBaseAngle + screenHalf, false);
         ctx.closePath();
         ctx.fillStyle = coneColor;
-        ctx.globalAlpha = 0.08;
+        ctx.globalAlpha = 0.12;
         ctx.fill();
         ctx.strokeStyle = coneColor;
-        ctx.globalAlpha = 0.25;
+        ctx.globalAlpha = 0.3;
         ctx.lineWidth = 1;
         ctx.stroke();
-
-        // Current aim direction within the arc (brighter wedge)
-        const aimDirX = offset.x + Math.cos(mount.coneDirection) * dirDist;
-        const aimDirZ = offset.z + Math.sin(mount.coneDirection) * dirDist;
-        const aimScreen = this._project(aimDirX, aimDirZ);
-        const aimScreenAngle = Math.atan2(aimScreen.y - sy, aimScreen.x - sx);
-        const aimWedge = 0.15; // small wedge showing current aim
-
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.arc(sx, sy, coneRadius * 0.85, aimScreenAngle - aimWedge, aimScreenAngle + aimWedge, false);
-        ctx.closePath();
-        ctx.fillStyle = coneColor;
-        ctx.globalAlpha = 0.4;
-        ctx.fill();
         ctx.restore();
       }
 
@@ -775,6 +769,9 @@ export class Renderer3D {
       // Set pixel coords from 3D offset so combat fires from turret position
       mount.worldX = toPixelX(offset.x);
       mount.worldY = toPixelZ(offset.z);
+
+      // Do NOT override baseDirection — train.js sets it in 2D pixel space
+      // which is the coordinate system used by aiming and combat
     }
 
     // Hide unused mount groups
@@ -870,32 +867,43 @@ export class Renderer3D {
   }
 
   drawRicochetBolts(bolts) {
-    let idx = 0;
+    // Hide all 3D lines (use 2D overlay instead for visibility)
+    for (const line of this.ricochetPool) line.visible = false;
+
+    const ctx = this.ctx;
     for (const b of bolts) {
-      if (idx >= this.ricochetPool.length) break;
-      const line = this.ricochetPool[idx];
-      if (!b.active) {
-        line.visible = false;
-        idx++;
-        continue;
-      }
-      const trailLen = 30;
+      if (!b.active) continue;
       const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+      if (speed < 1) continue;
+
+      // Project head and tail through isometric camera
+      const headW = toWorld(b.x, b.y);
+      const trailLen = 35;
       const tailX = b.x - (b.vx / speed) * trailLen;
       const tailY = b.y - (b.vy / speed) * trailLen;
+      const tailW = toWorld(tailX, tailY);
 
-      const wHead = toWorld(b.x, b.y);
-      const wTail = toWorld(tailX, tailY);
+      const head = this._project(headW.x, headW.z);
+      const tail = this._project(tailW.x, tailW.z);
 
-      const positions = line.geometry.attributes.position;
-      positions.setXYZ(0, wTail.x, 5, wTail.z);
-      positions.setXYZ(1, wHead.x, 5, wHead.z);
-      positions.needsUpdate = true;
-      line.visible = true;
-      idx++;
-    }
-    for (let i = idx; i < this.ricochetPool.length; i++) {
-      this.ricochetPool[i].visible = false;
+      // Bright glowing bolt line
+      ctx.save();
+      ctx.strokeStyle = '#d4b8ff';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#b388ff';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(tail.x, tail.y);
+      ctx.lineTo(head.x, head.y);
+      ctx.stroke();
+
+      // Bright head dot
+      ctx.beginPath();
+      ctx.arc(head.x, head.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
     }
   }
 
@@ -1005,25 +1013,34 @@ export class Renderer3D {
 
     const m = train.getAutoWeaponMount('steamBlast');
     if (m && m._bandit) { this.steamRing.visible = false; return; }
-    const cx = m ? m.worldX : train.centerX;
-    const cy = m ? m.worldY : train.centerY;
     const pulse = 1 + Math.sin(performance.now() * 0.004) * 0.05;
     const r = stats.radius * (train.totalAreaMultiplier || 1) * pulse;
 
-    const w = toWorld(cx, cy);
-    this.steamRing.position.x = w.x;
-    this.steamRing.position.z = w.z;
+    // Position 3D ring at the mount's 3D offset (not pixel coords)
+    const mountIdx = train.allMounts.indexOf(m);
+    const offset3D = mountIdx >= 0 && mountIdx < this.mountOffsets3D.length
+      ? this.mountOffsets3D[mountIdx] : null;
+    if (offset3D) {
+      this.steamRing.position.x = offset3D.x;
+      this.steamRing.position.z = offset3D.z;
+    } else {
+      const w = toWorld(m ? m.worldX : train.centerX, m ? m.worldY : train.centerY);
+      this.steamRing.position.x = w.x;
+      this.steamRing.position.z = w.z;
+    }
     // Scale ring to match radius (base geometry is ~40 units)
     const scale = r / 40;
     this.steamRing.scale.set(scale, scale, scale);
     this.steamRing.visible = true;
 
-    // Also draw on 2D overlay for the subtle glow
+    // 2D overlay glow at the mount's projected screen position
+    const scrX = m && m.screenX !== undefined ? m.screenX : CANVAS_WIDTH / 2;
+    const scrY = m && m.screenY !== undefined ? m.screenY : CANVAS_HEIGHT / 2;
     const ctx = this.ctx;
     ctx.strokeStyle = `rgba(142, 202, 230, ${0.15 + Math.sin(performance.now() * 0.006) * 0.05})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.arc(scrX, scrY, r, 0, Math.PI * 2);
     ctx.stroke();
   }
 
@@ -1984,6 +2001,11 @@ export class Renderer3D {
   // =============================================
   drawCrewPanel(crew, panelY) {
     const ctx = this.ctx;
+
+    // Don't draw panel if all crew are assigned
+    const unassigned = crew.filter(c => !c.assignment && !c.isMoving);
+    if (unassigned.length === 0) return;
+
     const spacing = 70;
     const totalW = crew.length * spacing;
     const startX = CANVAS_WIDTH / 2 - totalW / 2;
@@ -2073,7 +2095,7 @@ export class Renderer3D {
   _drawLevelPips(ctx, x, y, level, color) {
     for (let l = 0; l < 5; l++) {
       ctx.fillStyle = l < level ? color : '#333';
-      ctx.fillRect(x + 4 + l * 8, y + 22, 6, 3);
+      ctx.fillRect(x + 4 + l * 8, y + 28, 6, 3);
     }
   }
 
@@ -3263,11 +3285,13 @@ export class Renderer3D {
     this._savedBg = this.scene.background;
     this.scene.background = new THREE.Color(0x0a0804);
 
-    // Show 3D train model, slowly rotating
+    // Show 3D train model (static, no rotation)
     if (this.trainMesh) {
       this.trainMesh.visible = true;
       this.trainMesh.position.set(0, 0, 0);
-      this.trainMesh.rotation.y = t * 0.3;
+      if (this._trainOrigRotY !== undefined) {
+        this.trainMesh.rotation.y = this._trainOrigRotY;
+      }
     }
 
     // Semi-transparent overlay so 3D train shows through

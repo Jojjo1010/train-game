@@ -196,17 +196,17 @@ Each crew member has a personal weapon that levels up independently.
 
 ### Level Scaling
 
-| Level | Damage | Fire Rate | Range |
-|-------|--------|-----------|-------|
-| 1     | 12     | 5.0/s     | 220   |
-| 2     | 16     | 5.8/s     | 235   |
-| 3     | 20     | 6.6/s     | 250   |
-| 4     | 24     | 7.4/s     | 265   |
-| 5     | 28     | 8.2/s     | 280   |
+| Level | Damage | Fire Rate | DPS  | Range |
+|-------|--------|-----------|------|-------|
+| 1     | 12     | 2.0/s     | 24   | 220   |
+| 2     | 17     | 2.6/s     | 44   | 235   |
+| 3     | 22     | 3.2/s     | 70   | 250   |
+| 4     | 27     | 3.8/s     | 103  | 265   |
+| 5     | 32     | 4.4/s     | 141  | 280   |
 
 ```
-Damage per level:    +4
-Fire rate per level: +0.8/s
+Damage per level:    +5
+Fire rate per level: +0.6/s
 Range per level:     +15
 ```
 

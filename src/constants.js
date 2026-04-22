@@ -81,8 +81,8 @@ export const MANUAL_GUN = {
   desc: 'Upgrade crew weapon damage and fire rate',
   maxLevel: 5,
   levels: [0,1,2,3,4].map(i => ({
-    damage: T('MANUAL_LV1_DAMAGE', 12) + i * T('MANUAL_DAMAGE_GROWTH', 4),
-    fireRate: T('MANUAL_LV1_FIRE_RATE', 5) + i * T('MANUAL_FIRE_RATE_GROWTH', 0.8),
+    damage: T('MANUAL_LV1_DAMAGE', 12) + i * T('MANUAL_DAMAGE_GROWTH', 5),
+    fireRate: T('MANUAL_LV1_FIRE_RATE', 2) + i * T('MANUAL_FIRE_RATE_GROWTH', 0.6),
     range: T('MANUAL_LV1_RANGE', 220) + i * T('MANUAL_RANGE_GROWTH', 15),
   })),
 };
