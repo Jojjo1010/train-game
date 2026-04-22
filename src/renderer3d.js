@@ -8,8 +8,8 @@ import { toWorld, toWorldX, toWorldZ, toPixelX, toPixelZ } from './coordMap.js';
 //   A/S: gun rotation offset ±5° D/F: cone half-angle ±5°
 window.__mountDebug = window.__mountDebug || {
   enabled: false,
-  upperConeAngle: -125,  // degrees
-  lowerConeAngle: 35,    // degrees
+  upperConeAngle: -80,   // degrees
+  lowerConeAngle: 55,    // degrees
   upperGunOffset: -55,   // degrees (gun offset for upper mounts)
   lowerGunOffset: -55,   // degrees (gun offset for lower mounts)
   coneHalf: 90,          // degrees (half of total cone)
