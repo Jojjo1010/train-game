@@ -50,6 +50,11 @@ export class Renderer3D {
   constructor(threeCanvas, overlayCtx) {
     this.ctx = overlayCtx;
 
+    // Gold counter animation state
+    this._displayedGold = 0;
+    this._goldFlashTimer = 0;    // seconds remaining for color flash
+    this._goldFlashColor = null; // '#4f4' for gain, '#f44' for loss
+
     // --- Three.js renderer ---
     this.threeRenderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true });
     this.threeRenderer.setSize(window.innerWidth, window.innerHeight);
@@ -1922,11 +1927,40 @@ export class Renderer3D {
     ctx.textAlign = 'left';
     ctx.fillText(`Level ${train.level}`, xpX + xpBarW + 8, xpY + 18);
 
-    // === GOLD — top-right ===
+    // === GOLD — top-right (animated counter) ===
     const goldX = CANVAS_WIDTH - pad;
+    const actualGold = train.runGold;
+
+    // Animate displayed gold toward actual gold
+    if (this._displayedGold !== actualGold) {
+      const diff = actualGold - this._displayedGold;
+      // Flash color on change
+      if (this._goldFlashTimer <= 0) {
+        this._goldFlashColor = diff > 0 ? '#4f4' : '#f44';
+      }
+      this._goldFlashTimer = 0.4;
+      // Count speed: faster for bigger differences, minimum 1 per frame
+      const step = Math.max(1, Math.ceil(Math.abs(diff) * 0.15));
+      if (Math.abs(diff) <= step) {
+        this._displayedGold = actualGold;
+      } else {
+        this._displayedGold += Math.sign(diff) * step;
+      }
+    }
+    if (this._goldFlashTimer > 0) this._goldFlashTimer -= 0.016;
+
+    // Background — flash tint when changing
+    const flashAlpha = this._goldFlashTimer > 0 ? this._goldFlashTimer / 0.4 : 0;
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     this.roundRect(goldX - 100, xpY, 96, 28, 4);
     ctx.fill();
+    if (flashAlpha > 0) {
+      ctx.fillStyle = this._goldFlashColor === '#4f4'
+        ? `rgba(60,180,60,${flashAlpha * 0.3})`
+        : `rgba(200,50,50,${flashAlpha * 0.3})`;
+      this.roundRect(goldX - 100, xpY, 96, 28, 4);
+      ctx.fill();
+    }
 
     ctx.beginPath();
     ctx.arc(goldX - 82, xpY + 14, 8, 0, Math.PI * 2);
@@ -1936,10 +1970,12 @@ export class Renderer3D {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    ctx.fillStyle = '#fff';
+    // Gold number — flash color then return to white
+    const goldTextColor = flashAlpha > 0.1 ? this._goldFlashColor : '#fff';
+    ctx.fillStyle = goldTextColor;
     ctx.font = 'bold 14px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText(`${train.runGold}`, goldX - 10, xpY + 19);
+    ctx.fillText(`${this._displayedGold}`, goldX - 10, xpY + 19);
 
     // === CARGO — below gold ===
     const cargoY = xpY + 32;
