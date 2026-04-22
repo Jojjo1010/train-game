@@ -935,25 +935,34 @@ export class Renderer3D {
 
     const m = train.getAutoWeaponMount('steamBlast');
     if (m && m._bandit) { this.steamRing.visible = false; return; }
-    const cx = m ? m.worldX : train.centerX;
-    const cy = m ? m.worldY : train.centerY;
     const pulse = 1 + Math.sin(performance.now() * 0.004) * 0.05;
     const r = stats.radius * (train.totalAreaMultiplier || 1) * pulse;
 
-    const w = toWorld(cx, cy);
-    this.steamRing.position.x = w.x;
-    this.steamRing.position.z = w.z;
+    // Position 3D ring at the mount's 3D offset (not pixel coords)
+    const mountIdx = train.allMounts.indexOf(m);
+    const offset3D = mountIdx >= 0 && mountIdx < this.mountOffsets3D.length
+      ? this.mountOffsets3D[mountIdx] : null;
+    if (offset3D) {
+      this.steamRing.position.x = offset3D.x;
+      this.steamRing.position.z = offset3D.z;
+    } else {
+      const w = toWorld(m ? m.worldX : train.centerX, m ? m.worldY : train.centerY);
+      this.steamRing.position.x = w.x;
+      this.steamRing.position.z = w.z;
+    }
     // Scale ring to match radius (base geometry is ~40 units)
     const scale = r / 40;
     this.steamRing.scale.set(scale, scale, scale);
     this.steamRing.visible = true;
 
-    // Also draw on 2D overlay for the subtle glow
+    // 2D overlay glow at the mount's projected screen position
+    const scrX = m && m.screenX !== undefined ? m.screenX : CANVAS_WIDTH / 2;
+    const scrY = m && m.screenY !== undefined ? m.screenY : CANVAS_HEIGHT / 2;
     const ctx = this.ctx;
     ctx.strokeStyle = `rgba(142, 202, 230, ${0.15 + Math.sin(performance.now() * 0.006) * 0.05})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.arc(scrX, scrY, r, 0, Math.PI * 2);
     ctx.stroke();
   }
 
