@@ -557,8 +557,6 @@ function renderRun() {
   train.updateWorldPositions(trainScreenX, trainScreenY);
   renderer.applyShake(train, 0.016);
   renderer.drawTerrain(train.distance);
-  // FEATURE 1: train power aura (behind everything else)
-  renderer.drawTrainPowerAura(train);
   renderer.drawSteamBlastAura(train);
   renderer.drawWorldCoins(coinSystem.coins);
   renderer.drawMagnets(coinSystem.magnets);
