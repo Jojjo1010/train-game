@@ -2216,7 +2216,32 @@ export class Renderer3D {
     ctx.fillText('Left-click crew to select, right-click slot to place', CANVAS_WIDTH / 2, 32);
   }
 
-  // Role pick UI — crew slots on top, character roster below. Click roster → fills next slot.
+  // Helper: draw a labeled stat bar
+  _drawStatBar(ctx, label, x, y, w, fill, maxFill, color) {
+    const barH = 8;
+    const labelW = 58;
+    // Label
+    ctx.fillStyle = '#999';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(label, x + labelW - 4, y + 8);
+    // Track
+    const bx = x + labelW;
+    const bw = w - labelW;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(bx, y, bw, barH);
+    // Fill
+    const fillW = (fill / maxFill) * bw;
+    ctx.fillStyle = color;
+    ctx.fillRect(bx, y, fillW, barH);
+    // Notch marks
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    for (let n = 1; n < maxFill; n++) {
+      ctx.fillRect(bx + (n / maxFill) * bw - 0.5, y, 1, barH);
+    }
+  }
+
+  // Role pick UI — crew slots on top, character roster below, confirm button.
   drawRolePickUI(crew, hoveredBtn) {
     const ctx = this.ctx;
     const now = performance.now();
@@ -2225,18 +2250,14 @@ export class Renderer3D {
       {
         id: 'Gunner', avatar: '\uD83D\uDC31',
         color: '#ffb74d', bg: 'rgba(255, 160, 50, 0.15)',
-        title: 'GUNNER',
-        tagline: 'Firepower specialist',
-        pros: ['+60% gun damage', 'High kill speed'],
-        cons: ['Bandit fights take 2x longer', 'Vulnerable when boarded'],
+        title: 'GUNNER', tagline: 'Firepower specialist',
+        stats: { damage: 4, banditSpeed: 1, survival: 2 }, // out of 5
       },
       {
         id: 'Brawler', avatar: '\u26C4\uFE0F',
         color: '#66bb6a', bg: 'rgba(80, 200, 90, 0.15)',
-        title: 'BRAWLER',
-        tagline: 'Bandit fighter',
-        pros: ['Instant bandit kick-off', 'Keeps weapons online'],
-        cons: ['-40% gun damage', 'Slower at clearing enemies'],
+        title: 'BRAWLER', tagline: 'Bandit fighter',
+        stats: { damage: 2, banditSpeed: 5, survival: 4 }, // out of 5
       },
     ];
     const roleMap = {};
@@ -2258,7 +2279,7 @@ export class Renderer3D {
     const slotGap = 40;
     const slotsTotal = crew.length * slotW + (crew.length - 1) * slotGap;
     const slotsStartX = CANVAS_WIDTH / 2 - slotsTotal / 2;
-    const slotsY = 80;
+    const slotsY = 70;
 
     const buttons = [];
 
@@ -2292,7 +2313,7 @@ export class Renderer3D {
       ctx.fillText(`SLOT ${ci + 1}`, sx + slotW / 2, slotsY + 14);
 
       if (hasRole) {
-        // Filled slot — show character
+        // Filled slot
         ctx.font = '36px serif';
         ctx.textAlign = 'center';
         ctx.fillText(role.avatar, sx + slotW / 2, slotsY + 52);
@@ -2301,12 +2322,10 @@ export class Renderer3D {
         ctx.font = 'bold 12px monospace';
         ctx.fillText(role.title, sx + slotW / 2, slotsY + 72);
 
-        // Name
         ctx.fillStyle = '#aaa';
         ctx.font = '10px monospace';
         ctx.fillText(c.name || '', sx + slotW / 2, slotsY + 86);
 
-        // Click to clear hint
         if (isHovered) {
           ctx.fillStyle = 'rgba(0,0,0,0.6)';
           ctx.beginPath();
@@ -2318,7 +2337,6 @@ export class Renderer3D {
           ctx.fillText('\u2715 REMOVE', sx + slotW / 2, slotsY + slotH / 2 + 4);
         }
       } else {
-        // Empty slot — dashed border + prompt
         ctx.setLineDash([5, 5]);
         ctx.strokeStyle = isHovered ? '#aaa' : '#555';
         ctx.lineWidth = 1;
@@ -2333,33 +2351,24 @@ export class Renderer3D {
         ctx.fillText('Empty', sx + slotW / 2, slotsY + 55);
       }
 
-      // Slot is clickable (to clear) only if filled
       if (hasRole) {
         buttons.push({ type: 'slot', crewIdx: ci, x: sx, y: slotsY, w: slotW, h: slotH, key: slotKey });
       }
     }
 
-    // Arrow between slots and roster
-    ctx.fillStyle = '#444';
-    ctx.font = '18px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('\u2191 click to assign \u2191', CANVAS_WIDTH / 2, slotsY + slotH + 24);
-
     // ========== CHARACTER ROSTER (bottom) ==========
-    const cardW = 220;
-    const cardH = 190;
+    const cardW = 200;
+    const cardH = 200;
     const cardGap = 30;
     const rosterTotal = roles.length * cardW + (roles.length - 1) * cardGap;
     const rosterStartX = CANVAS_WIDTH / 2 - rosterTotal / 2;
-    const rosterY = slotsY + slotH + 40;
+    const rosterY = slotsY + slotH + 20;
 
     for (let ri = 0; ri < roles.length; ri++) {
       const role = roles[ri];
       const rx = rosterStartX + ri * (cardW + cardGap);
       const btnKey = `roster_${role.id}`;
       const isHovered = hoveredBtn === btnKey;
-
-      // How many of this role are already assigned?
       const assignedCount = crew.filter(c => c.role === role.id).length;
       const hasEmptySlot = crew.some(c => c.role === null);
 
@@ -2376,41 +2385,36 @@ export class Renderer3D {
       this.roundRect(rx, rosterY, cardW, cardH, 10);
       ctx.stroke();
 
-      // Large avatar
-      ctx.font = '44px serif';
+      // Avatar
+      ctx.font = '40px serif';
       ctx.textAlign = 'center';
-      ctx.fillText(role.avatar, rx + cardW / 2, rosterY + 48);
+      ctx.fillText(role.avatar, rx + cardW / 2, rosterY + 44);
 
       // Title
       ctx.fillStyle = role.color;
-      ctx.font = 'bold 16px monospace';
+      ctx.font = 'bold 15px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(role.title, rx + cardW / 2, rosterY + 70);
+      ctx.fillText(role.title, rx + cardW / 2, rosterY + 66);
 
       // Tagline
-      ctx.fillStyle = '#777';
+      ctx.fillStyle = '#666';
       ctx.font = '10px monospace';
-      ctx.fillText(role.tagline, rx + cardW / 2, rosterY + 84);
+      ctx.fillText(role.tagline, rx + cardW / 2, rosterY + 80);
 
-      // Pros/cons
-      ctx.font = '10px monospace';
-      ctx.textAlign = 'left';
-      let lineY = rosterY + 102;
-      for (const pro of role.pros) {
-        ctx.fillStyle = '#6a6';
-        ctx.fillText(`+ ${pro}`, rx + 12, lineY);
-        lineY += 13;
-      }
-      for (const con of role.cons) {
-        ctx.fillStyle = '#a66';
-        ctx.fillText(`- ${con}`, rx + 12, lineY);
-        lineY += 13;
-      }
+      // Stat bars — visual comparison
+      const barX = rx + 10;
+      const barW = cardW - 20;
+      const barStartY = rosterY + 94;
+      const barGap = 18;
+
+      this._drawStatBar(ctx, 'DAMAGE',  barX, barStartY,              barW, role.stats.damage,      5, '#e57373');
+      this._drawStatBar(ctx, 'VS BANDIT', barX, barStartY + barGap,   barW, role.stats.banditSpeed,  5, '#81c784');
+      this._drawStatBar(ctx, 'SURVIVAL', barX, barStartY + barGap * 2, barW, role.stats.survival,    5, '#64b5f6');
 
       // Assigned count badge
       if (assignedCount > 0) {
-        const badgeX = rx + cardW - 20;
-        const badgeY = rosterY + 12;
+        const badgeX = rx + cardW - 18;
+        const badgeY = rosterY + 14;
         ctx.beginPath();
         ctx.arc(badgeX, badgeY, 10, 0, Math.PI * 2);
         ctx.fillStyle = role.color;
@@ -2423,7 +2427,7 @@ export class Renderer3D {
 
       // Dim if no empty slots
       if (!hasEmptySlot) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         ctx.beginPath();
         this.roundRect(rx, rosterY, cardW, cardH, 10);
         ctx.fill();
@@ -2432,21 +2436,46 @@ export class Renderer3D {
       buttons.push({ type: 'roster', roleId: role.id, x: rx, y: rosterY, w: cardW, h: cardH, key: btnKey });
     }
 
-    // Bottom hint
+    // ========== BOTTOM: CONFIRM BUTTON or HINT ==========
     const allChosen = crew.every(c => c.role !== null);
-    const hintY = rosterY + cardH + 24;
+    const bottomY = rosterY + cardH + 16;
+
     if (allChosen) {
-      const pulse = 0.7 + Math.sin(now * 0.005) * 0.3;
-      ctx.fillStyle = `rgba(245, 166, 35, ${pulse})`;
-      ctx.font = 'bold 15px monospace';
+      // Confirm button
+      const btnW = 200;
+      const btnH = 44;
+      const btnX = CANVAS_WIDTH / 2 - btnW / 2;
+      const confirmKey = 'confirm';
+      const confirmHovered = hoveredBtn === confirmKey;
+      const pulse = 0.85 + Math.sin(now * 0.006) * 0.15;
+
+      ctx.fillStyle = confirmHovered ? '#e09520' : `rgba(245, 166, 35, ${pulse})`;
+      ctx.beginPath();
+      this.roundRect(btnX, bottomY, btnW, btnH, 8);
+      ctx.fill();
+      if (confirmHovered) {
+        ctx.shadowColor = '#f5a623';
+        ctx.shadowBlur = 12;
+      }
+      ctx.strokeStyle = '#f5a623';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      this.roundRect(btnX, bottomY, btnW, btnH, 8);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 18px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('CREW READY \u2014 click a slot to change, or close to continue', CANVAS_WIDTH / 2, hintY);
+      ctx.fillText('CONFIRM', CANVAS_WIDTH / 2, bottomY + btnH / 2 + 6);
+
+      buttons.push({ type: 'confirm', x: btnX, y: bottomY, w: btnW, h: btnH, key: confirmKey });
     } else {
-      ctx.fillStyle = '#666';
+      ctx.fillStyle = '#555';
       ctx.font = '13px monospace';
       ctx.textAlign = 'center';
       const emptyCount = crew.filter(c => c.role === null).length;
-      ctx.fillText(`Click a character to fill ${emptyCount} empty slot${emptyCount > 1 ? 's' : ''}`, CANVAS_WIDTH / 2, hintY);
+      ctx.fillText(`Click a character to fill ${emptyCount} empty slot${emptyCount > 1 ? 's' : ''}`, CANVAS_WIDTH / 2, bottomY + 14);
     }
 
     return buttons;

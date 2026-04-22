@@ -368,11 +368,10 @@ function updateSetup(dt) {
         } else if (btn.type === 'slot') {
           // Click filled slot → clear it
           train.crew[btn.crewIdx].role = null;
+        } else if (btn.type === 'confirm') {
+          // Confirm button — lock in roles and proceed to setup
+          rolesChosen = true;
         }
-      }
-      // Check if all chosen
-      if (train.crew.every(c => c.role !== null)) {
-        rolesChosen = true;
       }
     }
     return; // block normal setup interaction
