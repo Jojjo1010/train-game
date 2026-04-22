@@ -16,8 +16,8 @@ const STATES = {
 export { STATES as BANDIT_STATES };
 
 // Escalation: smooth ramps, not step functions
-const BANDIT_GRACE_PERIOD = 4;       // 0–4s: no stealing (just settled in)
-const BANDIT_STEAL_RAMP = 5;         // seconds after grace to reach full steal rate
+const BANDIT_GRACE_PERIOD = 2.5;     // 0–2.5s: no stealing (just settled in; was 4)
+const BANDIT_STEAL_RAMP = 3;         // seconds after grace to reach full steal rate (was 5)
 const BANDIT_HP_START = 10;          // seconds before HP drain begins
 const BANDIT_HP_RAMP = 4;            // seconds to reach max HP drain rate
 const BANDIT_MAX_HP_RATE = 0.5;      // max HP/s per bandit (was 1.0 instant)

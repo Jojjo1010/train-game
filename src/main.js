@@ -614,7 +614,7 @@ function renderRun() {
   if (banditCount > 0) {
     const dctx2 = renderer.ctx;
     // Pulse speed ramps with dwell time
-    const pulseSpeed = maxDwell >= 10 ? 0.016 : (maxDwell >= 4 ? 0.010 : 0.006);
+    const pulseSpeed = maxDwell >= 10 ? 0.016 : (maxDwell >= 2.5 ? 0.010 : 0.006);
     const pulse = 0.5 + Math.sin(performance.now() * pulseSpeed) * 0.5;
     const bannerW = 340;
     const bannerH = 38;
@@ -623,7 +623,7 @@ function renderRun() {
     // Color shifts: amber (grace) → orange (stealing ramp) → red (draining HP)
     let bgR = 180, bgG = 30, bgB = 20;
     let msg;
-    if (maxDwell < 4) {
+    if (maxDwell < 2.5) {
       // Grace period — amber, informational
       bgR = 180; bgG = 130; bgB = 20;
       msg = banditCount === 1 ? '⚠ Bandit boarding!' : `⚠ ${banditCount} bandits boarding!`;
