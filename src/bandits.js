@@ -59,6 +59,7 @@ export class Bandit {
     this.stealFlash = 0;
     this.totalStolen = 0;
     this.dwellTime = 0;
+    this.timeOnSlot = 0;
     this.justDied = false;
   }
 
@@ -112,28 +113,10 @@ export class Bandit {
         // Stay on the slot
         this.x = this.targetSlot.worldX;
         this.y = this.targetSlot.worldY;
+        this.timeOnSlot += dt;
 
         // Track how long this bandit has been aboard
         this.dwellTime += dt;
-
-        // Smooth steal ramp: 0 during grace, then linearly reaches full rate
-        if (!this.targetSlot.autoWeaponId && this.dwellTime > BANDIT_GRACE_PERIOD) {
-          const stealFraction = Math.min(1, (this.dwellTime - BANDIT_GRACE_PERIOD) / BANDIT_STEAL_RAMP);
-          this.stealAccumulator += BANDIT_STEAL_RATE * stealFraction * dt;
-          if (this.stealAccumulator >= 1) {
-            const stolen = Math.floor(this.stealAccumulator);
-            if (train.runGold > 0) {
-              const actualStolen = Math.min(stolen, train.runGold);
-              train.runGold = Math.max(0, train.runGold - stolen);
-              this.totalStolen += stolen;
-              this.stealFlash = 0.8;
-              playStealCoin();
-              // Floating damage attribution (gold — stolen gold)
-              spawnAttribution(`-${actualStolen}g`, this.x, this.y - 10, '#f5c842', `bandit-gold-${this.targetSlot?.worldX}`);
-            }
-            this.stealAccumulator -= stolen;
-          }
-        }
 
         // HP damage: starts late, ramps slowly, caps low per bandit
         if (this.dwellTime >= BANDIT_HP_START) {
@@ -145,6 +128,7 @@ export class Bandit {
           const drainRate = BANDIT_MAX_HP_RATE * hpFraction;
           spawnAttribution(`-${drainRate.toFixed(1)}`, this.x, this.y - 20, '#cc66ff', `bandit-hp-${this.targetSlot?.worldX}`);
         }
+
 
         if (this.stealFlash > 0) this.stealFlash -= dt;
         // If slot has auto-weapon, it's degraded (checked in combat.js)
@@ -180,6 +164,13 @@ export class Bandit {
         break;
       }
     }
+  }
+
+  getWeaponFactor() {
+    if (this.state !== STATES.ON_TRAIN && this.state !== STATES.FIGHTING) return null;
+    if (this.timeOnSlot < 2) return 0.75;
+    if (this.timeOnSlot < 5) return 0.30;
+    return 0;
   }
 
   die() {
@@ -228,16 +219,7 @@ export class BanditSystem {
       this.trySpawn(train);
     }
 
-    // Steal sound: loop only when a bandit is actually draining gold
-    const anyStealing = this.pool.some(b =>
-      b.active && b.state === STATES.ON_TRAIN && !b.targetSlot?.autoWeaponId
-      && b.dwellTime > BANDIT_GRACE_PERIOD
-    );
-    if (anyStealing) {
-      startStealLoop();
-    } else {
-      stopStealLoop();
-    }
+    stopStealLoop();
   }
 
   trySpawn(train) {

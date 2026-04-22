@@ -140,7 +140,9 @@ function leaveShop() {
 
 function applyShopUpgrades() {
   const u = save.upgrades;
-  while (train.crew.length < 2 + u.crewSlots.level) train.recruitCrew();
+  // Prototype: hard-cap at 2 crew, no additional recruitment
+  while (train.crew.length < 2) train.recruitCrew();
+  if (train.crew.length > 2) train.crew.length = 2;
   train.passives.damage = u.damage.level;
   train.passives.shield = u.shield.level;
   train.passives.coolOff = u.coolOff.level;
@@ -232,15 +234,9 @@ function generateLevelUpCards(train) {
 
   // Defense cards (max 2 defense slots)
   const DEFENSE_DEFS = [
-    { id: 'shield', name: 'Shield', icon: '\uD83D\uDEE1', color: '#3498db', maxLevel: 5,
-      desc: lvl => `-${(lvl) * 2} damage per hit`,
-      apply(t, lvl) { t.armorReduction = lvl * 2; } },
     { id: 'regen', name: 'Regen', icon: '\u2764', color: '#e74c3c', maxLevel: 5,
       desc: lvl => `+${lvl * 3} HP/sec`,
       apply(t, lvl) { t._regenRate = lvl * 3; } },
-    { id: 'repair', name: 'Repair', icon: '\uD83D\uDD27', color: '#1abc9c', maxLevel: 1,
-      desc: () => 'Restore 30 hull points',
-      apply(t) { t.hp = Math.min(t.hp + 30, t.maxHp); } },
   ];
 
   for (const def of DEFENSE_DEFS) {
@@ -441,10 +437,6 @@ function updateRun(dt) {
   train.updateLastStand(dt);
   // Regen: defense regen + Medic role bonus (2 HP/s when stationary 3+ seconds)
   let regenRate = train._regenRate;
-  const medic = train.crew.find(c => c.role === 'Medic');
-  if (medic && medic.assignment && !medic.isMoving && medic.stationaryTime >= 3) {
-    regenRate += 2;
-  }
   if (regenRate > 0) {
     train.hp = Math.min(train.hp + regenRate * dt, train.maxHp);
   }

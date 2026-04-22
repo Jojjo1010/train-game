@@ -17,6 +17,7 @@ export class WeaponMount {
     this.baseDirection = baseDirection; // fixed outward angle, never changes
     this.coneDirection = baseDirection; // current aim within allowed arc
     this.coneHalfAngle = WEAPON_CONE_HALF_ANGLE;
+    this.directionLocked = false; // true when manually aimed in tactical pause
     this.cooldownTimer = 0;
     this.crew = null;
     this.worldX = 0;
@@ -108,11 +109,15 @@ export class TrainCar {
 
     if (type === 'weapon') {
       const m = MOUNT_RADIUS + 2;
-      // Base directions face outward from train center
-      this.mounts.push(new WeaponMount(m, m, -Math.PI * 3 / 4));                // top-left → up-left
-      this.mounts.push(new WeaponMount(CAR_WIDTH - m, m, -Math.PI / 4));         // top-right → up-right
-      this.mounts.push(new WeaponMount(m, CAR_HEIGHT - m, Math.PI * 3 / 4));     // bottom-left → down-left
-      this.mounts.push(new WeaponMount(CAR_WIDTH - m, CAR_HEIGHT - m, Math.PI / 4)); // bottom-right → down-right
+      const cx = CAR_WIDTH / 2;
+      if (index === 0) {
+        // Rear car: 2 mounts (top + bottom, centered) — "rear" and "mid" positions
+        this.mounts.push(new WeaponMount(cx, m, -Math.PI / 2));
+        this.mounts.push(new WeaponMount(cx, CAR_HEIGHT - m, Math.PI / 2));
+      } else {
+        // Front car: 1 mount (top center) — "front" position
+        this.mounts.push(new WeaponMount(cx, m, -Math.PI / 2));
+      }
     } else if (type === 'locomotive') {
       this.driverSeat = new DriverSeat(CAR_WIDTH / 2, CAR_HEIGHT / 2);
     }
@@ -250,7 +255,7 @@ export class Train {
       new CrewMember(0),
       new CrewMember(1),
     ];
-    this.maxCrew = 3;
+    this.maxCrew = 2;
   }
 
   get allMounts() {

@@ -30,7 +30,7 @@ export const PROJECTILE_LIFETIME = T('PROJECTILE_LIFETIME', 2);
 export const PROJECTILE_RADIUS = T('PROJECTILE_RADIUS', 3);
 
 // Driver buff
-export const DRIVER_DAMAGE_BUFF = T('DRIVER_DAMAGE_BUFF', 1.5);
+export const DRIVER_DAMAGE_BUFF = T('DRIVER_DAMAGE_BUFF', 1.0);
 
 // Crew
 export const CREW_REASSIGN_COOLDOWN = 1;
@@ -41,7 +41,7 @@ export const CREW_COLORS = ['#e74c3c', '#3498db', '#2ecc71'];
 export const ENEMY_BASE_HP = T('ENEMY_BASE_HP', 20);
 export const ENEMY_BASE_SPEED = T('ENEMY_BASE_SPEED', 50);
 export const ENEMY_RADIUS = T('ENEMY_RADIUS', 6);
-export const ENEMY_CONTACT_DAMAGE = T('ENEMY_CONTACT_DAMAGE', 6);
+export const ENEMY_CONTACT_DAMAGE = T('ENEMY_CONTACT_DAMAGE', 8);
 export const ENEMY_SPAWN_INTERVAL_START = T('ENEMY_SPAWN_INTERVAL_START', 1.5);
 export const ENEMY_SPAWN_INTERVAL_MIN = T('ENEMY_SPAWN_INTERVAL_MIN', 0.25);
 
@@ -142,21 +142,22 @@ export const TARGET_DISTANCE = T('TARGET_DISTANCE', 10000);
 
 // Bandits
 export const BANDIT_SPEED = T('BANDIT_SPEED', 110);
-export const BANDIT_SPAWN_INTERVAL = T('BANDIT_SPAWN_INTERVAL', 15);
+export const BANDIT_SPAWN_INTERVAL = T('BANDIT_SPAWN_INTERVAL', 10);
 export const BANDIT_JUMP_DURATION = T('BANDIT_JUMP_DURATION', 0.4);
-export const BANDIT_STEAL_RATE = T('BANDIT_STEAL_RATE', 5); // gold per second
+export const BANDIT_STEAL_RATE = T('BANDIT_STEAL_RATE', 0); // gold per second
 export const BANDIT_FIGHT_DURATION = T('BANDIT_FIGHT_DURATION', 0.5);
 export const MAX_BANDITS = 10;
 
 // Wave system
-export const WAVE_CYCLE_DURATION = T('WAVE_CYCLE_DURATION', 30);       // seconds between surge starts
+export const WAVE_CYCLE_DURATION = T('WAVE_CYCLE_DURATION', 7);       // seconds between surge starts
 export const WAVE_SURGE_DURATION = T('WAVE_SURGE_DURATION', 8);        // seconds a surge lasts
 export const WAVE_CALM_DURATION = T('WAVE_CALM_DURATION', 10);         // calm period after surge
-export const WAVE_SURGE_SPAWN_MULT = T('WAVE_SURGE_SPAWN_MULT', 2.5);  // spawn rate multiplier during surge
-export const WAVE_CALM_SPAWN_MULT = T('WAVE_CALM_SPAWN_MULT', 0.6);    // spawn rate multiplier during calm
-export const WAVE_ESCALATION = T('WAVE_ESCALATION', 0.15);             // per-wave difficulty increase
+export const WAVE_SURGE_SPAWN_MULT = T('WAVE_SURGE_SPAWN_MULT', 3.5);  // spawn rate multiplier during surge
+export const WAVE_CALM_SPAWN_MULT = T('WAVE_CALM_SPAWN_MULT', 0.1);    // spawn rate multiplier during calm
+export const WAVE_ESCALATION = T('WAVE_ESCALATION', 0.10);             // per-wave difficulty increase
 export const WAVE_WARNING_DURATION = T('WAVE_WARNING_DURATION', 3);    // seconds of warning before surge
 export const WAVE_BOSS_SURGE_MULT = T('WAVE_BOSS_SURGE_MULT', 3.5);   // extra intense boss wave multiplier
+export const UNMANNED_EFFECTIVENESS = T('UNMANNED_EFFECTIVENESS', 0.15);
 
 // Station combat modifiers
 export const STATION_MODIFIERS = {

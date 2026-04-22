@@ -1,7 +1,8 @@
 import {
   CANVAS_WIDTH, CANVAS_HEIGHT,
   MAX_PROJECTILES, PROJECTILE_SPEED, PROJECTILE_LIFETIME, PROJECTILE_RADIUS,
-  DRIVER_DAMAGE_BUFF, XP_PER_KILL, MAX_RICOCHET_BOLTS, MAX_DAMAGE_NUMBERS
+  DRIVER_DAMAGE_BUFF, XP_PER_KILL, MAX_RICOCHET_BOLTS, MAX_DAMAGE_NUMBERS,
+  UNMANNED_EFFECTIVENESS
 } from './constants.js';
 import { playShoot, playEnemyHit, playEnemyKill, playTrainDamage } from './audio.js';
 import { spawnDamageNumber as spawnAttribution } from './damageAttribution.js';
@@ -361,7 +362,7 @@ export class CombatSystem {
         const dx = e.x - cx;
         const dy = e.y - cy;
         if (dx * dx + dy * dy <= e.radius * e.radius) {
-          const actualDmg = Math.max(1, e.damage - train.totalShieldReduction) * train.lastStandDamageMultiplier;
+          const actualDmg = e.damage * train.lastStandDamageMultiplier;
           train.hp -= actualDmg;
           train.damageFlash = 0.25;
           train.shakeTimer = 0.2;
@@ -380,7 +381,6 @@ export class CombatSystem {
   updateAutoWeapons(dt, train, enemies) {
     const dmgMult = train.totalDamageMultiplier;
     let cdMult = train.totalCooldownMultiplier;
-    if (train.engineerStationed) cdMult *= 0.5; // Engineer role bonus: 2x fire rate on auto-weapons
     const areaMult = train.totalAreaMultiplier;
 
     // --- TURRET ---
