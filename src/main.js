@@ -170,6 +170,7 @@ function prepareForCombat(isBossStation = false, modifier = null) {
   train.damageFlash = 0;
   train.shakeTimer = 0;
   train.hpFlashTimer = 0;
+  train.lastStandTimer = 0;
   selectedCrew = null;
   spawner.reset();
   spawner.isBossStation = isBossStation;
@@ -435,6 +436,8 @@ function updateRun(dt) {
   }
 
   train.distance += TRAIN_SPEED * dt;
+  // Hidden last-stand forgiveness timer
+  train.updateLastStand(dt);
   // Regen: defense regen + Medic role bonus (2 HP/s when stationary 3+ seconds)
   let regenRate = train._regenRate;
   const medic = train.crew.find(c => c.role === 'Medic');

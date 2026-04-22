@@ -224,6 +224,9 @@ export class Train {
     this.greedMultiplier = 1;
     this._regenRate = 0;
 
+    // Hidden last-stand forgiveness (invisible to player)
+    this.lastStandTimer = 0;
+
     // Auto-weapons (VS-style) — max 2
     this.autoWeapons = {};
     this.maxAutoWeapons = 2;
@@ -257,6 +260,32 @@ export class Train {
   get allSlots() {
     if (!this._slots) this._slots = this.cars.flatMap(c => [...c.mounts, ...(c.driverSeat ? [c.driverSeat] : [])]);
     return this._slots;
+  }
+
+  // Hidden last-stand forgiveness: reduce incoming damage by 30% for 3s when HP < 15%
+  updateLastStand(dt) {
+    if (this.lastStandTimer > 0) {
+      this.lastStandTimer -= dt;
+    }
+    if (this.hp < this.maxHp * 0.15 && this.lastStandTimer <= 0) {
+      this.lastStandTimer = 3.0;
+    }
+  }
+
+  get lastStandDamageMultiplier() {
+    return this.lastStandTimer > 0 ? 0.7 : 1.0;
+  }
+
+  // Buddy bonus: check if a crew member on a given mount has an adjacent crewed mount
+  hasBuddyBonus(mount) {
+    if (!mount.crew) return false;
+    const mounts = this.allMounts;
+    const idx = mounts.indexOf(mount);
+    if (idx < 0) return false;
+    // Check mount at index-1 and index+1
+    if (idx > 0 && mounts[idx - 1].crew) return true;
+    if (idx < mounts.length - 1 && mounts[idx + 1].crew) return true;
+    return false;
   }
 
   get cargoMultiplier() {

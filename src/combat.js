@@ -245,6 +245,7 @@ export class CombatSystem {
         let damage = mount.damage * train.totalDamageMultiplier * banditMult;
         if (hasDriver) damage *= DRIVER_DAMAGE_BUFF;
         if (mount.crew.role === 'Gunner') damage *= 2.0;
+        if (train.hasBuddyBonus(mount)) damage *= 1.15;
 
         this.fireProjectile(mount.worldX, mount.worldY, angle, damage, 'crew', mount.crew.color);
         mount.cooldownTimer = (1 / (mount.fireRate * banditMult)) * train.totalCooldownMultiplier;
@@ -359,7 +360,7 @@ export class CombatSystem {
         const dx = e.x - cx;
         const dy = e.y - cy;
         if (dx * dx + dy * dy <= e.radius * e.radius) {
-          const actualDmg = Math.max(1, e.damage - train.totalShieldReduction);
+          const actualDmg = Math.max(1, e.damage - train.totalShieldReduction) * train.lastStandDamageMultiplier;
           train.hp -= actualDmg;
           train.damageFlash = 0.25;
           train.shakeTimer = 0.2;

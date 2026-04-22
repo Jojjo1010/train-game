@@ -726,6 +726,27 @@ export class Renderer3D {
         ctx.textAlign = 'center';
         ctx.fillText('\uD83D\uDC31', sx, sy + 4);
 
+        // Buddy bonus indicator — subtle "+" when adjacent crew member present
+        if (train.hasBuddyBonus(mount)) {
+          ctx.save();
+          const pulse = 0.6 + Math.sin(performance.now() * 0.005) * 0.3;
+          // Small glowing "+" above the crew icon
+          ctx.font = 'bold 10px monospace';
+          ctx.textAlign = 'center';
+          ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+          ctx.lineWidth = 2;
+          ctx.strokeText('+', sx + 10, sy - 10);
+          ctx.fillStyle = `rgba(100, 255, 100, ${pulse})`;
+          ctx.fillText('+', sx + 10, sy - 10);
+          // Faint green ring around the mount
+          ctx.beginPath();
+          ctx.arc(sx, sy, MOUNT_RADIUS + 4, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(100, 255, 100, ${pulse * 0.35})`;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.restore();
+        }
+
         // Idle crew warning — crew on auto-weapon mount, no bandit (guarding after fight)
         if (hasAuto && !mount._bandit) {
           const warn = 0.5 + Math.sin(performance.now() * 0.008) * 0.5;
