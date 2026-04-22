@@ -502,6 +502,24 @@ function renderSetup() {
   renderer.drawDepartButton(departBtn.x, departBtn.y, departBtn.w, departBtn.h,
     crewReady && input.hitRect(departBtn.x, departBtn.y, departBtn.w, departBtn.h), !crewReady);
   if (selectedCrew) renderer.drawSelectedIndicator(selectedCrew);
+  // Garlic mount label — always show during setup so it's clickable
+  {
+    const gMount = train.getAutoWeaponMount('steamBlast');
+    if (gMount && gMount.screenX !== undefined) {
+      const gsx = slotScreenX(gMount), gsy = slotScreenY(gMount);
+      const ctx = renderer.ctx;
+      if (!garlicSelected) {
+        // Subtle label
+        ctx.fillStyle = 'rgba(142, 202, 230, 0.7)';
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('\uD83D\uDCA8 GARLIC', gsx, gsy - MOUNT_RADIUS - 6);
+        ctx.fillStyle = '#8ecae6';
+        ctx.font = '8px monospace';
+        ctx.fillText('L-click to move', gsx, gsy + MOUNT_RADIUS + 12);
+      }
+    }
+  }
   // Garlic selected indicator
   if (garlicSelected) {
     const gMount = train.getAutoWeaponMount('steamBlast');
