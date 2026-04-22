@@ -654,18 +654,24 @@ export class Renderer3D {
         }
       }
 
-      // Firing cone — hardcoded screen-space directions per mount
-      // Train runs at ~45° on screen (bottom-left → upper-right).
-      // Each corner's outward diagonal in screen coords:
-      //   TL → upper-left (-3π/4), TR → upper-right (-π/4),
-      //   BL → lower-left (3π/4),  BR → lower-right (π/4)
+      // Firing cone — compute outward direction from car center via projection
       const hasAuto = mount.hasAutoWeapon;
       const showCone = mount.isManned;
       if (showCone) {
-        const mountInCar = i % 4;
-        const screenAngles = [-3*Math.PI/4, -Math.PI/4, 3*Math.PI/4, Math.PI/4];
-        const screenCenter = screenAngles[mountInCar];
-        const screenHalf = Math.PI / 2; // 180° total cone per mount
+        // Find which car this mount belongs to (0-3 = rear, 4-7 = front)
+        const carStart = i < 4 ? 0 : 4;
+        // Car center in 3D = average of the 4 mount offsets
+        let ccx = 0, ccz = 0;
+        for (let j = carStart; j < carStart + 4; j++) {
+          ccx += this.mountOffsets3D[j].x;
+          ccz += this.mountOffsets3D[j].z;
+        }
+        ccx /= 4; ccz /= 4;
+        // Project car center and this mount to screen
+        const carCenterScr = this._project(ccx, ccz);
+        // Screen direction from car center to this mount = outward direction
+        const screenCenter = Math.atan2(sy - carCenterScr.y, sx - carCenterScr.x);
+        const screenHalf = Math.PI / 2; // 180° total cone
 
         const coneColor = mount.crew.color;
         const coneRadius = 70;
