@@ -381,9 +381,9 @@ export class Train {
 
   // Passive modifier multipliers (stack with shop upgrades)
   get totalDamageMultiplier() { return 1 + this.passives.damage * (SHOP_TUNING.damage.perLevel / 100); }
-  get totalCooldownMultiplier() { return 1 - this.passives.coolOff * (SHOP_TUNING.coolOff.perLevel / 100); }
-  get totalAreaMultiplier() { return 1 + this.passives.baseArea * (SHOP_TUNING.baseArea.perLevel / 100); }
-  get totalShieldReduction() { return this.armorReduction + this.passives.shield * SHOP_TUNING.shield.perLevel; }
+  get totalCooldownMultiplier() { return 1; }
+  get totalAreaMultiplier() { return 1; }
+  get totalShieldReduction() { return this.armorReduction; }
 
   recruitCrew() {
     if (this.crew.length >= this.maxCrew) return;
