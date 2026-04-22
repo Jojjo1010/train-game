@@ -237,9 +237,10 @@ export class Train {
       damage:   0, // level 0-5, each = +15% damage
     };
 
-    // Start with 1 crew — more are recruited via level-up powerups
+    // Start with 2 crew — third recruited via level-up or shop
     this.crew = [
       new CrewMember(0),
+      new CrewMember(1),
     ];
     this.maxCrew = 3;
   }

@@ -139,7 +139,7 @@ function leaveShop() {
 
 function applyShopUpgrades() {
   const u = save.upgrades;
-  while (train.crew.length < 1 + u.crewSlots.level) train.recruitCrew();
+  while (train.crew.length < 2 + u.crewSlots.level) train.recruitCrew();
   train.passives.damage = u.damage.level;
   train.passives.shield = u.shield.level;
   train.passives.coolOff = u.coolOff.level;
