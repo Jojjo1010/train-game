@@ -2470,11 +2470,16 @@ export class Renderer3D {
 
       buttons.push({ type: 'confirm', x: btnX, y: bottomY, w: btnW, h: btnH, key: confirmKey });
     } else {
-      ctx.fillStyle = '#555';
-      ctx.font = '13px monospace';
+      ctx.fillStyle = '#777';
+      ctx.font = '12px monospace';
       ctx.textAlign = 'center';
-      const emptyCount = crew.filter(c => c.role === null).length;
-      ctx.fillText(`Click a character to fill ${emptyCount} empty slot${emptyCount > 1 ? 's' : ''}`, CANVAS_WIDTH / 2, bottomY + 14);
+      ctx.fillText('You can pick the same role twice!', CANVAS_WIDTH / 2, bottomY + 6);
+
+      // Composition examples
+      ctx.fillStyle = '#555';
+      ctx.font = '10px monospace';
+      const tipY = bottomY + 22;
+      ctx.fillText('\uD83D\uDC31\uD83D\uDC31 = Max damage    \uD83D\uDC31\u26C4 = Balanced    \u26C4\u26C4 = Bandit-proof', CANVAS_WIDTH / 2, tipY);
     }
 
     return buttons;
