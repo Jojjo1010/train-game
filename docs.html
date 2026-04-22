@@ -212,6 +212,15 @@
       <h2 style="color:var(--accent); margin-bottom:24px;">Changelog</h2>
 
       <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
+        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Cone Visualization Fix</h3>
+        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
+          <li><strong>Asymmetric projection:</strong> Both cone edges now projected independently through the isometric camera — fixes cones appearing too large or too small depending on mount direction</li>
+          <li><strong>Removed duplicate cone:</strong> main.js was drawing a second cone using raw 2D pixel-space angles on top of the 3D-projected cone — removed</li>
+          <li><strong>Root cause:</strong> Isometric projection is not angle-preserving (conformal), so mirroring one projected edge produced wrong angular spans</li>
+        </ul>
+      </div>
+
+      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
         <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Floating Damage Attribution Numbers</h3>
         <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
           <li><strong>Red numbers:</strong> Enemy contact damage shown at collision point (e.g. "-6")</li>
