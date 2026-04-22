@@ -1,6 +1,34 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { toWorld, toWorldX, toWorldZ, toPixelX, toPixelZ } from './coordMap.js';
+
+// === DEBUG MOUNT TUNING ===
+// Press F4 to toggle debug panel. Use keys to adjust:
+//   Q/W: upper cone angle ±5°    E/R: lower cone angle ±5°
+//   A/S: gun rotation offset ±5° D/F: cone half-angle ±5°
+window.__mountDebug = window.__mountDebug || {
+  enabled: false,
+  upperConeAngle: -135,  // degrees
+  lowerConeAngle: 45,    // degrees
+  gunOffset: 90,         // degrees (the +π/2 offset)
+  coneHalf: 90,          // degrees (half of total cone)
+};
+const MD = window.__mountDebug;
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'F4') { MD.enabled = !MD.enabled; e.preventDefault(); return; }
+  if (!MD.enabled) return;
+  const step = e.shiftKey ? 1 : 5;
+  switch (e.code) {
+    case 'KeyQ': MD.upperConeAngle -= step; break;
+    case 'KeyW': MD.upperConeAngle += step; break;
+    case 'KeyE': MD.lowerConeAngle -= step; break;
+    case 'KeyR': MD.lowerConeAngle += step; break;
+    case 'KeyA': MD.gunOffset -= step; break;
+    case 'KeyS': MD.gunOffset += step; break;
+    case 'KeyD': MD.coneHalf -= step; break;
+    case 'KeyF': MD.coneHalf += step; break;
+  }
+});
 import {
   CANVAS_WIDTH, CANVAS_HEIGHT, MOUNT_RADIUS, CREW_RADIUS,
   WEAPON_RANGE, TARGET_DISTANCE, COIN_RADIUS,
@@ -581,7 +609,7 @@ export class Renderer3D {
         const entry = this.mountGroups[mountIdx];
         const group = entry.group;
         group.position.set(offset.x, offset.y, offset.z);
-        group.rotation.y = -mount.coneDirection + Math.PI / 2;
+        group.rotation.y = -mount.coneDirection + MD.gunOffset * Math.PI / 180;
 
         // Determine which model to show
         let desiredType = null;
@@ -659,8 +687,10 @@ export class Renderer3D {
       const hasAuto = mount.hasAutoWeapon;
       const showCone = mount.isManned;
       if (showCone) {
-        const screenCenter = offset.z < 0 ? -3 * Math.PI / 4 : Math.PI / 4;
-        const screenHalf = Math.PI / 2; // 180° cone
+        const upperRad = MD.upperConeAngle * Math.PI / 180;
+        const lowerRad = MD.lowerConeAngle * Math.PI / 180;
+        const screenCenter = offset.z < 0 ? upperRad : lowerRad;
+        const screenHalf = MD.coneHalf * Math.PI / 180;
 
         const coneColor = mount.crew.color;
         const coneRadius = 70;
@@ -1885,6 +1915,28 @@ export class Renderer3D {
 
     // === MINI-MAP — bottom-right ===
     this.drawMiniMap(train.distance);
+
+    // === DEBUG MOUNT TUNING PANEL (F4 to toggle) ===
+    if (MD.enabled) {
+      const dx = 10, dy = CANVAS_HEIGHT - 120;
+      ctx.fillStyle = 'rgba(0,0,0,0.85)';
+      ctx.fillRect(dx, dy, 320, 110);
+      ctx.strokeStyle = '#ff0';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(dx, dy, 320, 110);
+      ctx.fillStyle = '#ff0';
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('MOUNT DEBUG (F4 toggle, Shift=1°)', dx + 6, dy + 14);
+      ctx.fillStyle = '#fff';
+      ctx.font = '11px monospace';
+      ctx.fillText(`Q/W  Upper cone: ${MD.upperConeAngle}°`, dx + 6, dy + 32);
+      ctx.fillText(`E/R  Lower cone: ${MD.lowerConeAngle}°`, dx + 6, dy + 48);
+      ctx.fillText(`A/S  Gun offset: ${MD.gunOffset}°`, dx + 6, dy + 64);
+      ctx.fillText(`D/F  Cone half:  ${MD.coneHalf}°`, dx + 6, dy + 80);
+      ctx.fillStyle = '#888';
+      ctx.fillText('Copy these values when aligned!', dx + 6, dy + 100);
+    }
   }
 
   drawWaveHUD(waveInfo) {
