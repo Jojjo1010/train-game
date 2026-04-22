@@ -4,6 +4,7 @@ import {
   DRIVER_DAMAGE_BUFF, XP_PER_KILL, MAX_RICOCHET_BOLTS, MAX_DAMAGE_NUMBERS
 } from './constants.js';
 import { playShoot, playEnemyHit, playEnemyKill, playTrainDamage } from './audio.js';
+import { spawnDamageNumber as spawnAttribution } from './damageAttribution.js';
 
 export class Projectile {
   constructor() {
@@ -358,11 +359,14 @@ export class CombatSystem {
         const dx = e.x - cx;
         const dy = e.y - cy;
         if (dx * dx + dy * dy <= e.radius * e.radius) {
-          train.hp -= Math.max(1, e.damage - train.totalShieldReduction);
+          const actualDmg = Math.max(1, e.damage - train.totalShieldReduction);
+          train.hp -= actualDmg;
           train.damageFlash = 0.25;
           train.shakeTimer = 0.2;
           train.hpFlashTimer = 0.4;
           playTrainDamage();
+          // Floating damage attribution (red — enemy contact)
+          spawnAttribution(`-${Math.round(actualDmg)}`, e.x, e.y, '#ff4444');
           e.active = false;
           break;
         }
