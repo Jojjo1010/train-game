@@ -613,13 +613,19 @@ export class Renderer3D {
         const group = entry.group;
         group.position.set(offset.x, offset.y, offset.z);
         const gunOff = offset.z < 0 ? MD.upperGunOffset : MD.lowerGunOffset;
-        const coneCenter = offset.z < 0 ? MD.upperConeAngle : MD.lowerConeAngle;
-        const coneCenterRad = coneCenter * Math.PI / 180;
-        // Default: tuned position = -baseDirection + gunOff
-        // Mouse aim: subtract screen-space delta from default
-        const aimAngle = mount.screenAimAngle !== undefined ? mount.screenAimAngle : coneCenterRad;
-        const aimDelta = aimAngle - coneCenterRad;
-        group.rotation.y = -mount.baseDirection + gunOff * Math.PI / 180 - aimDelta;
+        if (mount.screenAimAngle !== undefined) {
+          // Mouse aim: project screen aim direction to 3D, point gun there
+          const aimDist = 50;
+          const targetSx = sx + Math.cos(mount.screenAimAngle) * aimDist;
+          const targetSy = sy + Math.sin(mount.screenAimAngle) * aimDist;
+          const target3D = this.screenToPixel(targetSx, targetSy, offset.y);
+          const twx = target3D.x - CANVAS_WIDTH / 2;
+          const twz = target3D.y - CANVAS_HEIGHT / 2;
+          group.rotation.y = Math.atan2(twx - offset.x, twz - offset.z);
+        } else {
+          // Default tuned position
+          group.rotation.y = -mount.baseDirection + gunOff * Math.PI / 180;
+        }
 
         // Determine which model to show
         let desiredType = null;
