@@ -218,9 +218,14 @@ function generateLevelUpCards(train) {
       const nextLv = c.gunLevel + 1;
       const nextStats = MANUAL_GUN.levels[nextLv - 1];
       const crewId = c.id;
+      const roleEmoji = c.role === 'Gunner' ? '\uD83D\uDE3E' : c.role === 'Brawler' ? '\uD83D\uDE3C' : '\uD83D\uDC31';
       cards.push({
         type: 'upgradeManual',
-        name: `Crew ${crewId + 1} Gun Lv${nextLv}`, icon: MANUAL_GUN.icon + '🐱', color: c.color,
+        name: `${c.name || 'Crew ' + (crewId + 1)} Gun Lv${nextLv}`,
+        icon: MANUAL_GUN.icon + roleEmoji,
+        color: c.color,
+        crewColor: c.color,
+        roleLabel: c.role || '',
         desc: `DMG ${nextStats.damage} | Rate ${nextStats.fireRate.toFixed(1)}/s`,
         apply(t) { t.crew[crewId].gunLevel = nextLv; },
       });

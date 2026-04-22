@@ -2617,23 +2617,52 @@ export class Renderer3D {
       const p = powerups[i];
       const cx = startX + i * (cardW + gap);
       const isHovered = hoveredIndex === i;
+      const hasCrew = !!p.crewColor;
 
+      // Card background
       ctx.fillStyle = isHovered ? '#3a3a5a' : '#2a2a3a';
-      ctx.strokeStyle = isHovered ? '#f5a623' : '#555';
-      ctx.lineWidth = isHovered ? 3 : 1;
       this.roundRect(cx, cardY, cardW, cardH, 10);
       ctx.fill();
+
+      // Border — use crew color for crew cards, default for others
+      if (hasCrew) {
+        ctx.strokeStyle = isHovered ? p.crewColor : p.crewColor + '88';
+        ctx.lineWidth = isHovered ? 3 : 2;
+      } else {
+        ctx.strokeStyle = isHovered ? '#f5a623' : '#555';
+        ctx.lineWidth = isHovered ? 3 : 1;
+      }
+      this.roundRect(cx, cardY, cardW, cardH, 10);
       ctx.stroke();
 
+      // Crew color bar at top of card
+      if (hasCrew) {
+        ctx.fillStyle = p.crewColor;
+        ctx.beginPath();
+        this.roundRect(cx, cardY, cardW, 6, 10);
+        ctx.fill();
+      }
+
+      // Icon
       ctx.font = '40px monospace';
       ctx.textAlign = 'center';
       ctx.fillStyle = p.color;
       ctx.fillText(p.icon, cx + cardW / 2, cardY + 55);
 
+      // Role label below icon (for crew cards)
+      if (hasCrew && p.roleLabel) {
+        const roleColor = p.roleLabel === 'Gunner' ? '#ffb74d' : '#66bb6a';
+        ctx.fillStyle = roleColor;
+        ctx.font = 'bold 9px monospace';
+        ctx.fillText(p.roleLabel.toUpperCase(), cx + cardW / 2, cardY + 68);
+      }
+
+      // Name
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 14px monospace';
       ctx.fillText(p.name, cx + cardW / 2, cardY + 90);
 
+      // Description (word-wrap)
       ctx.fillStyle = '#aaa';
       ctx.font = '12px monospace';
       const words = p.desc.split(' ');
