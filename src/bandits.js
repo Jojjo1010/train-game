@@ -160,12 +160,12 @@ export class Bandit {
         this.y += this.deathVy * dt;
         this.deathVy += 200 * dt; // gravity
 
-        // Brawler kick: detect landing (falling back down past launch height)
-        if (this._brawlerKicked && !this._kickLanded && this.deathVy > 0 && this.timer < 1.0) {
+        // Brawler kick: land after a fixed delay (0.7s into the 1.8s flight)
+        if (this._brawlerKicked && !this._kickLanded && this.timer < 1.1) {
           this._kickLanded = true;
           this._landX = this.x;
           this._landY = this.y;
-          this._landTimer = 0.6; // show impact for 0.6s
+          this._landTimer = 0.6;
         }
 
         // Count down land timer
