@@ -463,26 +463,17 @@ function updateRun(dt) {
     }
   }
 
-  // Aim selected crew's weapon — follows mouse in screen space
+  // Aim selected crew's weapon — always follows mouse
   if (selectedCrew) {
     const mount = getSelectedMount();
-    if (mount && mount.screenX !== undefined) {
-      // Compute angle from mount screen position to mouse
-      const dx = input.mouseX - mount.screenX;
-      const dy = input.mouseY - mount.screenY;
-      const mouseAngle = Math.atan2(dy, dx);
-      // Clamp to the visual cone range (screen-space angles from debug tuning)
-      const MD = window.__mountDebug;
-      const centerDeg = mount.worldY < 320 ? MD.upperConeAngle : MD.lowerConeAngle;
-      const halfDeg = MD.coneHalf;
-      const center = centerDeg * Math.PI / 180;
-      const half = halfDeg * Math.PI / 180;
-      // Clamp mouseAngle to center ± half
-      let diff = mouseAngle - center;
-      while (diff > Math.PI) diff -= Math.PI * 2;
-      while (diff < -Math.PI) diff += Math.PI * 2;
-      if (Math.abs(diff) > half) diff = Math.sign(diff) * half;
-      mount.coneDirection = center + diff;
+    if (mount) {
+      const mouseWorld = renderer.screenToPixel
+        ? renderer.screenToPixel(input.mouseX, input.mouseY, 16)
+        : { x: input.mouseX, y: input.mouseY };
+      mount.coneDirection = mount.clampAngle(Math.atan2(
+        mouseWorld.y - mount.worldY,
+        mouseWorld.x - mount.worldX
+      ));
     }
   }
 
