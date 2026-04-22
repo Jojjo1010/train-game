@@ -679,19 +679,13 @@ function updateRun(dt) {
       }
     }
     // Big visual punch — this should feel like a moment
-    train.shakeTimer = Math.max(train.shakeTimer, 0.3);
-    train.shakeIntensity = 2.0;
-    hitStopTimer = 0.08; // brief freeze for impact
-    // Burst of green particles
-    for (let i = 0; i < 6; i++) {
-      renderer.spawnKillEffect(
-        kx + (Math.random() - 0.5) * 40,
-        ky + (Math.random() - 0.5) * 40,
-        '#66bb6a'
-      );
-    }
-    // Damage flash on train (green — positive)
-    train.hpGreenFlashTimer = 0.3;
+    train.shakeTimer = Math.max(train.shakeTimer, 0.35);
+    train.shakeIntensity = 2.5;
+    hitStopTimer = 0.1; // brief freeze for impact
+    // Shockwave ring expanding to kick radius
+    renderer.spawnBrawlerKick(kx, ky, kickR);
+    // Green flash on HP bar
+    train.hpGreenFlashTimer = 0.4;
   }
 
   // Floating damage attribution numbers
@@ -755,6 +749,7 @@ function renderRun() {
   for (const ke of combat.killEffects) renderer.spawnKillEffect(ke.x, ke.y, ke.color);
   combat.killEffects.length = 0;
   renderer.updateAndDrawKillEffects(0.016);
+  renderer.updateAndDrawKickShockwaves(0.016);
   // Muzzle flashes — queued by combat when a crew weapon fires
   for (const mf of combat.muzzleFlashes) renderer.spawnMuzzleFlash(mf.x, mf.y);
   combat.muzzleFlashes.length = 0;

@@ -175,14 +175,22 @@ export class Bandit {
   }
 
   die() {
+    const wasKicked = this._brawlerKick;
     if (this.targetSlot) {
       this.targetSlot._bandit = null;
     }
     this.state = STATES.DEAD;
-    this.timer = 0.6;
-    this.justDied = true; // signals BanditSystem to add spawn breathing room
-    this.deathVx = (Math.random() - 0.5) * 100;
-    this.deathVy = -120 - Math.random() * 60;
+    this.justDied = true;
+    if (wasKicked) {
+      // Brawler kick: dramatic launch
+      this.timer = 1.0;
+      this.deathVx = (Math.random() - 0.5) * 250;
+      this.deathVy = -300 - Math.random() * 100;
+    } else {
+      this.timer = 0.6;
+      this.deathVx = (Math.random() - 0.5) * 100;
+      this.deathVy = -120 - Math.random() * 60;
+    }
   }
 }
 

@@ -137,6 +137,12 @@ export class Renderer3D {
       this._killFlashes.push({ active: false, x: 0, y: 0, radius: 0, life: 0, maxLife: 0 });
     }
 
+    // --- Brawler kick shockwave pool ---
+    this._kickShockwaves = [];
+    for (let i = 0; i < 5; i++) {
+      this._kickShockwaves.push({ active: false, x: 0, y: 0, radius: 0, maxRadius: 0, life: 0, maxLife: 0 });
+    }
+
     // --- Muzzle flash pool (max 20) ---
     this._muzzleFlashes = [];
     for (let i = 0; i < 20; i++) {
@@ -525,6 +531,78 @@ export class Renderer3D {
     }
   }
 
+  spawnBrawlerKick(x, y, radius) {
+    // Big expanding shockwave ring
+    const sw = this._kickShockwaves.find(s => !s.active);
+    if (sw) {
+      sw.active = true;
+      sw.x = x;
+      sw.y = y;
+      sw.radius = 10;
+      sw.maxRadius = radius;
+      sw.life = 0.5;
+      sw.maxLife = 0.5;
+    }
+    // Big white flash
+    const flash = this._killFlashes.find(f => !f.active);
+    if (flash) {
+      flash.active = true;
+      flash.x = x;
+      flash.y = y;
+      flash.radius = 30;
+      flash.life = 0.15;
+      flash.maxLife = 0.15;
+    }
+    // Extra particles in a wide ring
+    for (let i = 0; i < 12; i++) {
+      const p = this._killParticles.find(p => !p.active);
+      if (!p) break;
+      const angle = (i / 12) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+      const speed = 120 + Math.random() * 100;
+      p.active = true;
+      p.x = x;
+      p.y = y;
+      p.vx = Math.cos(angle) * speed;
+      p.vy = Math.sin(angle) * speed;
+      p.life = 0.4 + Math.random() * 0.2;
+      p.maxLife = p.life;
+      p.color = '#66bb6a';
+      p.radius = 2 + Math.random() * 2;
+    }
+  }
+
+  updateAndDrawKickShockwaves(dt) {
+    const ctx = this.ctx;
+    for (const sw of this._kickShockwaves) {
+      if (!sw.active) continue;
+      sw.life -= dt;
+      if (sw.life <= 0) { sw.active = false; continue; }
+      const t = 1 - sw.life / sw.maxLife; // 0→1
+      sw.radius = 10 + (sw.maxRadius - 10) * t;
+      const alpha = (1 - t) * 0.6;
+
+      // Green filled circle (fading)
+      ctx.fillStyle = `rgba(102, 187, 106, ${alpha * 0.15})`;
+      ctx.beginPath();
+      ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Green ring (thick, fading)
+      ctx.strokeStyle = `rgba(102, 187, 106, ${alpha})`;
+      ctx.lineWidth = 4 * (1 - t) + 1;
+      ctx.beginPath();
+      ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Inner bright ring
+      ctx.strokeStyle = `rgba(200, 255, 200, ${alpha * 0.5})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(sw.x, sw.y, sw.radius * 0.6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
   updateAndDrawKillEffects(dt) {
     const ctx = this.ctx;
 
@@ -648,7 +726,7 @@ export class Renderer3D {
         if (mount.hasAutoWeapon) {
           const modelMap = { turret: 'AutoGun', steamBlast: 'Laser', ricochetShot: 'Laser' };
           desiredType = modelMap[mount.autoWeaponId] || null;
-        } else if (mount.isManned) {
+        } else if (mount.isManned && !(mount.crew && mount.crew.role === 'Brawler')) {
           desiredType = 'Gun';
         }
         // Empty mount = no model
