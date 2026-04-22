@@ -159,6 +159,14 @@ export class Bandit {
         this.x += this.deathVx * dt;
         this.y += this.deathVy * dt;
         this.deathVy += 200 * dt; // gravity
+
+        // Brawler kick: detect landing (falling back down past launch height)
+        if (this._brawlerKicked && !this._kickLanded && this.deathVy > 0 && this.timer < 0.5) {
+          this._kickLanded = true;
+          this._landX = this.x;
+          this._landY = this.y;
+        }
+
         if (this.timer <= 0) {
           this.active = false;
         }
@@ -181,8 +189,13 @@ export class Bandit {
     }
     this.state = STATES.DEAD;
     this.justDied = true;
+    this._brawlerKicked = false;
+    this._kickLanded = false;
+    this._landX = 0;
+    this._landY = 0;
     if (wasKicked) {
-      // Brawler kick: dramatic launch
+      // Brawler kick: dramatic launch — AOE triggers on landing
+      this._brawlerKicked = true;
       this.timer = 1.0;
       this.deathVx = (Math.random() - 0.5) * 250;
       this.deathVy = -300 - Math.random() * 100;

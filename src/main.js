@@ -676,16 +676,26 @@ function updateRun(dt) {
   // Bandits
   banditSystem.update(dt, train, train.combatDifficulty || 1, currentPhase);
 
-  // Brawler kick AOE — check for kicks this frame
+  // Brawler kick — small shake on the kick itself
   for (const b of banditSystem.pool) {
     if (!b._brawlerKick) continue;
     b._brawlerKick = false;
-    const kx = b._kickWorldX, ky = b._kickWorldY;
+    // Minor shake when bandit is launched (anticipation)
+    train.shakeTimer = Math.max(train.shakeTimer, 0.1);
+    train.shakeIntensity = 0.8;
+  }
+
+  // Brawler kick AOE — triggers when kicked bandit LANDS
+  for (const b of banditSystem.pool) {
+    if (!b._kickLanded) continue;
+    b._kickLanded = false;
+    const kx = b._landX, ky = b._landY;
     const crew = b._kickCrew;
+    if (!crew) continue;
     const kickDmg = BRAWLER_KICK_DAMAGE + (crew._kickDmgBonus || 0);
     const kickR = BRAWLER_KICK_RADIUS + (crew._kickRadiusBonus || 0);
     const r2 = kickR * kickR;
-    // Damage all enemies in radius
+    // Damage all enemies in radius of landing
     for (const e of spawner.pool) {
       if (!e.active) continue;
       const dx = e.x - kx, dy = e.y - ky;
@@ -696,13 +706,11 @@ function updateRun(dt) {
         combat.handleEnemyDamageResult(e, train, ex, ey, ec);
       }
     }
-    // Big visual punch — this should feel like a moment
-    train.shakeTimer = Math.max(train.shakeTimer, 0.35);
-    train.shakeIntensity = 2.5;
-    hitStopTimer = 0.1; // brief freeze for impact
-    // Shockwave ring expanding to kick radius
+    // BIG impact on landing
+    train.shakeTimer = Math.max(train.shakeTimer, 0.4);
+    train.shakeIntensity = 3.0;
+    hitStopTimer = 0.12;
     renderer.spawnBrawlerKick(kx, ky, kickR);
-    // Green flash on HP bar
     train.hpGreenFlashTimer = 0.4;
   }
 
