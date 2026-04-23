@@ -665,9 +665,8 @@ function updateRun(dt) {
       const mountWx = mount.worldX - CANVAS_WIDTH / 2;
       const mountWz = mount.worldY - CANVAS_HEIGHT / 2;
       mount._aimRotY = Math.atan2(twx - mountWx, twz - mountWz);
-      // 2D pixel-space firing angle: use direct mouse→mount angle (not clamped visual)
-      const mousePixel = renderer.screenToPixel(input.mouseX, input.mouseY, 16);
-      mount._fireAngle2D = mount.clampAngle(Math.atan2(mousePixel.y - mount.worldY, mousePixel.x - mount.worldX));
+      // 2D pixel-space firing angle: derived from the clamped screen angle
+      mount._fireAngle2D = Math.atan2(targetWorld.y - mount.worldY, targetWorld.x - mount.worldX);
     }
   }
 
