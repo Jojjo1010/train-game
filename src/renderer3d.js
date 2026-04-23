@@ -419,6 +419,12 @@ export class Renderer3D {
     };
   }
 
+  // Convert 2D game pixel coords to screen coords (for overlays)
+  pixelToScreen(px, py, worldY = 4) {
+    const w = toWorld(px, py);
+    return this._project(w.x, w.z, worldY);
+  }
+
   // Convert screen coords (canvas pixels) back to 2D game pixel coords
   // For orthographic camera: unproject two points to get a ray, intersect with Y=worldY plane
   screenToPixel(screenX, screenY, worldY = 0) {

@@ -708,11 +708,10 @@ function updateRun(dt) {
   for (const b of banditSystem.pool) {
     if (!b._brawlerKick) continue;
     b._brawlerKick = false;
-    // Spawn shockwave immediately at the mount's screen position
-    if (b.targetSlot && b.targetSlot.screenX !== undefined) {
-      renderer.spawnBrawlerKick(b.targetSlot.screenX, b.targetSlot.screenY, 80);
-    } else if (b._kickWorldX !== undefined) {
-      renderer.spawnBrawlerKick(b._kickWorldX, b._kickWorldY, 80);
+    // Spawn shockwave immediately at the kick origin
+    if (b._kickWorldX !== undefined) {
+      const originScreen = renderer.pixelToScreen(b._kickWorldX, b._kickWorldY);
+      renderer.spawnBrawlerKick(originScreen.x, originScreen.y, 80);
     }
   }
 
@@ -748,13 +747,13 @@ function updateRun(dt) {
     // Minimal shake — the shockwave ring IS the impact feedback
     train.shakeTimer = Math.max(train.shakeTimer, 0.05);
     train.shakeIntensity = 0.5;
-    // Spawn shockwave at landing position (pixel coords)
-    renderer.spawnBrawlerKick(kx, ky, kickR);
-    // Also spawn kill effects for extra visibility
+    // Project landing position to screen space (same as renderer does for bandits)
+    const landScreen = renderer.pixelToScreen(kx, ky);
+    renderer.spawnBrawlerKick(landScreen.x, landScreen.y, kickR);
     for (let i = 0; i < 8; i++) {
       renderer.spawnKillEffect(
-        kx + (Math.random() - 0.5) * 60,
-        ky + (Math.random() - 0.5) * 60,
+        landScreen.x + (Math.random() - 0.5) * 60,
+        landScreen.y + (Math.random() - 0.5) * 60,
         '#66bb6a'
       );
     }
