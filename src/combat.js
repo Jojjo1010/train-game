@@ -250,9 +250,12 @@ export class CombatSystem {
               if (distSq <= r2) {
                 this.spawnDamageNumber(e.x, e.y, dmg);
                 const ex = e.x, ey = e.y, ecolor = e.color;
-                // Knockback away from brawler
+                // Strong knockback away from brawler
                 const dist = Math.sqrt(distSq) || 1;
-                e.takeDamage(dmg, dx / dist * 60, dy / dist * 60);
+                const pushStr = 200;
+                e.knockbackVX += (dx / dist) * pushStr;
+                e.knockbackVY += (dy / dist) * pushStr;
+                e.takeDamage(dmg);
                 this.handleEnemyDamageResult(e, train, ex, ey, ecolor);
                 // Hit spark for visibility
                 if (e.active) this.hitSparks.push({ x: e.x, y: e.y });
