@@ -219,6 +219,44 @@ export class CombatSystem {
     // Phase 2: fire crew weapons (manned at full power, unmanned at reduced)
     for (const mount of train.allMounts) {
       if (mount.hasAutoWeapon) continue; // auto-weapons handled separately
+      // Brawler mounts NEVER fire projectiles — garlic AOE only
+      if (mount.isManned && mount.crew.role === 'Brawler') {
+        const brawler = mount.crew;
+        // Bandit suppression
+        let banditMult = 1.0;
+        if (mount._bandit) {
+          if (mount._bandit.state !== 2) { banditMult = 0; }
+          else {
+            const dwell = mount._bandit.dwellTime;
+            if (dwell < 2) banditMult = 0.75;
+            else if (dwell < 5) banditMult = 0.3;
+            else banditMult = 0;
+          }
+        }
+        if (banditMult > 0) {
+          brawler._garlicTickTimer -= dt;
+          if (brawler._garlicTickTimer <= 0) {
+            brawler._garlicTickTimer = BRAWLER_GARLIC.tickRate * train.totalCooldownMultiplier / banditMult;
+            const r = BRAWLER_GARLIC.radius * areaMult;
+            const r2 = r * r;
+            const mx = mount.worldX, my = mount.worldY;
+            let dmg = BRAWLER_GARLIC.damage * train.totalDamageMultiplier * banditMult;
+            if (hasDriver) dmg *= DRIVER_DAMAGE_BUFF;
+            if (train.hasBuddyBonus(mount)) dmg *= 1.15;
+            for (const e of enemies) {
+              if (!e.active) continue;
+              const dx = e.x - mx, dy = e.y - my;
+              if (dx * dx + dy * dy <= r2) {
+                this.spawnDamageNumber(e.x, e.y, dmg);
+                const ex = e.x, ey = e.y, ecolor = e.color;
+                e.takeDamage(dmg);
+                this.handleEnemyDamageResult(e, train, ex, ey, ecolor);
+              }
+            }
+          }
+        }
+        continue; // NEVER fall through to projectile firing
+      }
       const manned = mount.isManned;
 
       // Bandit suppression: fast degradation (PROTOTYPE timeline)
@@ -234,39 +272,10 @@ export class CombatSystem {
       }
       if (banditMult <= 0) continue;
 
-      if (manned && mount.crew.role === 'Brawler') {
-        // --- Brawler: garlic AOE instead of projectiles ---
-        const brawler = mount.crew;
-        brawler._garlicTickTimer -= dt;
-        if (brawler._garlicTickTimer <= 0) {
-          brawler._garlicTickTimer = BRAWLER_GARLIC.tickRate * train.totalCooldownMultiplier / banditMult;
-          const r = BRAWLER_GARLIC.radius * areaMult;
-          const r2 = r * r;
-          const mx = mount.worldX, my = mount.worldY;
-          let dmg = BRAWLER_GARLIC.damage * train.totalDamageMultiplier * banditMult;
-          if (hasDriver) dmg *= DRIVER_DAMAGE_BUFF;
-          if (train.hasBuddyBonus(mount)) dmg *= 1.15;
-          for (const e of enemies) {
-            if (!e.active) continue;
-            const dx = e.x - mx, dy = e.y - my;
-            if (dx * dx + dy * dy <= r2) {
-              this.spawnDamageNumber(e.x, e.y, dmg);
-              const ex = e.x, ey = e.y, ecolor = e.color;
-              e.takeDamage(dmg);
-              this.handleEnemyDamageResult(e, train, ex, ey, ecolor);
-            }
-          }
-        }
-        continue;
-      }
-
       mount.cooldownTimer -= dt;
       if (mount.cooldownTimer > 0) continue;
 
       if (manned) {
-        // Brawler never shoots — garlic AOE handled above
-        if (mount.crew.role === 'Brawler') continue;
-
         // --- Manned: full power, crew bonuses apply ---
         let angle;
         if (mount.crew === selectedCrew && mount._fireAngle2D !== undefined) {

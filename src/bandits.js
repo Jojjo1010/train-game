@@ -190,6 +190,7 @@ export class Bandit {
     const wasKicked = this._brawlerKick;
     if (this.targetSlot) {
       this.targetSlot._bandit = null;
+      this.targetSlot = null; // clear so renderer uses b.x/b.y for positioning
     }
     this.state = STATES.DEAD;
     this.justDied = true;
