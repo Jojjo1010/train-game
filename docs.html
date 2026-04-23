@@ -228,144 +228,35 @@
       <h2 style="color:var(--accent); margin-bottom:24px;">Changelog</h2>
 
       <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-  <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-23 — Brawler Garlic AOE &amp; Auto Laser</h3>
-  <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-    <li><strong>Crew roles:</strong> Pick Gunner or Brawler before each world (no weapon slot at start)</li>
-    <li><strong>Brawler garlic:</strong> AOE damage aura (50 radius, 14 dmg/0.4s) with knockback + hit sparks</li>
-    <li><strong>Brawler kick:</strong> Instant bandit kick, flies toward enemy cluster, AOE landing damage (60 dmg, 160 radius)</li>
-    <li><strong>Auto Laser:</strong> Replaces Steam Blast — fires projectiles at nearest enemy, uses Garlic 3D model</li>
-    <li><strong>Controls:</strong> Tab cycles crew selection, controls legend visible on left during runs</li>
-    <li><strong>Unmanned mounts:</strong> No longer auto-fire</li>
-    <li><strong>Damage numbers:</strong> Capped at enemy's remaining HP</li>
-    <li><strong>Start screen:</strong> Gold displayed above buttons, dust particles removed</li>
-    <li><strong>Shop simplified:</strong> Only Damage, Kick Force, Max HP upgrades</li>
-  </ul>
-</div>
-
-      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Spectacular Brawler Kick VFX</h3>
+        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-23</h3>
         <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li><strong>Extreme launch velocity:</strong> Kicked bandits now fly 2-3x faster/higher (deathVx 400-600, deathVy -500 to -700) with longer flight time (1.8s)</li>
-          <li><strong>Bright green arc trail:</strong> Glowing two-pass trail (outer glow + inner line) follows the bandit's screen-space path</li>
-          <li><strong>Huge spinning bandit:</strong> 24px emoji at 1.5-2.5x scale with 4 full rotations and 3 ghost trail copies</li>
-          <li><strong>"YEET!" text:</strong> Bright green pulsing label follows the bandit during flight</li>
-          <li><strong>Landing impact:</strong> Expanding shockwave ring + explosion emoji + "SPLAT!" text at landing point, visible for 0.6s</li>
-          <li><strong>3D mesh:</strong> Higher parabolic arc (60 units), faster spin, proper fade timing for 1.8s duration</li>
+          <li><strong>Crew roles:</strong> Pick Gunner or Brawler before each world — no weapon slot at start, no more Engineer/Medic</li>
+          <li><strong>Brawler garlic:</strong> AOE damage aura (50 radius, 14 dmg/0.4s) with knockback + hit sparks, 3D aura ring per Brawler</li>
+          <li><strong>Brawler kick:</strong> Instant bandit kick, flies toward enemy cluster (max 100px), AOE landing damage (60 dmg, 160 radius), shockwave visual</li>
+          <li><strong>Auto Laser:</strong> Replaces Steam Blast — fires projectiles at nearest enemy (no cone), uses Garlic 3D model, earned as powerup</li>
+          <li><strong>Controls:</strong> Tab cycles crew selection, controls legend visible on left during runs</li>
+          <li><strong>Unmanned mounts:</strong> No longer auto-fire</li>
+          <li><strong>Damage numbers:</strong> Capped at enemy's remaining HP</li>
+          <li><strong>Gunner aim:</strong> Shots now fire through screen-space clamped cone angle — stays within visible cone</li>
+          <li><strong>Start screen:</strong> Gold displayed above buttons, dust particles removed</li>
+          <li><strong>Shop simplified:</strong> Only Damage, Kick Force, Max HP upgrades</li>
+          <li><strong>Docs:</strong> Updated GAME_DOCS.md, UNREAL_PORT.md (Steps 21-25 with Blueprint diagrams), tuner, changelog</li>
         </ul>
       </div>
 
       <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Cone Visualization Fix</h3>
+        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22</h3>
         <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li><strong>Asymmetric projection:</strong> Both cone edges now projected independently through the isometric camera — fixes cones appearing too large or too small depending on mount direction</li>
-          <li><strong>Removed duplicate cone:</strong> main.js was drawing a second cone using raw 2D pixel-space angles on top of the 3D-projected cone — removed</li>
-          <li><strong>Root cause:</strong> Isometric projection is not angle-preserving (conformal), so mirroring one projected edge produced wrong angular spans</li>
-        </ul>
-      </div>
-
-      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Floating Damage Attribution Numbers</h3>
-        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li><strong>Red numbers:</strong> Enemy contact damage shown at collision point (e.g. "-6")</li>
-          <li><strong>Purple numbers:</strong> Bandit HP drain shown at bandit position (e.g. "-0.5"), throttled to 1/sec</li>
-          <li><strong>Gold numbers:</strong> Gold stolen by bandits (e.g. "-1g"), throttled to 1/sec per bandit</li>
-          <li>Pool of 20 floating text objects — float upward, pop-scale on spawn, fade over 1.5s</li>
-          <li>"Death should be a teacher" — player now sees exactly why they're losing</li>
-        </ul>
-      </div>
-
-      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Mount Status Glows</h3>
-        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li><strong>Green glow:</strong> Mount has crew assigned, fully operational</li>
-          <li><strong>Amber glow:</strong> Mount is unmanned, auto-firing at reduced power (30% damage / 40% fire rate)</li>
-          <li><strong>Red glow:</strong> Bandit is on the mount, weapon is suppressed</li>
-          <li><strong>Pulsing red:</strong> Bandit has been on mount past grace period (2.5s), stealing gold or draining HP</li>
-          <li>Radial gradient glow beneath each mount — subtle ambient info, not an alert</li>
-        </ul>
-      </div>
-
-      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Crew Role Specialization Overhaul</h3>
-        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li><strong>Gunner (Rex):</strong> 2x damage multiplier on manual weapons (was 1.2x) — the answer to heavy enemies</li>
-          <li><strong>Engineer (Kit):</strong> 2x fire rate on auto-weapons (was 1.15x) — makes auto-weapons viable as primary damage</li>
-          <li><strong>Medic (Rosa):</strong> HP regen only activates after 3+ seconds stationary — repositioning has a real cost</li>
-          <li>Updated crew tooltip text to reflect new dramatic bonuses</li>
-          <li><strong>Superseded (2026-04-23):</strong> Engineer and Medic roles removed — replaced by Gunner/Brawler pick system before each world</li>
-        </ul>
-      </div>
-
-      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Hidden Last-Stand Forgiveness & Crew Buddy Bonus</h3>
-        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li><strong>Last-Stand Forgiveness:</strong> Hidden mechanic — when train HP drops below 15%, all incoming damage reduced by 30% for 3 seconds. Creates memorable "barely survived!" moments. Completely invisible to the player.</li>
-          <li><strong>Crew Buddy Bonus:</strong> When two crew members occupy adjacent mounts, both get +15% damage. Subtle green "+" icon and ring pulse when active. Creates strategic tension: cluster for DPS vs spread for coverage.</li>
-        </ul>
-      </div>
-
-      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Crew Gun Rebalance (roguelite pacing)</h3>
-        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li><strong>Fire rate:</strong> 5.0→2.0/s at level 1, growth 0.8→0.6/s per level. Shots feel deliberate, not spray.</li>
-          <li><strong>Damage:</strong> Growth 4→5 per level. Each shot hits harder to compensate.</li>
-          <li><strong>DPS arc:</strong> 24→141 across 5 levels (5.9x) vs old 60→230 (3.8x). Upgrades feel much more impactful.</li>
-        </ul>
-      </div>
-
-      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — 3D Train on Start Screen</h3>
-        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li>3D train model now visible on start screen (slowly rotating behind semi-transparent overlay)</li>
-          <li>All gameplay 3D objects hidden during start screen (enemies, mounts, rails, projectiles)</li>
-          <li>Dark scene background + vignette effect for cinematic look</li>
-        </ul>
-      </div>
-
-      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Pressure Curve Tuning (simulation-validated)</h3>
-        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li><strong>Grace period:</strong> 4s → 2.5s. Bandits now start costing gold before the player's typical response clears them.</li>
-          <li><strong>Steal ramp:</strong> 5s → 3s to full rate. Mid-phase (4–7s) pressure nearly doubled.</li>
-          <li><strong>Pressure curve:</strong> 0–2.5s free → 3s: 1g/s → 4s: 3g/s + weapon 30% → 5.5s: 6g/s full → 9s: weapon dead → 10s: HP drain</li>
-        </ul>
-      </div>
-
-      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Documentation Restructure</h3>
-        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li>Separated game documentation (GAME_DOCS.md) from UE5 porting guide (UNREAL_PORT.md)</li>
-          <li>New <strong>Game Docs</strong> tab — complete reference for all game systems, mechanics, and UI</li>
-          <li>Rewrote <strong>UE5 Blueprint Guide</strong> as 20 sequential steps with Blueprint node names and verify checklists</li>
-          <li>Both docs now have independent sidebars with search and scroll-spy</li>
-        </ul>
-      </div>
-
-      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Decision Quality &amp; Feel Refinement</h3>
-        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li><strong>Smooth escalation:</strong> Bandits ramp steal from 0→6g/s over ramp period (was instant step). HP drain starts at 10s, ramps to 0.5 HP/s over 4s (was 1 HP/s step at 6s)</li>
-          <li><strong>No more hard locks:</strong> Bandits degrade weapons gradually (80%→30%→0% over 9s) instead of instant disable</li>
-          <li><strong>Recovery windows:</strong> 4s bandit-free reprieve after each wave surge. 3s spawn cooldown after defeating a bandit</li>
-          <li><strong>Fight duration:</strong> 2.0s → 1.5s. Steal rate: 8 → 6 gold/s</li>
-        </ul>
-      </div>
-
-      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Bandit Escalation &amp; Unmanned Weapons</h3>
-        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li><strong>Unmanned weapons:</strong> Disabled — mounts without crew no longer fire</li>
-          <li><strong>First bandit delay:</strong> 5s → 9s — calm orientation window before internal pressure</li>
-        </ul>
-      </div>
-
-      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
-        <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Start Screen Overhaul</h3>
-        <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li>Title text no longer animates (removed pulsing effect)</li>
-          <li>Removed train silhouette placeholder boxes — replaced with rotating 3D train model</li>
-          <li>Removed subtitle text ("Transport medical supplies..." / "Survive the wasteland...")</li>
-          <li>All buttons (Start Game, Power Ups, Settings) now share the same golden style and are stacked vertically</li>
+          <li><strong>Brawler kick VFX:</strong> Dramatic launch arc, green trail, spinning bandit, "YEET!" text, landing shockwave + "SPLAT!"</li>
+          <li><strong>Cone fix:</strong> Both cone edges projected independently through isometric camera — fixes angular distortion</li>
+          <li><strong>Damage attribution:</strong> Red (enemy contact), purple (bandit HP drain), gold (stolen gold) floating numbers</li>
+          <li><strong>Mount status glows:</strong> Green (crewed), amber (unmanned), red/pulsing red (bandit occupied)</li>
+          <li><strong>Crew roles v1:</strong> Gunner 2x dmg, Engineer 2x auto-weapon fire rate, Medic HP regen after 3s stationary</li>
+          <li><strong>Hidden mechanics:</strong> Last-stand forgiveness (-30% dmg below 15% HP for 3s), buddy bonus (+15% dmg on adjacent mounts)</li>
+          <li><strong>Gun rebalance:</strong> Fire rate 5→2/s at lv1, DPS curve 24→141 across 5 levels (5.9x growth)</li>
+          <li><strong>Start screen:</strong> 3D train model, dark cinematic background, unified golden button style</li>
+          <li><strong>Bandit tuning:</strong> Smooth steal/HP drain ramp, gradual weapon degradation, recovery windows after surges</li>
+          <li><strong>Docs:</strong> Separated GAME_DOCS.md from UNREAL_PORT.md, 20-step Blueprint guide with sidebars</li>
         </ul>
       </div>
     </div>
