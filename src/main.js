@@ -316,6 +316,18 @@ function getSelectedMount() {
   return selectedCrew.assignment;
 }
 
+// Cycle crew selection with Shift key
+function handleShiftCycle() {
+  if (!input.keyPressed('ShiftLeft') && !input.keyPressed('ShiftRight')) return;
+  if (!train || train.crew.length === 0) return;
+  if (!selectedCrew) {
+    selectedCrew = train.crew[0];
+  } else {
+    const idx = train.crew.indexOf(selectedCrew);
+    selectedCrew = train.crew[(idx + 1) % train.crew.length];
+  }
+}
+
 // Keyboard rotation for selected crew's weapon
 function handleKeyboardRotation(dt) {
   const mount = getSelectedMount();
@@ -385,6 +397,7 @@ function updateSetup(dt) {
 
   train.updateCrewMovement(dt);
   handleKeyboardRotation(dt);
+  handleShiftCycle();
 
   // G key: toggle garlic selection (reliable shortcut)
   if (input.keyPressed('KeyG')) {
@@ -594,6 +607,7 @@ function updateRun(dt) {
 
   updateCrewWalk(dt);
   handleKeyboardRotation(dt);
+  handleShiftCycle();
 
   // Left click: select crew
   if (input.leftClicked) {
@@ -1610,6 +1624,8 @@ function drawSlider(ctx, label, x, y, w, value) {
 
 // --- RUN_PAUSE (tactical pause during run — Space to toggle) ---
 function updateRunPause() {
+  handleShiftCycle();
+
   // Resume on Space or Escape
   if (input.keyPressed('Space') || input.keyPressed('Escape')) {
     pauseAimMount = null;
