@@ -765,7 +765,7 @@ function updateRun(dt) {
       if (!e.active) continue;
       const dx = e.x - kx, dy = e.y - ky;
       if (dx * dx + dy * dy <= r2) {
-        combat.spawnDamageNumber(e.x, e.y, kickDmg);
+        combat.spawnDamageNumber(e.x, e.y, Math.min(kickDmg, e.hp));
         const ex = e.x, ey = e.y, ec = e.color;
         e.takeDamage(kickDmg);
         combat.handleEnemyDamageResult(e, train, ex, ey, ec);

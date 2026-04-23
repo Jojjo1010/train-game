@@ -248,7 +248,7 @@ export class CombatSystem {
               const dx = e.x - mx, dy = e.y - my;
               const distSq = dx * dx + dy * dy;
               if (distSq <= r2) {
-                this.spawnDamageNumber(e.x, e.y, dmg);
+                this.spawnDamageNumber(e.x, e.y, Math.min(dmg, e.hp));
                 const ex = e.x, ey = e.y, ecolor = e.color;
                 // Strong knockback away from brawler
                 const dist = Math.sqrt(distSq) || 1;
@@ -390,7 +390,7 @@ export class CombatSystem {
         const dist = dx * dx + dy * dy;
         const minDist = p.radius + e.radius;
         if (dist <= minDist * minDist) {
-          this.spawnDamageNumber(e.x, e.y, p.damage);
+          this.spawnDamageNumber(e.x, e.y, Math.min(p.damage, e.hp));
           const ex = e.x, ey = e.y, ecolor = e.color;
           const hitX = p.x, hitY = p.y;
           e.takeDamage(p.damage, p.vx, p.vy);
@@ -539,7 +539,7 @@ export class CombatSystem {
         const dx = bolt.x - e.x;
         const dy = bolt.y - e.y;
         if (dx * dx + dy * dy <= (e.radius + 6) * (e.radius + 6)) {
-          this.spawnDamageNumber(e.x, e.y, bolt.damage);
+          this.spawnDamageNumber(e.x, e.y, Math.min(bolt.damage, e.hp));
           const ex = e.x, ey = e.y, ecolor = e.color;
           e.takeDamage(bolt.damage, bolt.vx, bolt.vy);
           bolt.hitEnemies.add(e);
