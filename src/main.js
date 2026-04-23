@@ -717,7 +717,7 @@ function updateRun(dt) {
       if (!e.active) continue;
       const dx = e.x - ox, dy = e.y - oy;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 30 || dist > 300) continue; // skip too close or too far
+      if (dist < 30 || dist > 150) continue; // skip too close or too far
       // Score: prefer closer enemies, bonus for enemies near other enemies
       let nearby = 0;
       for (const e2 of spawner.pool) {
@@ -732,10 +732,12 @@ function updateRun(dt) {
       }
     }
     if (bestScore > 0) {
-      // Aim toward best target
+      // Aim toward best target, cap distance to keep kick close
       const dx = bestX - ox, dy = bestY - oy;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      const speed = dist / 0.4; // arrive in 0.4s (flight time)
+      const maxDist = 100; // never fly further than this
+      const travelDist = Math.min(dist, maxDist);
+      const speed = travelDist / 0.4;
       b.deathVx = (dx / dist) * speed;
       b.deathVy = (dy / dist) * speed;
     }
