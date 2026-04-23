@@ -2089,16 +2089,10 @@ function updateWorldMap() {
         if (btn.type === 'roster') {
           const emptyIdx = train.crew.findIndex(c => c.role === null);
           if (emptyIdx >= 0) train.crew[emptyIdx].role = btn.roleId;
-        } else if (btn.type === 'roster_weapon') {
-          if (!garlicPlaced) garlicPlaced = true; // assign garlic to weapon slot
         } else if (btn.type === 'slot') {
           train.crew[btn.crewIdx].role = null;
-        } else if (btn.type === 'slot_weapon') {
-          garlicPlaced = false; // remove garlic from weapon slot
         } else if (btn.type === 'confirm') {
           rolesChosen = true;
-          // Auto-place garlic on a mount when confirming
-          autoPlaceGarlic();
         }
       }
     }

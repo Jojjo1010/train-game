@@ -2503,7 +2503,7 @@ export class Renderer3D {
     const slotW = 140;
     const slotH = 100;
     const slotGap = 20;
-    const totalSlots = crew.length + 1; // +1 for weapon
+    const totalSlots = crew.length; // crew only, no weapon slot
     const slotsTotal = totalSlots * slotW + (totalSlots - 1) * slotGap;
     const slotsStartX = CANVAS_WIDTH / 2 - slotsTotal / 2;
     const slotsY = 70;
@@ -2581,77 +2581,11 @@ export class Renderer3D {
       }
     }
 
-    // --- Weapon slot ---
-    const weapX = slotsStartX + crew.length * (slotW + slotGap);
-    const weapColor = '#8ecae6';
-    const weapSlotKey = 'slot_weapon';
-    const weapHovered = hoveredBtn === weapSlotKey;
-
-    ctx.fillStyle = weaponChosen ? 'rgba(142, 202, 230, 0.12)' : 'rgba(40, 50, 60, 0.8)';
-    ctx.beginPath();
-    this.roundRect(weapX, slotsY, slotW, slotH, 10);
-    ctx.fill();
-
-    ctx.strokeStyle = weaponChosen ? weapColor : (weapHovered ? '#888' : '#555');
-    ctx.lineWidth = weaponChosen ? 2 : (weapHovered ? 2 : 1);
-    if (weaponChosen) { ctx.shadowColor = weapColor; ctx.shadowBlur = 8; }
-    ctx.beginPath();
-    this.roundRect(weapX, slotsY, slotW, slotH, 10);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = '#888';
-    ctx.font = 'bold 9px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('WEAPON', weapX + slotW / 2, slotsY + 13);
-
-    if (weaponChosen) {
-      ctx.font = '28px serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('\uD83D\uDCA8', weapX + slotW / 2, slotsY + 46);
-
-      ctx.fillStyle = weapColor;
-      ctx.font = 'bold 11px monospace';
-      ctx.fillText('GARLIC', weapX + slotW / 2, slotsY + 66);
-
-      ctx.fillStyle = '#777';
-      ctx.font = '9px monospace';
-      ctx.fillText('AOE aura', weapX + slotW / 2, slotsY + 80);
-
-      if (weapHovered) {
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.beginPath();
-        this.roundRect(weapX, slotsY, slotW, slotH, 10);
-        ctx.fill();
-        ctx.fillStyle = '#f44';
-        ctx.font = 'bold 11px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('\u2715 REMOVE', weapX + slotW / 2, slotsY + slotH / 2 + 4);
-      }
-    } else {
-      ctx.setLineDash([5, 5]);
-      ctx.strokeStyle = weapHovered ? '#aaa' : '#555';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      this.roundRect(weapX + 8, slotsY + 20, slotW - 16, slotH - 28, 6);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      ctx.fillStyle = '#555';
-      ctx.font = '11px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('Empty', weapX + slotW / 2, slotsY + 52);
-    }
-
-    if (weaponChosen) {
-      buttons.push({ type: 'slot_weapon', x: weapX, y: slotsY, w: slotW, h: slotH, key: weapSlotKey });
-    }
-
-    // ========== ROSTER (bottom) — crew roles + weapon ==========
+    // ========== ROSTER (bottom) — crew roles ==========
     const cardW = 170;
     const cardH = 180;
     const cardGap = 16;
-    const rosterItems = 3; // Gunner, Brawler, Garlic
+    const rosterItems = roles.length; // Gunner, Brawler
     const rosterTotal = rosterItems * cardW + (rosterItems - 1) * cardGap;
     const rosterStartX = CANVAS_WIDTH / 2 - rosterTotal / 2;
     const rosterY = slotsY + slotH + 16;
@@ -2720,69 +2654,8 @@ export class Renderer3D {
       buttons.push({ type: 'roster', roleId: role.id, x: rx, y: rosterY, w: cardW, h: cardH, key: btnKey });
     }
 
-    // --- Garlic weapon card ---
-    {
-      const gx = rosterStartX + roles.length * (cardW + cardGap);
-      const gColor = '#8ecae6';
-      const gKey = 'roster_garlic';
-      const gHovered = hoveredBtn === gKey;
-      const canAssignWeapon = !weaponChosen;
-
-      ctx.fillStyle = gHovered && canAssignWeapon ? 'rgba(142, 202, 230, 0.15)' : 'rgba(20, 22, 35, 0.95)';
-      ctx.beginPath();
-      this.roundRect(gx, rosterY, cardW, cardH, 10);
-      ctx.fill();
-
-      ctx.strokeStyle = gHovered && canAssignWeapon ? gColor : '#444';
-      ctx.lineWidth = gHovered && canAssignWeapon ? 2.5 : 1;
-      ctx.beginPath();
-      this.roundRect(gx, rosterY, cardW, cardH, 10);
-      ctx.stroke();
-
-      ctx.font = '36px serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('\uD83D\uDCA8', gx + cardW / 2, rosterY + 40);
-
-      ctx.fillStyle = gColor;
-      ctx.font = 'bold 14px monospace';
-      ctx.fillText('GARLIC', gx + cardW / 2, rosterY + 60);
-
-      ctx.fillStyle = '#666';
-      ctx.font = '10px monospace';
-      ctx.fillText('Protective aura', gx + cardW / 2, rosterY + 74);
-
-      // Stat bars for garlic
-      const barX = gx + 10;
-      const barW = cardW - 20;
-      this._drawStatBar(ctx, 'AOE DMG',  barX, rosterY + 88,  barW, 2, 5, '#e57373');
-      this._drawStatBar(ctx, 'RADIUS',   barX, rosterY + 106, barW, 3, 5, '#64b5f6');
-
-      // Badge if assigned
-      if (weaponChosen) {
-        const badgeX = gx + cardW - 18;
-        const badgeY = rosterY + 14;
-        ctx.beginPath();
-        ctx.arc(badgeX, badgeY, 10, 0, Math.PI * 2);
-        ctx.fillStyle = gColor;
-        ctx.fill();
-        ctx.fillStyle = '#000';
-        ctx.font = 'bold 11px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('1', badgeX, badgeY + 4);
-      }
-
-      if (!canAssignWeapon) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-        ctx.beginPath();
-        this.roundRect(gx, rosterY, cardW, cardH, 10);
-        ctx.fill();
-      }
-
-      buttons.push({ type: 'roster_weapon', x: gx, y: rosterY, w: cardW, h: cardH, key: gKey });
-    }
-
     // ========== BOTTOM: CONFIRM BUTTON or HINT ==========
-    const allChosen = crew.every(c => c.role !== null) && weaponChosen;
+    const allChosen = crew.every(c => c.role !== null);
     const bottomY = rosterY + cardH + 16;
 
     if (allChosen) {
@@ -2817,20 +2690,15 @@ export class Renderer3D {
       buttons.push({ type: 'confirm', x: btnX, y: bottomY, w: btnW, h: btnH, key: confirmKey });
     } else {
       const emptyCrewCount = crew.filter(c => c.role === null).length;
-      const needs = [];
-      if (emptyCrewCount > 0) needs.push(`${emptyCrewCount} crew`);
-      if (!weaponChosen) needs.push('1 weapon');
 
       ctx.fillStyle = '#777';
       ctx.font = '12px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(`Fill all slots: ${needs.join(' + ')} remaining`, CANVAS_WIDTH / 2, bottomY + 6);
+      ctx.fillText(`Assign ${emptyCrewCount} crew role${emptyCrewCount > 1 ? 's' : ''} to continue`, CANVAS_WIDTH / 2, bottomY + 6);
 
-      if (emptyCrewCount > 0) {
-        ctx.fillStyle = '#555';
-        ctx.font = '10px monospace';
-        ctx.fillText('You can pick the same crew role twice!', CANVAS_WIDTH / 2, bottomY + 22);
-      }
+      ctx.fillStyle = '#555';
+      ctx.font = '10px monospace';
+      ctx.fillText('You can pick the same crew role twice!', CANVAS_WIDTH / 2, bottomY + 22);
     }
 
     return buttons;
