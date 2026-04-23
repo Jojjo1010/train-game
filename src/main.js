@@ -174,7 +174,7 @@ function startNewWorld() {
   train = new Train();
   selectedCrew = null;
   applyShopUpgrades();
-  garlicPlaced = train.hasAutoWeapon('steamBlast');
+  garlicPlaced = train.hasAutoWeapon('autoLaser');
   for (const c of train.crew) c.role = null;
   rolesChosen = false;
   train.hp = train.maxHp;
@@ -428,7 +428,7 @@ function updateSetup(dt) {
 
     // Check if clicked the garlic mount — check every mount directly with generous radius
     for (const m of train.allMounts) {
-      if (m.autoWeaponId !== 'steamBlast') continue;
+      if (m.autoWeaponId !== 'autoLaser') continue;
       const msx = m.screenX !== undefined ? m.screenX : m.worldX;
       const msy = m.screenY !== undefined ? m.screenY : m.worldY;
       // Use generous hit area — 30px radius
@@ -464,11 +464,11 @@ function updateSetup(dt) {
         if (ddx * ddx + ddy * ddy <= 30 * 30) { targetMount = m; break; }
       }
       if (targetMount) {
-        const oldMount = train.getAutoWeaponMount('steamBlast');
+        const oldMount = train.getAutoWeaponMount('autoLaser');
         if (oldMount) oldMount.autoWeaponId = null;
-        targetMount.autoWeaponId = 'steamBlast';
+        targetMount.autoWeaponId = 'autoLaser';
         targetMount.coneHalfAngle = AUTO_WEAPON_CONE_HALF_ANGLE;
-        train.autoWeapons.steamBlast.mount = targetMount;
+        train.autoWeapons.autoLaser.mount = targetMount;
         garlicSelected = false;
       }
     } else if (selectedCrew && !selectedCrew.isMoving) {
@@ -524,7 +524,7 @@ function renderSetup() {
   if (selectedCrew) renderer.drawSelectedIndicator(selectedCrew);
   // Garlic mount label — always show during setup so it's clickable
   {
-    const gMount = train.getAutoWeaponMount('steamBlast');
+    const gMount = train.getAutoWeaponMount('autoLaser');
     if (gMount && gMount.screenX !== undefined) {
       const gsx = slotScreenX(gMount), gsy = slotScreenY(gMount);
       const ctx = renderer.ctx;
@@ -549,7 +549,7 @@ function renderSetup() {
   }
   // Garlic selected indicator
   if (garlicSelected) {
-    const gMount = train.getAutoWeaponMount('steamBlast');
+    const gMount = train.getAutoWeaponMount('autoLaser');
     if (gMount && gMount.screenX !== undefined) {
       const ctx = renderer.ctx;
       const pulse = 0.6 + Math.sin(performance.now() * 0.008) * 0.4;
@@ -708,10 +708,11 @@ function updateRun(dt) {
   for (const b of banditSystem.pool) {
     if (!b._brawlerKick) continue;
     b._brawlerKick = false;
-    // Spawn shockwave immediately at the mount where the kick happened
-    if (b._kickWorldX !== undefined) {
-      const kickScreen = renderer._project(b._kickWorldX - CANVAS_WIDTH / 2, b._kickWorldY - CANVAS_HEIGHT / 2);
-      renderer.spawnBrawlerKick(kickScreen.x, kickScreen.y, 80);
+    // Spawn shockwave immediately at the mount's screen position
+    if (b.targetSlot && b.targetSlot.screenX !== undefined) {
+      renderer.spawnBrawlerKick(b.targetSlot.screenX, b.targetSlot.screenY, 80);
+    } else if (b._kickWorldX !== undefined) {
+      renderer.spawnBrawlerKick(b._kickWorldX, b._kickWorldY, 80);
     }
   }
 
@@ -747,14 +748,13 @@ function updateRun(dt) {
     // Minimal shake — the shockwave ring IS the impact feedback
     train.shakeTimer = Math.max(train.shakeTimer, 0.05);
     train.shakeIntensity = 0.5;
-    // Project landing position from pixel-space to screen-space for visuals
-    const landScreen = renderer._project(kx - CANVAS_WIDTH / 2, ky - CANVAS_HEIGHT / 2);
-    renderer.spawnBrawlerKick(landScreen.x, landScreen.y, kickR);
-    // Also spawn kill effects at the screen position for extra visibility
+    // Spawn shockwave at landing position (pixel coords)
+    renderer.spawnBrawlerKick(kx, ky, kickR);
+    // Also spawn kill effects for extra visibility
     for (let i = 0; i < 8; i++) {
       renderer.spawnKillEffect(
-        landScreen.x + (Math.random() - 0.5) * 60,
-        landScreen.y + (Math.random() - 0.5) * 60,
+        kx + (Math.random() - 0.5) * 60,
+        ky + (Math.random() - 0.5) * 60,
         '#66bb6a'
       );
     }
@@ -787,7 +787,7 @@ function updateRun(dt) {
     combat.pendingLevelUp = false;
     // Start slot machine — pick a random crew member (or garlic)
     const candidates = [...train.crew.map((_, i) => i)];
-    if (train.hasAutoWeapon('steamBlast')) candidates.push(-1); // -1 = garlic
+    if (train.hasAutoWeapon('autoLaser')) candidates.push(-1); // -1 = garlic
     slotMachineCrewIdx = candidates[Math.floor(Math.random() * candidates.length)];
     slotMachinePhase = 'spinning';
     slotMachineTimer = 1.8;
@@ -1037,28 +1037,28 @@ function drawDebugHitboxes() {
 // --- LEVEL UP ---
 let kbPowerupIndex = 0; // keyboard selection index
 
-function generateGarlicCards(train) {
-  const w = train.autoWeapons.steamBlast;
+function generateAutoLaserCards(train) {
+  const w = train.autoWeapons.autoLaser;
   if (!w) return [];
-  const stats = train.getAutoWeaponStats('steamBlast');
+  const stats = train.getAutoWeaponStats('autoLaser');
   const cards = [];
-
-  // Radius upgrade
-  cards.push({
-    type: 'garlic', name: 'WIDER AURA',
-    icon: '\uD83D\uDCA8\uD83D\uDFE2', color: '#64b5f6',
-    crewColor: '#8ecae6', roleLabel: 'GARLIC',
-    desc: `Radius ${stats.radius} \u2192 ${stats.radius + 20}`,
-    apply(t) { t.autoWeapons.steamBlast._radiusBonus = (t.autoWeapons.steamBlast._radiusBonus || 0) + 20; },
-  });
 
   // Damage upgrade
   cards.push({
-    type: 'garlic', name: 'STRONGER AURA',
-    icon: '\uD83D\uDCA8\uD83D\uDD25', color: '#e57373',
-    crewColor: '#8ecae6', roleLabel: 'GARLIC',
-    desc: `DMG ${stats.damage} \u2192 ${stats.damage + 3}/tick`,
-    apply(t) { t.autoWeapons.steamBlast._dmgBonus = (t.autoWeapons.steamBlast._dmgBonus || 0) + 3; },
+    type: 'autoLaser', name: 'LASER POWER',
+    icon: '\uD83D\uDD2B\uD83D\uDD25', color: '#e57373',
+    crewColor: '#8ecae6', roleLabel: 'AUTO LASER',
+    desc: `DMG ${stats.damage} \u2192 ${stats.damage + 3}`,
+    apply(t) { t.autoWeapons.autoLaser._dmgBonus = (t.autoWeapons.autoLaser._dmgBonus || 0) + 3; },
+  });
+
+  // Fire rate upgrade
+  cards.push({
+    type: 'autoLaser', name: 'LASER SPEED',
+    icon: '\uD83D\uDD2B\u26A1', color: '#64b5f6',
+    crewColor: '#8ecae6', roleLabel: 'AUTO LASER',
+    desc: `Faster fire rate`,
+    apply(t) { t.autoWeapons.autoLaser._rateBonus = (t.autoWeapons.autoLaser._rateBonus || 0) + 0.2; },
   });
 
   // Regen as third option
@@ -1091,7 +1091,7 @@ function updateLevelUp() {
     // Cycle display index
     if (slotMachineTick >= 1) {
       slotMachineTick -= 1;
-      const totalCandidates = train.crew.length + (train.hasAutoWeapon('steamBlast') ? 1 : 0);
+      const totalCandidates = train.crew.length + (train.hasAutoWeapon('autoLaser') ? 1 : 0);
       slotMachineDisplayIdx = (slotMachineDisplayIdx + 1) % totalCandidates;
     }
 
@@ -1112,7 +1112,7 @@ function updateLevelUp() {
     if (slotMachineTimer <= 0) {
       // Generate cards for the chosen crew/weapon
       if (slotMachineCrewIdx === -1) {
-        levelUpChoices = generateGarlicCards(train);
+        levelUpChoices = generateAutoLaserCards(train);
       } else {
         levelUpChoices = generateLevelUpCards(train, slotMachineCrewIdx);
       }
@@ -1196,7 +1196,7 @@ function renderLevelUp() {
     // Determine what to show
     const allCandidates = [];
     for (const c of train.crew) allCandidates.push({ emoji: c.role === 'Gunner' ? '\uD83D\uDC31' : '\u26C4\uFE0F', name: c.name, color: c.color, role: c.role });
-    if (train.hasAutoWeapon('steamBlast')) allCandidates.push({ emoji: '\uD83D\uDCA8', name: 'Garlic', color: '#8ecae6', role: 'WEAPON' });
+    if (train.hasAutoWeapon('autoLaser')) allCandidates.push({ emoji: '\uD83D\uDD2B', name: 'Auto Laser', color: '#8ecae6', role: 'WEAPON' });
 
     const displayItem = allCandidates[slotMachineDisplayIdx % allCandidates.length];
     const isLanded = slotMachinePhase === 'landed';
@@ -1227,7 +1227,7 @@ function renderLevelUp() {
     // Card selection phase
     // Pass the chosen crew/garlic info for the identity banner
     const chosenInfo = slotMachineCrewIdx === -1
-      ? { emoji: '\uD83D\uDCA8', name: 'Garlic', color: '#8ecae6', role: 'WEAPON' }
+      ? { emoji: '\uD83D\uDD2B', name: 'Auto Laser', color: '#8ecae6', role: 'WEAPON' }
       : { emoji: train.crew[slotMachineCrewIdx].role === 'Gunner' ? '\uD83D\uDC31' : '\u26C4\uFE0F',
           name: train.crew[slotMachineCrewIdx].name,
           color: train.crew[slotMachineCrewIdx].color,
@@ -2065,12 +2065,12 @@ function getWorldMapZones() {
 }
 
 function autoPlaceGarlic() {
-  if (train.hasAutoWeapon('steamBlast')) return;
+  if (train.hasAutoWeapon('autoLaser')) return;
   const mount = train.allMounts.find(m => !m.isOccupied && !m.crew);
   if (!mount) return;
-  mount.autoWeaponId = 'steamBlast';
+  mount.autoWeaponId = 'autoLaser';
   mount.coneHalfAngle = AUTO_WEAPON_CONE_HALF_ANGLE;
-  train.autoWeapons.steamBlast = { level: 1, cooldownTimer: 0, tickTimer: 0, mount };
+  train.autoWeapons.autoLaser = { level: 1, cooldownTimer: 0, tickTimer: 0, mount };
   garlicPlaced = true;
 }
 

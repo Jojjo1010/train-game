@@ -724,7 +724,7 @@ export class Renderer3D {
         // Determine which model to show
         let desiredType = null;
         if (mount.hasAutoWeapon) {
-          const modelMap = { turret: 'AutoGun', steamBlast: 'Laser', ricochetShot: 'Laser' };
+          const modelMap = { turret: 'AutoGun', autoLaser: 'Garlic', ricochetShot: 'Laser' };
           desiredType = modelMap[mount.autoWeaponId] || null;
         } else if (mount.isManned && mount.crew && mount.crew.role === 'Brawler') {
           desiredType = 'Garlic';
@@ -1129,26 +1129,15 @@ export class Renderer3D {
   }
 
   drawSteamBlastAura(train) {
-    // Check for steamBlast auto-weapon OR Brawler garlic
+    // Brawler garlic aura only
     const brawlerMount = train.allMounts.find(mt => mt.isManned && mt.crew && mt.crew.role === 'Brawler');
-    const hasAutoGarlic = !!train.autoWeapons.steamBlast;
-    const hasBrawlerGarlic = !!brawlerMount;
-
-    if (!hasAutoGarlic && !hasBrawlerGarlic) {
+    if (!brawlerMount) {
       this.steamRing.visible = false;
       return;
     }
 
-    let stats, m;
-    if (hasBrawlerGarlic) {
-      // Brawler garlic — use BRAWLER_GARLIC constants
-      m = brawlerMount;
-      stats = { radius: BRAWLER_GARLIC.radius };
-    } else {
-      m = train.getAutoWeaponMount('steamBlast');
-      stats = train.getAutoWeaponStats('steamBlast');
-      if (!stats) { this.steamRing.visible = false; return; }
-    }
+    const m = brawlerMount;
+    const stats = { radius: BRAWLER_GARLIC.radius };
 
     const isBanditDisabled = m && m._bandit;
     const now = performance.now();

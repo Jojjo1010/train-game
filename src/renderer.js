@@ -968,17 +968,15 @@ export class Renderer {
     }
   }
 
-  // --- Steam Blast aura ---
+  // --- Brawler garlic aura ---
   drawSteamBlastAura(train) {
-    if (!train.autoWeapons.steamBlast) return;
-    const stats = train.getAutoWeaponStats('steamBlast');
-    if (!stats) return;
+    const m = train.allMounts.find(mt => mt.isManned && mt.crew && mt.crew.role === 'Brawler');
+    if (!m) return;
     const ctx = this.ctx;
-    const m = train.getAutoWeaponMount('steamBlast');
-    const cx = m ? m.worldX : train.centerX;
-    const cy = m ? m.worldY : train.centerY;
+    const cx = m.worldX;
+    const cy = m.worldY;
     const pulse = 1 + Math.sin(performance.now() * 0.004) * 0.05;
-    const r = stats.radius * (train.totalAreaMultiplier || 1) * pulse;
+    const r = 50 * (train.totalAreaMultiplier || 1) * pulse; // BRAWLER_GARLIC.radius
 
     // Outer glow
     const grad = ctx.createRadialGradient(cx, cy, r * 0.3, cx, cy, r);

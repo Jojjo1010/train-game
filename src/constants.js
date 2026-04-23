@@ -101,13 +101,13 @@ export const AUTO_WEAPONS = {
       range: T('TURRET_LV1_RANGE', 250) + i * T('TURRET_RANGE_GROWTH', 20),
     })),
   },
-  steamBlast: {
-    id: 'steamBlast', name: 'Steam Blast', icon: '\uD83D\uDCA8', color: '#8ecae6',
-    desc: 'Aura that damages nearby enemies',
+  autoLaser: {
+    id: 'autoLaser', name: 'Auto Laser', icon: '\uD83D\uDD2B', color: '#8ecae6',
+    desc: 'Auto-targets nearest enemy',
     levels: [0,1,2,3,4].map(i => ({
-      radius: T('STEAM_LV1_RADIUS', 80) + i * T('STEAM_RADIUS_GROWTH', 25),
-      damage: T('STEAM_LV1_DAMAGE', 4) + i * T('STEAM_DAMAGE_GROWTH', 3),
-      tickRate: Math.max(0.1, T('STEAM_LV1_TICK_RATE', 0.5) - i * T('STEAM_TICK_REDUCTION', 0.05)),
+      damage: T('AUTOLASER_LV1_DAMAGE', 10) + i * T('AUTOLASER_DAMAGE_GROWTH', 3),
+      fireInterval: Math.max(0.3, T('AUTOLASER_LV1_FIRE_INTERVAL', 1.4) - i * T('AUTOLASER_INTERVAL_REDUCTION', 0.15)),
+      range: T('AUTOLASER_LV1_RANGE', 240) + i * T('AUTOLASER_RANGE_GROWTH', 20),
     })),
   },
   ricochetShot: {

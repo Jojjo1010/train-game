@@ -457,29 +457,37 @@ export class CombatSystem {
       }
     }
 
-    // --- STEAM BLAST ---
-    if (train.hasAutoWeapon('steamBlast')) {
-      const w = train.autoWeapons.steamBlast;
+    // --- AUTO LASER ---
+    if (train.hasAutoWeapon('autoLaser')) {
+      const w = train.autoWeapons.autoLaser;
       const m = w.mount;
-      const sbm = this._banditMult(m);
-      if (sbm > 0) {
+      const alm = this._banditMult(m);
+      if (alm > 0) {
         const mx = m.worldX, my = m.worldY;
-        const stats = train.getAutoWeaponStats('steamBlast');
-        w.tickTimer -= dt;
-        if (w.tickTimer <= 0) {
-          w.tickTimer = stats.tickRate * cdMult / sbm;
-          const r = stats.radius * areaMult;
-          const r2 = r * r;
-          const dmg = stats.damage * dmgMult * sbm;
+        const stats = train.getAutoWeaponStats('autoLaser');
+        w.cooldownTimer -= dt;
+        if (w.cooldownTimer <= 0) {
+          // Find nearest enemy in range (no cone restriction)
+          let closest = null;
+          const range = stats.range * areaMult;
+          let closestDist = range * range;
           for (const e of enemies) {
             if (!e.active) continue;
             const dx = e.x - mx, dy = e.y - my;
-            if (dx * dx + dy * dy <= r2) {
-              this.spawnDamageNumber(e.x, e.y, dmg);
-              const ex = e.x, ey = e.y, ecolor = e.color;
-              e.takeDamage(dmg);
-              this.handleEnemyDamageResult(e, train, ex, ey, ecolor);
-            }
+            const d = dx * dx + dy * dy;
+            if (d < closestDist) { closest = e; closestDist = d; }
+          }
+          if (closest) {
+            const dmg = stats.damage * dmgMult * alm;
+            const dist = Math.sqrt(closestDist);
+            const t = dist / PROJECTILE_SPEED;
+            const lx = closest.x + (closest.vx || 0) * t;
+            const ly = closest.y + (closest.vy || 0) * t;
+            const angle = Math.atan2(ly - my, lx - mx);
+            this.fireProjectile(mx, my, angle, dmg, 'auto', '#8ecae6');
+            m.coneDirection = m.clampAngle(Math.atan2(closest.y - my, closest.x - mx));
+            playShoot();
+            w.cooldownTimer = stats.fireInterval * cdMult / alm;
           }
         }
       }
