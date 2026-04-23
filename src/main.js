@@ -704,11 +704,42 @@ function updateRun(dt) {
   // Bandits
   banditSystem.update(dt, train, train.combatDifficulty || 1, currentPhase);
 
-  // Brawler kick — immediate shockwave at kick origin + small shake
+  // Brawler kick — aim toward enemies + immediate shockwave
   for (const b of banditSystem.pool) {
     if (!b._brawlerKick) continue;
     b._brawlerKick = false;
-    // Spawn shockwave immediately at the kick origin
+
+    // Aim kick toward nearest enemy cluster
+    const ox = b.x, oy = b.y;
+    let bestX = 0, bestY = 0, bestScore = -1;
+    for (const e of spawner.pool) {
+      if (!e.active) continue;
+      const dx = e.x - ox, dy = e.y - oy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 30 || dist > 300) continue; // skip too close or too far
+      // Score: prefer closer enemies, bonus for enemies near other enemies
+      let nearby = 0;
+      for (const e2 of spawner.pool) {
+        if (!e2.active || e2 === e) continue;
+        const d2 = (e2.x - e.x) ** 2 + (e2.y - e.y) ** 2;
+        if (d2 < 80 * 80) nearby++;
+      }
+      const score = (1 / (dist + 50)) * (1 + nearby * 0.5);
+      if (score > bestScore) {
+        bestScore = score;
+        bestX = e.x; bestY = e.y;
+      }
+    }
+    if (bestScore > 0) {
+      // Aim toward best target
+      const dx = bestX - ox, dy = bestY - oy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const speed = dist / 0.4; // arrive in 0.4s (flight time)
+      b.deathVx = (dx / dist) * speed;
+      b.deathVy = (dy / dist) * speed;
+    }
+
+    // Spawn shockwave at kick origin
     if (b._kickWorldX !== undefined) {
       const originScreen = renderer.pixelToScreen(b._kickWorldX, b._kickWorldY);
       renderer.spawnBrawlerKick(originScreen.x, originScreen.y, 80);
