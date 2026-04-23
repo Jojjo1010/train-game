@@ -1841,6 +1841,29 @@ Add a `CrewRole` variable (type: Enum `ECrewRole` with values `Gunner`, `Brawler
 - If `Brawler`: disable gun firing logic, activate garlic AOE component
 - If `Gunner`: enable gun firing logic, apply `DamageMultiplier` to all projectile damage
 
+### Blueprint Graph — SetCrewRole
+
+```
+┌──────────────────────┐     ┌──────────────────────────────┐
+│ 🔴 Event SetCrewRole │────►│ 🟡 Set CrewRole Variable     │
+│   Input: ECrewRole   │     │   → Store DA_CrewRole ref    │
+└──────────────────────┘     └──────────────┬───────────────┘
+                                            ▼
+                             ┌──────────────────────────────┐
+                             │ 🟣 Switch on ECrewRole       │
+                             └──────┬───────────────┬───────┘
+                                Gunner           Brawler
+                                    │               │
+                                    ▼               ▼
+                      ┌─────────────────┐ ┌────────────────────────┐
+                      │ 🔵 Enable Gun   │ │ 🔵 Disable Gun         │
+                      │   Component     │ │   Component            │
+                      │ Set DamageMult  │ │ Activate GarlicZone    │
+                      │   = 1.6         │ │ Activate NS_GarlicAura │
+                      └─────────────────┘ │ Set Timer: GarlicTick  │
+                                          └────────────────────────┘
+```
+
 ### Verify
 - [ ] Role selection screen appears after world select, before world map
 - [ ] Both crew cards are shown, each with Gunner/Brawler options
@@ -1871,6 +1894,31 @@ On `BP_CrewMember`, when role == Brawler:
      - Apply 14 damage
      - **Add Impulse** away from Brawler position, strength 20000 (200 web units x 100)
      - Spawn hit spark effect: **Spawn System at Location** (`NS_DamageParticles`) at enemy position
+
+### Blueprint Graph — GarlicTick
+
+```
+┌─────────────────────┐     ┌──────────────────────────┐     ┌──────────────────┐
+│ 🔴 Event GarlicTick │────►│ 🔵 Get Overlapping Actors│────►│ 🔵 For Each Loop │──┐
+│                     │     │   Component: GarlicZone  │     │   Array: Enemies │  │
+└─────────────────────┘     │   Class: BP_Enemy        │     └──────────────────┘  │
+                            └──────────────────────────┘                            │
+    ┌───────────────────────────────────────────────────────────────────────────────┘
+    │  Loop Body
+    ▼
+┌───────────────────────┐     ┌─────────────────────────┐     ┌──────────────────────┐
+│ 🔵 Apply Damage       │────►│ 🔵 Get Direction To      │────►│ 🔵 Add Impulse        │
+│   Damage: 14          │     │   (Enemy → Self)         │     │   Impulse: Dir × 20000│
+│   Target: Enemy       │     │   → Negate (push away)   │     │   Target: Enemy        │
+└───────────────────────┘     └─────────────────────────┘     └──────────┬─────────────┘
+                                                                         │
+                                                                         ▼
+                                                              ┌────────────────────────┐
+                                                              │ 🔵 Spawn System at Loc  │
+                                                              │   System: NS_HitSpark   │
+                                                              │   Location: Enemy pos    │
+                                                              └────────────────────────┘
+```
 
 ### Garlic Aura Visual
 1. Create a **Niagara System** `NS_GarlicAura`:
@@ -1925,6 +1973,36 @@ In `BP_Bandit` (Fighting state entry), check the arriving crew's role:
    - Spawn `NS_ShockwaveEffect` at `KickLandingPoint`
    - Start fade-out: **Timeline** 0.3s lerping mesh opacity to 0
    - Deactivate bandit after fade
+
+### Blueprint Graph — BrawlerKick
+
+```
+┌─────────────────────────┐     ┌──────────────────────────┐     ┌────────────────────────┐
+│ 🔴 Event BrawlerKick    │────►│ 🔵 Sphere Overlap Actors │────►│ 🟣 Branch              │
+│                         │     │   Position: Self         │     │   Enemies.Length > 0?   │
+│   KickOrigin = GetLoc() │     │   Radius: 10000          │     └──────┬─────────┬───────┘
+└─────────────────────────┘     │   Class: BP_Enemy        │          True       False
+                                └──────────────────────────┘            │           │
+                                                                        ▼           ▼
+                                                           ┌──────────────────┐ ┌──────────────┐
+                                                           │ 🔵 Find Nearest  │ │ 🟡 Default   │
+                                                           │   → LandingPoint │ │   Offset     │
+                                                           └────────┬─────────┘ └──────┬───────┘
+                                                                    └──────┬───────────┘
+                                                                           ▼
+┌──────────────────────────┐     ┌───────────────────────┐     ┌────────────────────────────┐
+│ 🔵 Spawn System at Loc  │◄────│ 🔵 Play Flight TL     │◄────│ 🔵 Spawn System at Loc     │
+│   NS_Shockwave           │     │   Timeline: 0.4s      │     │   NS_Shockwave @ Origin    │
+│   @ LandingPoint         │     │   Lerp + Sin arc      │     └────────────────────────────┘
+└──────────┬───────────────┘     └───────────────────────┘
+           │
+           ▼
+┌───────────────────────────────┐     ┌─────────────────────────┐     ┌──────────────────┐
+│ 🔵 Apply Radial Damage        │────►│ 🔵 Play Fade TL (0.3s)  │────►│ 🔵 Deactivate    │
+│   Origin: LandingPoint        │     │   Opacity: 1 → 0        │     │   Set Active: No │
+│   Damage: 60  Radius: 16000   │     └─────────────────────────┘     └──────────────────┘
+└───────────────────────────────┘
+```
 
 ### NS_ShockwaveEffect
 Create a Niagara system with a quick expanding ring and brief flash:
