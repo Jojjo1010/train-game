@@ -253,7 +253,8 @@ export async function preloadSfx() {
   const c = getCtx();
   const urls = [
     'assets/coin.mp3', 'assets/steal.mp3', 'assets/levelup.mp3',
-    'assets/zonecomplete.mp3', 'assets/winworld.mp3', 'assets/loose.mp3'
+    'assets/zonecomplete.mp3', 'assets/winworld.mp3', 'assets/loose.mp3',
+    'assets/kick.mp3'
   ];
   await Promise.all(urls.map(async (url) => {
     if (mp3Cache[url]) return;
@@ -335,6 +336,67 @@ export function stopMusic() {
     try { musicSource.disconnect(); } catch(e) {}
     musicSource = null;
   }
+}
+
+// --- BRAWLER KICK SFX ---
+export function playBrawlerKick() {
+  playMp3('assets/kick.mp3', 0.7);
+}
+
+export function playKickLand() {
+  const c = getCtx();
+  const t = c.currentTime;
+
+  // Layer 1: heavy bass impact (50Hz, 100ms)
+  const bass = c.createOscillator();
+  const gb = sfxGain(0.35);
+  bass.type = 'sine';
+  bass.frequency.setValueAtTime(50, t);
+  bass.frequency.exponentialRampToValueAtTime(25, t + 0.1);
+  gb.gain.setValueAtTime(0.35, t);
+  gb.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+  bass.connect(gb);
+  bass.start(t);
+  bass.stop(t + 0.12);
+
+  // Layer 2: noise burst (30ms) — crash debris
+  const noiseLen = c.sampleRate * 0.03;
+  const noiseBuf = c.createBuffer(1, noiseLen, c.sampleRate);
+  const noiseData = noiseBuf.getChannelData(0);
+  for (let i = 0; i < noiseLen; i++) noiseData[i] = (Math.random() * 2 - 1) * (1 - i / noiseLen);
+  const noiseSrc = c.createBufferSource();
+  noiseSrc.buffer = noiseBuf;
+  const gn = sfxGain(0.25);
+  noiseSrc.connect(gn);
+  noiseSrc.start(t);
+
+  // Layer 3: sub rumble (35Hz, 80ms) — ground shake
+  const rumble = c.createOscillator();
+  const gr = sfxGain(0.2);
+  rumble.type = 'sine';
+  rumble.frequency.setValueAtTime(35, t + 0.01);
+  rumble.frequency.exponentialRampToValueAtTime(20, t + 0.09);
+  gr.gain.setValueAtTime(0.2, t + 0.01);
+  gr.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+  rumble.connect(gr);
+  rumble.start(t);
+  rumble.stop(t + 0.1);
+}
+
+// --- GARLIC TICK SFX ---
+export function playGarlicTick() {
+  const c = getCtx();
+  const t = c.currentTime;
+  const pitchMult = 0.9 + Math.random() * 0.2; // slight randomization
+  const osc = c.createOscillator();
+  const g = sfxGain(0.06);
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(200 * pitchMult, t);
+  g.gain.setValueAtTime(0.06, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+  osc.connect(g);
+  osc.start(t);
+  osc.stop(t + 0.035);
 }
 
 // --- LOW-HP HEARTBEAT WARNING ---

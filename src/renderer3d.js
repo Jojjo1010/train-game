@@ -761,7 +761,7 @@ export class Renderer3D {
         group.visible = desiredType !== null;
 
         // DEBUG: show cone center (yellow) and gun rotation value
-        if (mount.isManned && !(mount.crew && mount.crew.role === 'Brawler')) {
+        if (MD.enabled && mount.isManned && !(mount.crew && mount.crew.role === 'Brawler')) {
           try {
             const coneCenter = offset.z < 0 ? MD.upperConeAngle : MD.lowerConeAngle;
             const ccRad = coneCenter * Math.PI / 180;

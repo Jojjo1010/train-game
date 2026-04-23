@@ -131,7 +131,7 @@ export class TrainCar {
   get doorRightY() { return this.worldY + this.height / 2; }
 }
 
-const CREW_NAMES = ['Rex', 'Kit', 'Rosa'];
+const CREW_NAMES = ['Rex', 'Kit'];
 
 export class CrewMember {
   constructor(id) {
@@ -229,8 +229,7 @@ export class Train {
     this.shakeTimer = 0;
     this.hpFlashTimer = 0;
     this.hpGreenFlashTimer = 0; // green flash when surge ends (relief)
-    this.armorReduction = 0;
-    this.greedMultiplier = 1;
+    this.greedMultiplier = 1; // no shop upgrade sets this yet, but main.js reads it
     this._regenRate = 0;
 
     // Hidden last-stand forgiveness (invisible to player)
@@ -381,7 +380,6 @@ export class Train {
   get totalDamageMultiplier() { return 1 + this.passives.damage * (SHOP_TUNING.damage.perLevel / 100); }
   get totalCooldownMultiplier() { return 1; }
   get totalAreaMultiplier() { return 1; }
-  get totalShieldReduction() { return this.armorReduction; }
 
   recruitCrew() {
     if (this.crew.length >= this.maxCrew) return;

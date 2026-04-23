@@ -56,6 +56,19 @@ Enable these in Edit > Plugins:
 - **CommonUI** — manages input routing between gameplay and menus
 - **Niagara** (enabled by default) — particle/VFX system
 
+### Custom Collision Channels
+Define these custom Object Channels in Project Settings > Collision (Edit > Project Settings > Engine > Collision):
+
+| Channel | Purpose | Blocks | Overlaps |
+|---|---|---|---|
+| `Projectile` | Player projectiles | — | Enemy, Collectible |
+| `Enemy` | Enemy actors | TrainBody | Projectile, Crew |
+| `Crew` | Crew member actors | — | Enemy |
+| `Collectible` | Coins and magnets | — | Projectile |
+| `TrainBody` | The train's collision hull | Enemy | — |
+
+Set each BP's collision component to the appropriate channel. This prevents projectiles from hitting the train, enemies from overlapping each other via expensive checks, and gives clean separation for line traces and overlap queries.
+
 ### Blueprint vs C++ Decision
 
 This guide is 100% Blueprint. If you later find performance bottlenecks (especially with 150 pooled enemies), consider moving these specific systems to C++:
@@ -87,8 +100,8 @@ Content/
       Meshes/              SM_Zombie, SM_Bug
     Weapons/
       Blueprints/          BP_Projectile, BP_RicochetBolt
-      Meshes/              SM_ManualGun, SM_AutoTurret, SM_SteamBlast, SM_Laser
-      VFX/                 NS_MuzzleFlash, NS_SteamAura
+      Meshes/              SM_ManualGun, SM_AutoTurret, SM_Garlic, SM_Laser
+      VFX/                 NS_MuzzleFlash, NS_GarlicAura
     Collectibles/
       Blueprints/          BP_Coin, BP_Magnet
       Meshes/              SM_Coin, SM_Magnet
@@ -106,9 +119,9 @@ Content/
       SFX/                 SC_Shoot, SC_EnemyHit, SC_CoinPickup
       MetaSounds/          MS_TrainEngine
     VFX/
-      Niagara/             NS_Confetti, NS_Fireworks, NS_DamageFlash
+      Niagara/             NS_Confetti, NS_Fireworks, NS_DamageFlash, NS_ShockwaveEffect
     Input/
-      Actions/             IA_Select, IA_Aim, IA_Pause, IA_SelectCrew
+      Actions/             IA_Select, IA_Aim, IA_Pause, IA_SelectCrew, IA_CycleCrew
       MappingContexts/     IMC_Gameplay, IMC_Menu, IMC_Placement
 ```
 
@@ -147,7 +160,7 @@ The web game uses `THREE.OrthographicCamera` at position (-180, 220, 180) with f
 - The isometric look-at angle translates to roughly Pitch=-35, Yaw=45
 
 ### Screen Shake Setup
-Create a **CameraShakeBase** Blueprint (right-click Content Browser > Blueprint Class > search "Camera Shake Base"):
+Create a **MatineeCameraShake** Blueprint (right-click Content Browser > Blueprint Class > search "Matinee Camera Shake"):
 - Duration: `0.2` seconds
 - Location amplitude: `(5, 5, 5)`
 - Rotation amplitude: `(1, 1, 1)`
@@ -188,8 +201,8 @@ Create a **CameraShakeBase** Blueprint (right-click Content Browser > Blueprint 
 ### Variables (on BP_Train)
 | Variable | Type | Default |
 |---|---|---|
-| `CurrentHP` | Float | 100.0 |
-| `MaxHP` | Float | 100.0 |
+| `CurrentHP` | Float | 150.0 |
+| `MaxHP` | Float | 150.0 |
 | `TrainSpeed` | Float | 16700.0 (167 x 100 cm/s) |
 | `DistanceTraveled` | Float | 0.0 |
 | `TargetDistance` | Float | 1000000.0 (10000 x 100) |
@@ -203,11 +216,13 @@ Create a **CameraShakeBase** Blueprint (right-click Content Browser > Blueprint 
 ### HP System — Custom Events
 Create these custom events on BP_Train:
 
-**TakeDamage(Amount: Float):**
+**ReceiveTrainDamage(Amount: Float):**
 1. Subtract `Amount` from `CurrentHP`
 2. **Clamp** to min 0
 3. **Branch**: if `CurrentHP` <= 0 → call `OnTrainDestroyed` event
-4. **Play Camera Shake** using `CS_TrainDamage`
+4. **Play World Camera Shake** using `CS_TrainDamage`
+
+> **Note:** Do not name this `TakeDamage` — UE5 has a built-in `TakeDamage` event on AActor. Shadowing it causes unpredictable behavior. Use `ReceiveTrainDamage` (or `ApplyTrainDamage`) instead.
 
 **HealTrain(Amount: Float):**
 1. Add `Amount` to `CurrentHP`
@@ -227,7 +242,7 @@ The web game updates train position each frame in the central game loop. In UE5,
 - [ ] Train appears in the level with 4 visible car meshes
 - [ ] Train moves smoothly along X-axis at constant speed
 - [ ] `DistanceTraveled` increments correctly
-- [ ] TakeDamage reduces HP; HealTrain restores HP
+- [ ] ReceiveTrainDamage reduces HP; HealTrain restores HP
 - [ ] HP never goes below 0 or above MaxHP
 - [ ] Train reaches TargetDistance in roughly 60 seconds (10000 / 167)
 
@@ -309,7 +324,7 @@ The web game uses a `switch(state)` in both `update()` and `render()`. In UE5, t
 **Goal:** All player input routed through Enhanced Input with context switching per game state.
 
 ### What to Create
-- 6 **Input Action** assets
+- 7 **Input Action** assets
 - 3 **Input Mapping Context** assets
 - Input handling in the Player Controller Blueprint
 
@@ -322,7 +337,8 @@ The web game uses a `switch(state)` in both `update()` and `render()`. In UE5, t
 | `IA_Pause` | Digital (Bool) | Escape key — toggle pause |
 | `IA_Navigate` | Axis2D (Vector2D) | Arrow keys / WASD — menu navigation |
 | `IA_Confirm` | Digital (Bool) | Enter / Space — confirm selection |
-| `IA_SelectCrew` | Digital (Bool) | Keys 1, 2, 3 — quick-select crew (create 3 separate actions or use one with a modifier) |
+| `IA_SelectCrew` | Digital (Bool) | Keys 1, 2 — quick-select crew by index |
+| `IA_CycleCrew` | Digital (Bool) | Tab key — cycle to the next crew member |
 
 ### Mapping Contexts (right-click > Input > Input Mapping Context)
 
@@ -332,7 +348,8 @@ The web game uses a `switch(state)` in both `update()` and `render()`. In UE5, t
 | IA_Select | Left Mouse Button | Pressed |
 | IA_Aim | Mouse XY | Every frame |
 | IA_Pause | Escape | Pressed |
-| IA_SelectCrew (x3) | 1, 2, 3 | Pressed |
+| IA_SelectCrew (x2) | 1, 2 | Pressed |
+| IA_CycleCrew | Tab | Pressed |
 
 **IMC_Menu:**
 | Action | Key | Trigger |
@@ -348,7 +365,8 @@ The web game uses a `switch(state)` in both `update()` and `render()`. In UE5, t
 | IA_Select | Left Mouse Button | Pressed |
 | IA_Aim | Mouse XY | Every frame |
 | IA_Pause | Escape | Pressed |
-| IA_SelectCrew (x3) | 1, 2, 3 | Pressed |
+| IA_SelectCrew (x2) | 1, 2 | Pressed |
+| IA_CycleCrew | Tab | Pressed |
 
 ### Context Switching (in GM_TrainDefense ChangeState event)
 Each state transition removes all contexts then adds the appropriate one:
@@ -375,7 +393,7 @@ In your Player Controller Blueprint:
 The web game uses `addEventListener('click')` and `addEventListener('mousemove')` directly. In UE5, Enhanced Input decouples the physical button from the game action. The mouse-to-world conversion replaces the web game's custom `toWorld(x, y)` projection function — UE5 does the math for you via line traces.
 
 ### Verify
-- [ ] In Running state: left click fires, mouse position aims, Escape pauses, 1/2/3 selects crew
+- [ ] In Running state: left click fires, mouse position aims, Escape pauses, 1/2 selects crew, Tab cycles crew
 - [ ] In Menu state: WASD navigates, Enter confirms, mouse clicks buttons, number keys do nothing
 - [ ] In Placement state: mouse position highlights mounts, click places crew/weapon
 - [ ] Context switching is clean — no input leaks between states
@@ -404,9 +422,10 @@ The web game uses `addEventListener('click')` and `addEventListener('mousemove')
 | `CurrentHP` | Float | 20.0 |
 | `MaxHP` | Float | 20.0 |
 | `MoveSpeed` | Float | 5000.0 (50 x 100) |
-| `ContactDamage` | Float | 6.0 |
+| `ContactDamage` | Float | 8.0 |
 | `Tier` | Integer | 0 |
 | `TargetLocation` | FVector | (0,0,0) |
+| `KnockbackVelocity` | FVector | (0,0,0) |
 
 ### BP_Enemy — Custom Events
 
@@ -429,10 +448,14 @@ The web game uses `addEventListener('click')` and `addEventListener('mousemove')
 4. **Set Actor Tick Enabled** = false
 
 ### BP_Enemy — Event Tick (Movement)
-1. **Get Actor Location**
-2. **Find Look at Rotation** toward `TargetLocation`
-3. **Move Toward** `TargetLocation` at `MoveSpeed * Delta Seconds`
-4. If distance to target < 100 → deal `ContactDamage` to train → call `DeactivateEnemy`
+1. **Get Actor Location** → store as `CurrentLoc`
+2. `Direction` = **Get Unit Direction Vector** from `CurrentLoc` to `TargetLocation`
+3. `MoveDelta` = `Direction * MoveSpeed * DeltaSeconds`
+4. Apply knockback: `MoveDelta += KnockbackVelocity * DeltaSeconds` (then decay `KnockbackVelocity`)
+5. **Add Actor World Offset** by `MoveDelta`
+6. If distance to target < 100 → deal `ContactDamage` to train → call `DeactivateEnemy`
+
+> **Note:** There is no "Move Toward" node in UE5 Blueprints. Use **Get Unit Direction Vector** to compute direction, multiply by speed and delta time, then apply via **Add Actor World Offset**. Alternatively, use **VInterp To (Constant)** for constant-speed interpolation: `NewLoc = VInterpToConstant(CurrentLoc, TargetLocation, DeltaSeconds, MoveSpeed)`.
 
 ### BP_EnemyPool — Pool Manager
 
@@ -467,7 +490,8 @@ The web game uses `addEventListener('click')` and `addEventListener('mousemove')
 - **Set Actor Hidden in Game** / **Set Actor Enable Collision** / **Set Actor Tick Enabled**
 - **For Each Loop** (to find inactive pool members)
 - **Set Timer by Event** (for spawn intervals)
-- **Move Component To** or manual location interpolation
+- **Get Unit Direction Vector** + **Add Actor World Offset** (manual movement)
+- **VInterp To Constant** (alternative constant-speed interpolation)
 - **Create Dynamic Material Instance** (to change enemy color per tier)
 
 ### Web-to-UE5 Translation
@@ -518,14 +542,14 @@ The web game pre-allocates arrays with an `active` flag and skips inactive entri
 3. **Set Actor Hidden in Game** = false
 4. **Set Actor Enable Collision** = true
 5. **Set Actor Tick Enabled** = true
-6. On the Projectile Movement Component: **Set Velocity in Local Space** = `Direction * 35000`
+6. On the Projectile Movement Component: **Set** the `Velocity` property (FVector) = `Direction * 35000`
 7. **Set Timer by Function Name** → `DeactivateProjectile`, time = 2.0s (lifetime limit)
 
 ### On Component Begin Overlap (Sphere Component)
 1. **Cast to BP_Enemy** (the other actor)
 2. If valid and enemy `IsActive`:
-   - Call enemy's `TakeDamage` event with `Damage`
-   - Apply knockback: **Add Impulse** on enemy in the projectile's forward direction x `KnockbackForce`
+   - Call enemy's `ApplyEnemyDamage` event with `Damage`
+   - Apply knockback: add `KnockbackForce` in the projectile's forward direction to the enemy's `KnockbackVelocity` vector (see note below)
    - Call `DeactivateProjectile`
 
 ### DeactivateProjectile()
@@ -540,12 +564,13 @@ When calculating where to fire, predict enemy position:
 
 ### Key Blueprint Nodes
 - **UProjectileMovementComponent** settings in Details panel
-- **Set Velocity in Local Space** (on ProjectileMovement)
+- **Set** `Velocity` (FVector property on ProjectileMovementComponent) — set directly, not via "Set Velocity in Local Space" which does not exist
 - **On Component Begin Overlap** (event on SphereComponent)
 - **Cast To** (BP_Enemy)
-- **Add Impulse** (for knockback)
 - **Set Timer by Function Name** (lifetime auto-deactivate)
 - **Get Unit Direction Vector** / **Normalize**
+
+> **Knockback note:** Enemies use manual movement (not physics simulation), so **Add Impulse** will not work. Instead, add a `KnockbackVelocity` FVector variable to `BP_Enemy`. On hit, set it to the projectile direction times `KnockbackForce`. In the enemy's Tick, apply `KnockbackVelocity * DeltaSeconds` via **Add Actor World Offset**, then decay: `KnockbackVelocity *= Max(0, 1 - 12 * DeltaSeconds)` (decay rate 12/sec, matching the web game's `KNOCKBACK_DECAY`).
 
 ### Web-to-UE5 Translation
 The web game manually updates projectile positions each frame. UE5's **ProjectileMovementComponent** handles all of that — you just set velocity and let the component do the work. Overlap events replace the manual distance-check collision loop.
@@ -564,7 +589,7 @@ The web game manually updates projectile positions each frame. UE5's **Projectil
 
 ## Step 7: Crew System
 
-**Goal:** 3 crew members that can be selected, assigned to mounts, and move between car doors.
+**Goal:** 2 crew members that can be selected, assigned to mounts, and move between car doors.
 
 ### What to Create
 - **BP_CrewMember** Actor Blueprint
@@ -577,22 +602,21 @@ The web game manually updates projectile positions each frame. UE5's **Projectil
 ### BP_CrewMember — Variables
 | Variable | Type | Default |
 |---|---|---|
-| `CrewName` | String | "Orb" |
+| `CrewName` | String | "Rex" |
 | `CrewColor` | Linear Color | Red |
 | `CrewIndex` | Integer | 0 |
-| `IsUnlocked` | Bool | true (Orb), false (Davie, Punk) |
 | `CurrentMount` | Object Ref (WeaponMount) | null |
 | `IsMoving` | Bool | false |
 | `WeaponLevel` | Integer | 1 |
 | `IsSelected` | Bool | false |
 | `ReassignCooldownRemaining` | Float | 0.0 |
+| `CrewRole` | Enum (ECrewRole) | Gunner |
 
-### Crew Data (3 instances)
-| Index | Name | Color (Linear) | Unlocked By Default |
-|---|---|---|---|
-| 0 | Orb | (0.91, 0.30, 0.24) Red | Yes |
-| 1 | Davie | (0.20, 0.60, 0.86) Blue | No (300g) |
-| 2 | Punk | (0.18, 0.80, 0.44) Green | No (300g) |
+### Crew Data (2 instances — both available from start, no unlock cost)
+| Index | Name | Color (Linear) |
+|---|---|---|
+| 0 | Rex | (0.91, 0.30, 0.24) Red |
+| 1 | Kit | (0.20, 0.60, 0.86) Blue |
 
 ### Movement Between Mounts
 Crew moves through car doors, not teleporting. Implementation:
@@ -618,8 +642,8 @@ Crew moves through car doors, not teleporting. Implementation:
 The web game interpolates crew position directly in the game loop with a speed constant. In UE5, use a Timeline for the smooth movement — it automatically handles delta time and gives you a clean animation curve. The door pause uses a Delay node between path segments.
 
 ### Verify
-- [ ] 3 crew members exist (Orb visible, Davie/Punk hidden until unlocked)
-- [ ] Each crew member has the correct color
+- [ ] 2 crew members exist (Rex and Kit, both visible from the start)
+- [ ] Each crew member has the correct color (Rex = red, Kit = blue)
 - [ ] Selecting a crew member highlights them (glow, outline, or scale up slightly)
 - [ ] Assigning to a mount starts movement through doors
 - [ ] 0.35s pause at each door
@@ -654,7 +678,7 @@ Bottom-Right: (+HalfWidth, -HalfHeight, 0)  → (+1600, -700, 0)
 | `ConeHalfAngle` | Float | 45.0 (degrees) |
 | `OccupantType` | Enum (Empty/Crew/AutoWeapon/Bandit) | Empty |
 | `AssignedCrew` | Object Ref | null |
-| `AutoWeaponType` | Enum (None/Turret/Steam/Laser) | None |
+| `AutoWeaponType` | Enum (None/Turret/AutoLaser/Laser) | None |
 | `AutoWeaponLevel` | Integer | 0 |
 | `Cooldown` | Float | 0.0 |
 
@@ -738,14 +762,14 @@ On mount Tick (when `AutoWeaponType` == Turret):
    - **Delay** 0.08s between shots in burst
 6. Reset cooldown timer
 
-### Steam Blast Implementation
-On mount Tick (when `AutoWeaponType` == Steam):
-1. Check tick rate timer. If not ready, skip.
-2. **Sphere Overlap Actors** centered on mount, radius = steam radius (e.g., 8000 cm at Lv1)
-3. **For Each** overlapping BP_Enemy:
-   - Apply `SteamDamage` directly (no projectile)
-4. Reset tick timer
-5. Visual: a Niagara system (NS_SteamAura) with radius matching the weapon's current level
+### Auto Laser Implementation
+On mount Tick (when `AutoWeaponType` == AutoLaser):
+1. Check cooldown timer. If not ready, skip.
+2. **Sphere Overlap Actors** centered on mount, radius = weapon range — **no cone restriction** (full 360-degree targeting)
+3. Pick nearest active `BP_Enemy`
+4. Fire a single `BP_Projectile` toward the target (same pool as Turret projectiles)
+5. Reset cooldown timer
+6. Visual: uses the Garlic 3D model (`SM_Garlic` / `Garlic.fbx`) as the mount mesh. No separate aura ring.
 
 ### Laser / Ricochet Implementation
 On mount fire timer:
@@ -776,8 +800,8 @@ The web game checks weapon cooldowns each frame and manually iterates enemies to
 ### Verify
 - [ ] Turret auto-fires at nearest enemy in bursts matching its level
 - [ ] Turret spread is visible but small (shots don't go wildly off-target)
-- [ ] Steam Blast damages all enemies in radius without spawning projectiles
-- [ ] Steam Blast visual ring matches the damage radius
+- [ ] Auto Laser fires single projectiles at the nearest enemy with no cone restriction
+- [ ] Auto Laser mount displays the Garlic mesh
 - [ ] Laser bolt bounces between enemies the correct number of times per level
 - [ ] Laser bolt does not bounce to the same enemy twice
 - [ ] All weapons respect their fire intervals (not firing too fast)
@@ -796,7 +820,7 @@ When a projectile overlaps an enemy (from Step 6's OnComponentBeginOverlap):
 1. Calculate final damage:
    ```
    FinalDamage = BaseDamage
-     * DriverBuff (1.5 if any crew on driver seat, else 1.0)
+     * DriverBuff (1.0 — currently no damage bonus from driver seat)
      * ShopDamageMultiplier (1.0 + shopDamageLevel * 0.15)
    ```
 2. Apply to enemy: subtract from `CurrentHP`
@@ -805,10 +829,10 @@ When a projectile overlaps an enemy (from Step 6's OnComponentBeginOverlap):
 ### Train Damage (when enemy reaches train)
 1. Calculate actual damage:
    ```
-   ShieldReduction = shopShieldLevel * 2 + passiveShieldSlots * 2
+   ShieldReduction = passiveShieldSlots * 2  (Shield is a run-time defense, not a shop upgrade)
    ActualDamage = Max(1, EnemyContactDamage - ShieldReduction)
    ```
-2. Call `BP_Train.TakeDamage(ActualDamage)`
+2. Call `BP_Train.ReceiveTrainDamage(ActualDamage)`
 
 ### Damage Numbers — Floating Text
 Create a **WBP_DamageNumber** widget:
@@ -832,8 +856,9 @@ On significant hits (kills, high damage):
 
 ### Screen Shake
 On train damage or surge start:
-1. **Get Player Camera Manager**
-2. **Start Camera Shake** with `CS_TrainDamage` (created in Step 1)
+1. **Play World Camera Shake** at the train's world location, with `CS_TrainDamage` (created in Step 1)
+   - Use **Play World Camera Shake** for positional shakes (damage from a world location)
+   - Use **Client Start Camera Shake** for non-positional shakes (e.g., surge rumble that affects the whole screen regardless of position)
 
 ### Enemy Hit Flash
 When an enemy takes damage:
@@ -846,7 +871,7 @@ This requires a material with a "FlashAmount" parameter that lerps between the b
 
 ### Key Blueprint Nodes
 - **Set Global Time Dilation** (hitstop)
-- **Start Camera Shake** (screen shake)
+- **Play World Camera Shake** (positional screen shake) / **Client Start Camera Shake** (non-positional)
 - **Create Dynamic Material Instance** + **Set Scalar Parameter** (hit flash)
 - **Timeline** (damage number float-up animation)
 - **Project World to Screen** (if positioning damage numbers in screen space)
@@ -925,7 +950,7 @@ Create `EBanditState` enumeration:
    - Re-enable mount (set `OccupantType` back to Crew or Empty)
 
 **Dead:**
-1. Fling bandit off train: **Launch Character** or **Add Impulse** upward + outward
+1. Fling bandit off train: use a **Timeline** to animate the bandit position along an upward + outward arc (enemies and bandits use manual movement, not physics, so **Add Impulse** will not work)
 2. After 1s flight: deactivate bandit (same hide/disable pattern)
 
 ### Spawner Logic
@@ -938,8 +963,7 @@ On the GameMode, a timer spawns bandits:
 ### Key Blueprint Nodes
 - **Switch on Enum** (EBanditState in Tick)
 - **Lerp** + **Sin** (parabolic jump arc)
-- **Timeline** (alternative to manual jump interpolation)
-- **Add Impulse** (fling on death)
+- **Timeline** (alternative to manual jump interpolation, and for death fling animation)
 - **Set Timer by Event** (spawn interval)
 
 ### Web-to-UE5 Translation
@@ -978,15 +1002,15 @@ Create `EWavePhase`:
 | `CurrentPhase` | EWavePhase | Calm |
 | `PhaseTimer` | Float | 0.0 |
 | `WaveNumber` | Integer | 0 |
-| `CalmDuration` | Float | 30.0 |
+| `CalmDuration` | Float | 5.0 |
 | `WarningDuration` | Float | 3.0 |
-| `SurgeDuration` | Float | 8.0 |
+| `SurgeDuration` | Float | 5.0 |
 | `SpawnRateMultiplier` | Float | 1.0 |
 
 ### Phase Logic (Event Tick or Timer)
 
-**Calm Phase (30s):**
-1. Normal spawn rate
+**Calm Phase (5s):**
+1. Reduced spawn rate (0.5x multiplier)
 2. Increment `PhaseTimer`
 3. When timer >= `CalmDuration`: transition to Warning, reset timer
 
@@ -996,8 +1020,8 @@ Create `EWavePhase`:
 3. Play warning sound
 4. When timer >= `WarningDuration`: transition to Surge, reset timer
 
-**Surge Phase (8s):**
-1. Multiply spawn rate by 3-5x
+**Surge Phase (5s):**
+1. Multiply spawn rate by 2.0x (3.5x at boss stations)
 2. Screen shake active (subtle constant rumble)
 3. Tint screen edge red (post-process or UI overlay)
 4. When timer >= `SurgeDuration`: transition to Calm, increment `WaveNumber`, reset timer
@@ -1005,8 +1029,8 @@ Create `EWavePhase`:
 ### Escalation
 After each full cycle (Calm → Warning → Surge), increase difficulty:
 ```
-SpawnRateMultiplier = 1.0 + WaveNumber * 0.3
-EnemyHPMultiplier = 1.0 + WaveNumber * 0.15
+SpawnRateMultiplier = 1.0 + WaveNumber * 0.10
+EnemyHPMultiplier = 1.0 + WaveNumber * 0.10
 ```
 
 Station modifiers (from GAME_DOCS.md) can be stored in a **DataTable** and looked up at combat start to adjust base values.
@@ -1014,14 +1038,14 @@ Station modifiers (from GAME_DOCS.md) can be stored in a **DataTable** and looke
 ### Key Blueprint Nodes
 - **Switch on Enum** (EWavePhase)
 - **Set Timer by Event** (phase transitions, or use Tick + timer variable)
-- **Start Camera Shake** (low-intensity constant shake during surge)
+- **Client Start Camera Shake** (low-intensity constant shake during surge — non-positional)
 - **Play Sound 2D** (warning sound)
 
 ### Web-to-UE5 Translation
 The web game manages phases with timer variables in the update loop. The UE5 version can use either Tick-based timers or UE5's built-in timer system. The escalation formulas are identical.
 
 ### Verify
-- [ ] Calm phase lasts 30 seconds with normal spawn rate
+- [ ] Calm phase lasts ~5 seconds with reduced spawn rate
 - [ ] Warning banner appears and persists for 3 seconds
 - [ ] Surge phase dramatically increases enemy spawn rate
 - [ ] Screen feedback during surge (shake, red tint)
@@ -1058,11 +1082,11 @@ Define a **S_LevelUpCard** struct:
 **Logic:**
 1. Build eligible card pool:
    - For each crew: if `WeaponLevel < 5` → add CrewGunUpgrade card
-   - If auto-weapon count < 2 → add NewAutoWeapon cards (Turret, Steam, Laser)
+   - If auto-weapon count < 2 → add NewAutoWeapon cards (Turret, Auto Laser, Laser)
    - For each equipped auto-weapon: if level < 5 → add UpgradeAutoWeapon card
    - If defense slots < 2 → add Shield, Regen cards
    - Always add Repair card
-2. Shuffle pool, pick first 3 (or fewer if pool is small)
+2. Randomize the pool using a Fisher-Yates shuffle (see note below), then pick the first 3 (or fewer if pool is small)
 
 ### WBP_LevelUp Widget Layout
 - Dark semi-transparent overlay
@@ -1091,7 +1115,7 @@ Switch on CardType:
 ### Key Blueprint Nodes
 - **Create Widget** (WBP_LevelUp, once, reuse)
 - **Set Game Paused** = true (freeze combat)
-- **Shuffle** (array randomization)
+- **Fisher-Yates shuffle** — UE5 Blueprints have no built-in Shuffle node. Implement with a **For Loop** (from LastIndex down to 1), **Random Integer in Range** (0 to current index), and **Swap** (array element at current index with element at random index). Alternatively, pick 3 random indices without replacement using **Random Integer in Range** + **Remove Index**.
 - **Play Animation** (UMG animation for card hover/select)
 - **Delay** (fanfare timing)
 - **Spawn Emitter at Location** (confetti on card select)
@@ -1207,7 +1231,7 @@ The web game renders the zone map on a 2D canvas with click detection. In UE5, t
 - Save/load logic on **GameInstance**
 
 ### WBP_Shop Layout
-- 7 upgrade rows, each containing:
+- 3 upgrade rows, each containing:
   - Icon (left)
   - Name + description (center)
   - Level pips (filled/empty circles showing current/max level)
@@ -1217,21 +1241,18 @@ The web game renders the zone map on a 2D canvas with click detection. In UE5, t
 - Navigation buttons: "Map" (return to zone map), "Next Zone" (if zone complete)
 
 ### Shop Upgrades (see GAME_DOCS.md for all values)
-Cost formula: `baseCost * (currentLevel + 1)`
 
-| Upgrade | Base Cost | Max Level | Effect Per Level |
+| Upgrade | Cost/Level | Max Level | Effect Per Level |
 |---|---|---|---|
 | Damage | 40 | 5 | +15% weapon damage |
-| Shield | 35 | 5 | -2 damage taken |
-| Cool Off | 45 | 5 | -10% weapon cooldown |
+| Kick Force | 40 | 5 | Increases Brawler kick AOE damage/radius |
 | Max HP | 30 | 5 | +15 max HP |
-| Base Area | 40 | 5 | +15% weapon range |
-| Greed | 60 | 3 | +20% gold from coins |
-| Crew Slots | 300 | 2 | Unlock Davie / Punk |
+
+> **Removed upgrades:** Shield, Cool-off, Range, Greed, and Crew Slots have been removed from the shop. Crew (Rex and Kit) are both available from the start with no unlock cost.
 
 ### Buy Logic
 On buy button clicked:
-1. Calculate cost: `BaseCost * (CurrentLevel + 1)`
+1. Look up cost from the upgrade's `Cost` field (flat cost per level)
 2. Check: `Gold >= Cost` AND `CurrentLevel < MaxLevel`
 3. If valid: deduct gold, increment level, update display
 4. Refresh all buttons (some may become affordable/unaffordable)
@@ -1246,7 +1267,6 @@ Create a Blueprint extending **SaveGame** (right-click > Blueprint Class > searc
 | `Coal` | Integer |
 | `MaxCoal` | Integer |
 | `UpgradeLevels` | Map (String → Integer) |
-| `UnlockedCrew` | Array of Integer |
 | `MusicVolume` | Float |
 | `SfxVolume` | Float |
 
@@ -1268,9 +1288,9 @@ Create a Blueprint extending **SaveGame** (right-click > Blueprint Class > searc
 ### Applying Upgrades
 At the start of each combat run (Setup state):
 1. Get upgrade levels from GameInstance
-2. Apply to train: `MaxHP = 100 + maxHpLevel * 15`
+2. Apply to train: `MaxHP = 150 + maxHpLevel * 15`
 3. Store multipliers for combat use: `DamageMultiplier = 1.0 + damageLvl * 0.15`
-4. Unlock crew members based on `UnlockedCrew` array
+4. Apply kick force upgrade to Brawler kick damage/radius
 
 ### Key Blueprint Nodes
 - **Create Save Game Object**
@@ -1285,12 +1305,11 @@ At the start of each combat run (Setup state):
 The web game uses `localStorage` for persistence and an in-memory `save` object. In UE5, the GameInstance holds runtime state (persists across levels but not across sessions) and SaveGame handles disk persistence. The shop upgrade formulas are identical.
 
 ### Verify
-- [ ] All 7 upgrades display with correct costs and level pips
+- [ ] All 3 upgrades display with correct costs and level pips (Damage, Kick Force, Max HP)
 - [ ] Buying an upgrade deducts gold and increments level
-- [ ] Cost increases correctly: Damage Lv1=40g, Lv2=80g, Lv3=120g
-- [ ] Can't buy past max level or without enough gold
+- [ ] Cost per level: Damage = 40g, Kick Force = 40g, Max HP = 30g
+- [ ] Can't buy past max level (5) or without enough gold
 - [ ] Coal purchase works (30g → 2 coal)
-- [ ] Crew unlock (300g) makes Davie/Punk available
 - [ ] Saving works: close game, reopen, gold and upgrades persist
 - [ ] Upgrades apply in combat (e.g., +15% damage per damage level)
 - [ ] Settings (volumes) persist across sessions
@@ -1342,7 +1361,7 @@ When any projectile hits the magnet (OnComponentBeginOverlap):
 
 ### Gold Calculation
 ```
-GoldGained = CoinValue * (1.0 + GreedBonusPercent) * CargoMultiplier
+GoldGained = CoinValue * CargoMultiplier * StationCoinMult
 CargoMultiplier = 1.0 + CargoBoxes * 0.25
 ```
 
@@ -1363,7 +1382,7 @@ The web game handles coin collection by checking projectile-coin distance each f
 - [ ] 8% of spawns are magnets instead of coins
 - [ ] Shooting a magnet collects ALL active coins
 - [ ] Coins fly toward the HUD gold counter with acceleration
-- [ ] Gold value matches: 10 * greed multiplier * cargo multiplier
+- [ ] Gold value matches: 10 * cargo multiplier * station coin multiplier
 - [ ] Coin pickup sound plays on collection
 - [ ] Max 30 coins and 3 magnets active simultaneously
 - [ ] Flying coins deactivate correctly after reaching HUD
@@ -1477,7 +1496,7 @@ The web game uses the Web Audio API with oscillators and gain nodes. MetaSounds 
 - **Top bar:** HP progress bar (red→green), gold counter, coal counter, wave phase indicator
 - **Left side:** distance progress bar (how far until station end)
 - **Bottom-left:** 3 rows:
-  - Crew row: 3 crew icons (colored circles) with weapon level indicators
+  - Crew row: 2 crew icons (colored circles) with weapon level indicators and role badge
   - Weapon row: equipped auto-weapon icons with level
   - Defense row: equipped defense icons with level
 - **Bandit alert:** red pulsing banner at top-center ("BANDITS ON TRAIN!")
@@ -1527,7 +1546,7 @@ The web game draws all UI directly on a 2D canvas with `fillText`, `fillRect`, e
 
 ### Layout
 - **Background:** Dark radial gradient (center slightly lighter, edges dark)
-- **Dust particles:** Niagara system (NS_DustParticles) with slow-drifting small particles
+- **No dust particles** (removed from the game — do not create NS_DustParticles for this screen)
 - **3D Train model:** Centered, slowly rotating (1 rotation every 20 seconds)
 - **Title:** "TRAIN DEFENSE" — golden color (#FFD700 equivalent), large bold text (equivalent to 64pt)
 - **No subtitle, no silhouette boxes**
@@ -1544,25 +1563,15 @@ All buttons share the same golden style with dark background, matching the title
 2. In its Tick: **Add Actor Local Rotation** Yaw = `DeltaSeconds * 18` (360/20 = 18 deg/sec)
 3. Position it so the camera sees it behind/below the UI
 
-### Niagara Dust Particles
-Create `NS_DustParticles`:
-- Spawn rate: 5/sec
-- Lifetime: 8-12s
-- Velocity: slow random drift (100-300 cm/s)
-- Size: very small (2-5 cm)
-- Color: warm tan/brown, low opacity (0.2-0.4)
-- Spawn volume: large box covering the camera's view
-
 ### Key Blueprint Nodes
 - **Add Actor Local Rotation** (train spin)
 - **Create Widget** + **Add to Viewport** (start screen)
 - **On Clicked** (button events → state transitions)
-- **Activate Niagara Component** (dust particles)
 
 ### Verify
 - [ ] Title text reads "TRAIN DEFENSE" in golden color
 - [ ] 3D train rotates slowly in the background
-- [ ] Dust particles drift across the scene
+- [ ] No dust particles on the start screen
 - [ ] 3 buttons are visible: Start Game, Power Ups, Settings
 - [ ] Each button navigates to the correct state
 - [ ] No subtitle text or silhouette boxes present
@@ -1582,12 +1591,11 @@ Create `NS_DustParticles`:
 | `NS_Fireworks` | World complete | Bursts of colored sparks at random positions |
 | `NS_MuzzleFlash` | Weapon fire | Brief bright flash at mount position |
 | `NS_DamageParticles` | Enemy hit | Small debris/sparks at impact point |
-| `NS_SteamAura` | Steam Blast active | Continuous ring matching weapon radius |
+| `NS_GarlicAura` | Brawler garlic AOE active | Continuous ring matching garlic radius (5000 cm) |
 | `NS_CoinSparkle` | Coin spawn | Subtle glint on coin surface |
-| `NS_DustParticles` | Start screen, zone map | Ambient floating dust |
 
 ### Screen Shake
-Create multiple **Camera Shake** assets:
+Create multiple **MatineeCameraShake** assets:
 - `CS_TrainDamage`: 0.2s, moderate amplitude (train takes hit)
 - `CS_SurgeRumble`: 8s, low amplitude, looping (during surge phase)
 - `CS_BigHit`: 0.1s, high amplitude (boss kill or large damage)
@@ -1614,7 +1622,7 @@ Trigger with **Play World Camera Shake** at the appropriate moments.
 ### Weapon Glow
 Auto-weapons on mounts should have a subtle glow:
 - Turret: blue emissive
-- Steam: orange emissive
+- Auto Laser: orange emissive
 - Laser: green emissive
 - Use emissive material parameter, pulsing via sine wave in material or Blueprint
 
@@ -1634,7 +1642,7 @@ The web game uses canvas-based effects (screen flash overlay, CSS-like animation
 - [ ] Fireworks play on world complete
 - [ ] Muzzle flash visible when weapons fire
 - [ ] Enemy hit sparks visible at impact point
-- [ ] Steam Blast has a visible aura ring matching its radius
+- [ ] Brawler garlic AOE has a visible aura ring matching its radius
 - [ ] Screen flashes briefly white when train takes damage
 - [ ] Screen shakes on train damage and during surge
 - [ ] Enemies flash white on hit
@@ -1719,14 +1727,14 @@ Create a `DA_GameConstants` Primary Data Asset with categorized variables:
 ```
 DA_GameConstants
 ├── Train
-│   ├── MaxHP (Float) = 100
+│   ├── MaxHP (Float) = 150
 │   ├── Speed (Float) = 16700
 │   ├── TargetDistance (Float) = 1000000
 │   └── ...
 ├── Weapons
 │   ├── ManualGunLevels (Array of Struct)
 │   ├── TurretLevels (Array of Struct)
-│   ├── SteamLevels (Array of Struct)
+│   ├── AutoLaserLevels (Array of Struct)
 │   └── LaserLevels (Array of Struct)
 ├── Enemies
 │   ├── BaseHP, BaseSpeed, etc.
@@ -1786,16 +1794,16 @@ Each system should be verified against the original web game:
 | System | Test |
 |---|---|
 | Train movement | Reaches end at same relative time (10,000 / 167 = ~60s) |
-| Crew damage | Manual gun Lv1 deals 12 dmg, Lv5 deals 28 dmg |
+| Crew damage | Manual gun Lv1 deals 12 dmg, Lv5 deals 32 dmg |
 | Driver buff | Driver seat provides no damage multiplier (1.0x) |
 | Enemy HP scaling | Zone 1 base enemy: 20 HP. Zone 3 boss: ~40+ HP |
 | Turret burst | Lv3 fires 3 shots per burst |
-| Steam radius | Lv1: 80px equivalent, Lv5: 180px equivalent |
+| Auto Laser range | Lv1: 240px equivalent, scales with level |
 | Laser bounces | Lv1: 2 bounces, Lv5: 6 bounces |
 | Coin value | 10g per coin x greed multiplier |
 | Bandit steal rate | 5g/sec while on unmanned mount |
 | Coal consumption | 1 per hop, +2 per combat win |
-| Shop costs | Damage Lv1: 40g, Lv2: 80g, Lv3: 120g |
+| Shop costs | Damage: 40g/level, Kick Force: 40g/level, Max HP: 30g/level |
 | Level-up XP | Level 1→2: 80 XP (~7 kills), Level 5→6: 480 XP (~40 kills) |
 | Max crew | 2 (Rex + Kit, both available from the start) |
 | Game over types | 4 distinct screens: combat win, zone complete, world complete, death |
@@ -1892,7 +1900,7 @@ On `BP_CrewMember`, when role == Brawler:
    - **Get Overlapping Actors** on `GarlicZone`, filter to `BP_Enemy`
    - For each overlapping enemy:
      - Apply 14 damage
-     - **Add Impulse** away from Brawler position, strength 20000 (200 web units x 100)
+     - Set enemy's `KnockbackVelocity` += direction away from Brawler x 20000 (200 web units x 100). Do **not** use **Add Impulse** — enemies use manual movement, not physics. The knockback decays automatically in the enemy's Tick (see Step 5).
      - Spawn hit spark effect: **Spawn System at Location** (`NS_DamageParticles`) at enemy position
 
 ### Blueprint Graph — GarlicTick
@@ -1907,8 +1915,8 @@ On `BP_CrewMember`, when role == Brawler:
     │  Loop Body
     ▼
 ┌───────────────────────┐     ┌─────────────────────────┐     ┌──────────────────────┐
-│ 🔵 Apply Damage       │────►│ 🔵 Get Direction To      │────►│ 🔵 Add Impulse        │
-│   Damage: 14          │     │   (Enemy → Self)         │     │   Impulse: Dir × 20000│
+│ 🔵 Apply Damage       │────►│ 🔵 Get Direction To      │────►│ 🔵 Set KnockbackVel   │
+│   Damage: 14          │     │   (Enemy → Self)         │     │   += Dir × 20000      │
 │   Target: Enemy       │     │   → Negate (push away)   │     │   Target: Enemy        │
 └───────────────────────┘     └─────────────────────────┘     └──────────┬─────────────┘
                                                                          │
@@ -1932,7 +1940,7 @@ On `BP_CrewMember`, when role == Brawler:
 ### Key Blueprint Nodes
 - **Sphere Collision Component** → **Get Overlapping Actors**
 - **Set Timer by Event** (garlic tick interval)
-- **Add Impulse** (knockback on each tick)
+- **Get Unit Direction Vector** + set `KnockbackVelocity` (knockback on each tick — no physics impulse)
 - **Spawn System at Location** (hit sparks)
 - **Activate** / **Deactivate** (Niagara Component for aura ring)
 
@@ -1969,7 +1977,11 @@ In `BP_Bandit` (Fighting state entry), check the arriving crew's role:
 5. Launch bandit: **Set Actor Location** + **Timeline** over 0.4s lerping from `KickOrigin` to `KickLandingPoint` (add parabolic arc via Sin)
 6. On Timeline complete:
    - **UGameplayStatics::ApplyRadialDamage** centered on `KickLandingPoint`
-     - Damage: 60, Radius: 16000 cm, Damage Type: `UDamageType`
+     - Base Damage: 60, Damage Radius: 16000 cm
+     - Damage Causer: the Brawler `BP_CrewMember` actor
+     - Damage Type Class: `UDamageType::StaticClass()` (default)
+     - Instigated By: the owning Player Controller
+     - Ignore Actors: array containing the train and the bandit itself
    - Spawn `NS_ShockwaveEffect` at `KickLandingPoint`
    - Start fade-out: **Timeline** 0.3s lerping mesh opacity to 0
    - Deactivate bandit after fade
@@ -2079,7 +2091,7 @@ Assign `SM_Garlic` as the mount mesh when `AutoWeaponType == AutoLaser`. No sepa
 ### Layout
 - **Vertical Box** anchored to `Left Center` in the viewport
 - Each row: key icon (styled box) + action label in small text
-- Rows to include: Move (WASD), Cycle Crew (Tab), Select Crew (1/2), Pause (Space), Menu (Esc)
+- Rows to include: Aim (WASD/Arrows), Cycle Crew (Tab), Select Crew (1/2), Pause (Space), Menu (Esc)
 - Semi-transparent dark background panel
 
 ### Visibility

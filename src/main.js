@@ -15,7 +15,7 @@ import { CoinSystem } from './coins.js';
 import { BanditSystem, BANDIT_STATES } from './bandits.js';
 import { updateDamageAttribution, drawDamageAttribution, resetDamageAttribution } from './damageAttribution.js';
 import { Zone, STATION_TYPES } from './zone.js';
-import { playPowerup, startMusic, stopMusic, getMusicVolume, getSfxVolume, setMusicVolume, setSfxVolume, playLevelUpMp3, playZoneCompleteMp3, playWinWorldMp3, playDefeatMp3, preloadSfx, playWeaponAcquire, playWaveClear, updateLowHPWarning, stopLowHPWarning } from './audio.js';
+import { playPowerup, startMusic, stopMusic, getMusicVolume, getSfxVolume, setMusicVolume, setSfxVolume, playLevelUpMp3, playZoneCompleteMp3, playWinWorldMp3, playDefeatMp3, preloadSfx, playWeaponAcquire, playWaveClear, updateLowHPWarning, stopLowHPWarning, playBrawlerKick, playKickLand } from './audio.js';
 
 const STATES = {
   ZONE_MAP: 0, SETUP: 1, RUNNING: 2, LEVELUP: 3, PLACE_WEAPON: 4,
@@ -413,8 +413,8 @@ function updateSetup(dt) {
       lastTime = performance.now();
       selectedCrew = null;
       garlicSelected = false;
-      // Auto-pause for debugging gun/cone alignment
-      if (window.__mountDebug && window.__mountDebug.enabled) {
+      // Auto-pause for debugging gun/cone alignment (dev tools only)
+      if (window.DEVTOOLS && window.__mountDebug && window.__mountDebug.enabled) {
         state = STATES.RUN_PAUSE;
       }
       return;
@@ -576,8 +576,8 @@ function renderSetup() {
 const debugBtnRun = { x: CANVAS_WIDTH - 70, y: CANVAS_HEIGHT - 80, w: 60, h: 26 };
 
 function updateRun(dt) {
-  // Debug toggle button
-  if (input.clicked && input.hitRect(debugBtnRun.x, debugBtnRun.y, debugBtnRun.w, debugBtnRun.h)) {
+  // Debug toggle button (dev tools only)
+  if (window.DEVTOOLS && input.clicked && input.hitRect(debugBtnRun.x, debugBtnRun.y, debugBtnRun.w, debugBtnRun.h)) {
     debugMode = !debugMode;
   }
 
@@ -745,6 +745,7 @@ function updateRun(dt) {
     if (b._kickWorldX !== undefined) {
       const originScreen = renderer.pixelToScreen(b._kickWorldX, b._kickWorldY);
       renderer.spawnBrawlerKick(originScreen.x, originScreen.y, 80);
+      playBrawlerKick();
     }
   }
 
@@ -780,6 +781,7 @@ function updateRun(dt) {
     // Minimal shake — the shockwave ring IS the impact feedback
     train.shakeTimer = Math.max(train.shakeTimer, 0.05);
     train.shakeIntensity = 0.5;
+    playKickLand();
     // Project landing position to screen space (same as renderer does for bandits)
     const landScreen = renderer.pixelToScreen(kx, ky);
     renderer.spawnBrawlerKick(landScreen.x, landScreen.y, kickR);
@@ -1570,7 +1572,7 @@ function updateSettings() {
     return;
   }
 
-  if (input.clicked && input.hitRect(settingsDebugBtn.x, settingsDebugBtn.y, settingsDebugBtn.w, settingsDebugBtn.h)) {
+  if (window.DEVTOOLS && input.clicked && input.hitRect(settingsDebugBtn.x, settingsDebugBtn.y, settingsDebugBtn.w, settingsDebugBtn.h)) {
     debugMode = !debugMode;
   }
 
@@ -1594,22 +1596,24 @@ function renderSettings() {
   drawSlider(ctx, 'Music', SLIDER_X, 260, SLIDER_W, getMusicVolume());
   drawSlider(ctx, 'SFX', SLIDER_X, 330, SLIDER_W, getSfxVolume());
 
-  // Debug toggle button
-  const db = settingsDebugBtn;
-  const debugHovered = input.hitRect(db.x, db.y, db.w, db.h);
-  ctx.fillStyle = debugMode ? '#2a5e1e' : (debugHovered ? '#555' : '#333');
-  ctx.beginPath();
-  renderer.roundRect(db.x, db.y, db.w, db.h, 6);
-  ctx.fill();
-  ctx.strokeStyle = debugMode ? '#4a4' : '#555';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  renderer.roundRect(db.x, db.y, db.w, db.h, 6);
-  ctx.stroke();
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 14px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(debugMode ? 'Hitboxes: ON' : 'Hitboxes: OFF', CANVAS_WIDTH / 2, db.y + 23);
+  // Debug toggle button (dev tools only)
+  if (window.DEVTOOLS) {
+    const db = settingsDebugBtn;
+    const debugHovered = input.hitRect(db.x, db.y, db.w, db.h);
+    ctx.fillStyle = debugMode ? '#2a5e1e' : (debugHovered ? '#555' : '#333');
+    ctx.beginPath();
+    renderer.roundRect(db.x, db.y, db.w, db.h, 6);
+    ctx.fill();
+    ctx.strokeStyle = debugMode ? '#4a4' : '#555';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    renderer.roundRect(db.x, db.y, db.w, db.h, 6);
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(debugMode ? 'Hitboxes: ON' : 'Hitboxes: OFF', CANVAS_WIDTH / 2, db.y + 23);
+  }
 
   const bb = settingsBackBtn;
   const hovered = input.hitRect(bb.x, bb.y, bb.w, bb.h);
@@ -2167,8 +2171,8 @@ function loop(timestamp) {
   lastTime = timestamp;
   renderer.clear();
 
-  // F3 toggles debug hitboxes
-  if (input.keyPressed('F3')) debugMode = !debugMode;
+  // F3 toggles debug hitboxes (dev tools only)
+  if (window.DEVTOOLS && input.keyPressed('F3')) debugMode = !debugMode;
 
   // Space enters tactical pause from RUNNING
   if (state === STATES.RUNNING && input.keyPressed('Space')) {

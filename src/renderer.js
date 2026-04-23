@@ -1359,10 +1359,9 @@ export class Renderer {
       ctx.fillStyle = '#aaa';
       ctx.font = '10px monospace';
       const stats = [
-        `Crew: ${1 + u.crewSlots.level}/3`,
-        `Dmg: +${u.damage.level * 15}%  Shield: ${u.shield.level}`,
-        `Cool-off: -${u.coolOff.level * 10}%  Range: +${u.baseArea.level * 15}%`,
-        `HP: +${u.maxHp.level * 15}  Greed: +${u.greed.level * 20}%`,
+        `Gun Power: +${u.damage.level * 15}%`,
+        `Kick Force: Lv${u.kickForce ? u.kickForce.level : 0}`,
+        `HP: +${u.maxHp.level * 25}`,
       ];
       stats.forEach((s, i) => {
         ctx.fillText(s, panelX + 8, panelY + 28 + i * 14);

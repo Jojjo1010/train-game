@@ -107,7 +107,7 @@ Total train width = 4 * 32 + 3 * 6 = 146 px
 ### HP System
 
 - **Base Max HP:** 150
-- **Shop bonus:** +15 HP per Max Hull upgrade level
+- **Shop bonus:** +25 HP per Max Hull upgrade level
 - HP persists between encounters within a world (healed only by Regen or Repair)
 - **Damage flash** and **HP flash** visual feedback on hit
 - **Screen shake** on damage
@@ -285,9 +285,16 @@ Fires projectiles at the nearest enemy. No cone restriction — targets freely. 
 | Level | Damage | Fire Interval | Range |
 |-------|--------|---------------|-------|
 | 1     | 10     | 1.4s          | 240   |
-| (scales with level) |
+| 2     | 13     | 1.25s         | 260   |
+| 3     | 16     | 1.1s          | 280   |
+| 4     | 19     | 0.95s         | 300   |
+| 5     | 22     | 0.8s          | 320   |
 
-All stats (damage, fire interval, range) scale with level.
+```
+Damage per level:        +3
+Fire interval per level: -0.15s (minimum 0.3s)
+Range per level:         +20
+```
 
 ### Laser (Ricochet Shot)
 
@@ -327,7 +334,7 @@ Gained via level-up cards. **Maximum 2 defense slots** (Shield and Regen take sl
 ENEMY_BASE_HP        = 20
 ENEMY_BASE_SPEED     = 50 px/sec
 ENEMY_RADIUS         = 6 px
-ENEMY_CONTACT_DAMAGE = 6
+ENEMY_CONTACT_DAMAGE = 8
 ```
 
 ### Tiers
@@ -358,21 +365,21 @@ Combat encounters use a repeating wave cycle:
 ### Phase Cycle
 
 ```
-CALM (variable) ──> WARNING (3s) ──> SURGE (8s) ──> CALM ...
+CALM (5s) ──> WARNING (3s) ──> SURGE (5s) ──> CALM ...
 ```
 
 | Phase     | Duration | Spawn Multiplier | Description |
 |-----------|----------|-------------------|-------------|
-| **CALM**  | ~19s     | 0.6x              | Reduced spawning, collect coins, reposition crew |
+| **CALM**  | 5s       | 0.5x              | Reduced spawning, collect coins, reposition crew |
 | **WARNING** | 3s     | Normal             | "Scouts approaching" text, directional indicator |
-| **SURGE** | 8s       | 2.5x              | Intense spawning from indicated direction |
+| **SURGE** | 5s       | 2.0x              | Intense spawning from indicated direction |
 
-Full cycle duration: 30 seconds.
+Full cycle duration: 12 seconds (excluding warning overlap).
 
 ### Wave Escalation
 
 ```
-Difficulty per wave = baseRate * (1 + waveNumber * 0.15)
+Difficulty per wave = baseRate * (1 + waveNumber * 0.10)
 ```
 
 Each successive wave increases spawn rate and can introduce higher-tier enemies.
@@ -384,7 +391,7 @@ Each successive wave increases spawn rate and can introduce higher-tier enemies.
 
 ### Boss Stations
 
-Boss stations use an amplified surge multiplier of **3.5x** instead of 2.5x.
+Boss stations use an amplified surge multiplier of **3.5x** instead of the normal 2.0x.
 
 ### Station Combat Modifiers
 
@@ -411,7 +418,7 @@ Applied to specific stations on the zone map:
 
 ## 12. Bandits
 
-Bandits are a separate threat from enemies. They board the train and steal gold.
+Bandits are a separate threat from enemies. They board the train and occupy weapon mounts, disabling the weapon.
 
 ### States
 
@@ -423,22 +430,22 @@ RUNNING ──> JUMPING ──> ON_TRAIN ──> FIGHTING ──> DEAD
 |------------|-------------|
 | **RUNNING**  | Approaches train from off-screen, running alongside at ~110 px/sec |
 | **JUMPING**  | Leaps onto targeted mount (0.4s duration) |
-| **ON_TRAIN** | Sits on weapon mount, stealing gold |
+| **ON_TRAIN** | Sits on weapon mount, disabling the weapon |
 | **FIGHTING** | Crew member arrived — brief scuffle (0.5s) |
 | **DEAD**     | Kicked off the train, death animation |
 
 ### Stealing
 
 ```
-BANDIT_STEAL_RATE = 5 gold/sec (from runGold)
+BANDIT_STEAL_RATE = 0 gold/sec (currently disabled)
 ```
 
-Visual "-gold" numbers appear while stealing.
+Gold stealing is disabled. Bandits occupy weapon mounts, disabling the weapon, but do not drain gold.
 
 ### Spawn Timing
 
 ```
-BANDIT_SPAWN_INTERVAL = 15 sec (base, decreases with difficulty, minimum ~4s)
+BANDIT_SPAWN_INTERVAL = 12 sec (base, decreases with difficulty, minimum 3s)
 MAX_BANDITS           = 10 simultaneous
 ```
 
@@ -497,12 +504,11 @@ MAX_FLYING_COINS = 30
 Final gold value per coin:
 
 ```
-goldEarned = COIN_VALUE * cargoMultiplier * greedMultiplier * modifier.coinMult
+goldEarned = COIN_VALUE * cargoMultiplier * modifier.coinMult
 ```
 
 Where:
 - `cargoMultiplier` = 1.0 + cargoBoxes * 0.25 (default 2.0x)
-- `greedMultiplier` = 1.0 + greedLevel * 0.20 (from shop)
 - `modifier.coinMult` = station modifier bonus (Bounty = 2.0x)
 
 ### Station Gold Reward
@@ -601,10 +607,8 @@ The shop is accessible from the start screen. Gold is persistent across runs and
 | Upgrade        | Cost/Level | Max Level | Per Level          |
 |----------------|-----------|-----------|---------------------|
 | **Damage**     | 40        | 5         | +15% weapon damage  |
-| **Kick Force** | —         | —         | Increases Brawler kick AOE damage/radius |
-| **Max HP**     | 30        | 5         | +15 max HP          |
-
-Removed upgrades: Shield, Cool-off, Range, Greed, Crew Slots.
+| **Kick Force** | 40        | 5         | Increases Brawler kick AOE damage/radius |
+| **Max HP**     | 30        | 5         | +25 max HP          |
 
 ### Persistence
 
@@ -646,6 +650,25 @@ Floating numbers appear at hit location, rising and fading. Pool of 80 recycled 
 ### Hitstop
 
 On enemy kill: a **2-frame freeze** (`hitStopTimer`) creates a micro-pause for impact feel.
+
+### Hidden Mechanics
+
+These mechanics are invisible to the player (no UI indication) but affect gameplay:
+
+**Last-Stand Forgiveness:** When train HP drops below 15%, incoming damage is reduced by 30% for 3 seconds. This gives players a brief window to recover. The timer resets if HP is still below 15% when it expires.
+
+```
+Threshold:        15% of max HP
+Damage reduction: -30% (multiplier 0.7)
+Duration:         3 seconds
+```
+
+**Buddy Bonus:** When two crew members are on adjacent mounts (same weapon car), both deal +15% damage. This rewards clustering crew on the same car rather than spreading them across both weapon cars.
+
+```
+Bonus:     +15% damage (multiplier 1.15)
+Condition: Another crewed mount exists on the same car
+```
 
 ### Screen Shake
 

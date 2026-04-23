@@ -35,7 +35,7 @@ export const DRIVER_DAMAGE_BUFF = T('DRIVER_DAMAGE_BUFF', 1.0);
 // Crew
 export const CREW_REASSIGN_COOLDOWN = 1;
 export const CREW_RADIUS = 8;
-export const CREW_COLORS = ['#e74c3c', '#3498db', '#2ecc71'];
+export const CREW_COLORS = ['#e74c3c', '#3498db'];
 
 // Enemies
 export const ENEMY_BASE_HP = T('ENEMY_BASE_HP', 20);
