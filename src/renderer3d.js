@@ -352,14 +352,19 @@ export class Renderer3D {
       this.mountGroups.push({ group, currentType: null }); // track what's shown
     }
 
-    // Steam blast aura ring
+    // Garlic aura rings (pool of 2 for dual brawlers)
     const ringGeo = new THREE.RingGeometry(38, 42, 48);
     const ringMat = new THREE.MeshBasicMaterial({ color: 0x8ecae6, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
-    this.steamRing = new THREE.Mesh(ringGeo, ringMat);
-    this.steamRing.rotation.x = -Math.PI / 2;
-    this.steamRing.position.y = 1;
-    this.steamRing.visible = false;
-    this.scene.add(this.steamRing);
+    this.auraRings = [];
+    for (let i = 0; i < 2; i++) {
+      const ring = new THREE.Mesh(ringGeo, ringMat.clone());
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 1;
+      ring.visible = false;
+      this.scene.add(ring);
+      this.auraRings.push(ring);
+    }
+    this.steamRing = this.auraRings[0]; // backward compat
 
     // Crew walking spheres
     this.crewMoveMeshes = [];
@@ -1134,33 +1139,37 @@ export class Renderer3D {
 
   drawSteamBlastAura(train) {
     const brawlerMounts = train.allMounts.filter(mt => mt.isManned && mt.crew && mt.crew.role === 'Brawler');
-    if (brawlerMounts.length === 0) {
-      this.steamRing.visible = false;
-      return;
-    }
+
+    // Hide all aura rings first
+    for (const ring of this.auraRings) ring.visible = false;
+
+    if (brawlerMounts.length === 0) return;
 
     const now = performance.now();
     const ctx = this.ctx;
     const baseR = BRAWLER_GARLIC.radius;
 
-    // Position 3D ring on the first brawler mount
-    const first = brawlerMounts[0];
-    const firstIdx = train.allMounts.indexOf(first);
-    const firstDisabled = first._bandit;
-    const pulse0 = firstDisabled ? 1.0 : 1 + Math.sin(now * 0.004) * 0.12;
-    const r0 = baseR * (train.totalAreaMultiplier || 1) * pulse0;
-    const offset3D = firstIdx >= 0 && firstIdx < this.mountOffsets3D.length
-      ? this.mountOffsets3D[firstIdx] : null;
-    if (offset3D) {
-      this.steamRing.position.x = offset3D.x;
-      this.steamRing.position.z = offset3D.z;
-    } else {
-      const w = toWorld(first.worldX, first.worldY);
-      this.steamRing.position.x = w.x;
-      this.steamRing.position.z = w.z;
+    // Position 3D rings for each brawler mount
+    for (let bi = 0; bi < brawlerMounts.length && bi < this.auraRings.length; bi++) {
+      const m = brawlerMounts[bi];
+      const ring = this.auraRings[bi];
+      const disabled = m._bandit;
+      const pulse = disabled ? 1.0 : 1 + Math.sin(now * 0.004) * 0.12;
+      const r = baseR * (train.totalAreaMultiplier || 1) * pulse;
+      const mIdx = train.allMounts.indexOf(m);
+      const off = mIdx >= 0 && mIdx < this.mountOffsets3D.length ? this.mountOffsets3D[mIdx] : null;
+      if (off) {
+        ring.position.x = off.x;
+        ring.position.z = off.z;
+      } else {
+        const w = toWorld(m.worldX, m.worldY);
+        ring.position.x = w.x;
+        ring.position.z = w.z;
+      }
+      const scale = r / 40;
+      ring.scale.set(scale, scale, scale);
+      ring.visible = !disabled;
     }
-    this.steamRing.scale.set(r0 / 40, r0 / 40, r0 / 40);
-    this.steamRing.visible = !firstDisabled;
 
     // Draw 2D overlay for ALL brawler mounts
     for (const m of brawlerMounts) {
