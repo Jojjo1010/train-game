@@ -2044,7 +2044,7 @@ function updateStartScreen() {
 }
 
 function renderStartScreen() {
-  renderer.drawStartScreen(startScreenBtns, input);
+  renderer.drawStartScreen(startScreenBtns, input, save.gold);
   renderer.flush();
 }
 

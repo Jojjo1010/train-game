@@ -4032,7 +4032,7 @@ export class Renderer3D {
   // =============================================
   // START SCREEN
   // =============================================
-  drawStartScreen(btn, input) {
+  drawStartScreen(btn, input, gold = 0) {
     const ctx = this.ctx;
     const cx = CANVAS_WIDTH / 2;
     const t = performance.now() * 0.001;
@@ -4085,6 +4085,12 @@ export class Renderer3D {
     ctx.shadowBlur = 24;
     ctx.fillText('TRAIN DEFENSE', cx, 180);
     ctx.shadowBlur = 0;
+
+    // Gold display
+    ctx.fillStyle = '#f5a623';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`\uD83D\uDCB0 ${gold} Gold`, cx, btn.start.y - 16);
 
     // Buttons — all same style, stacked vertically
     const buttons = [
