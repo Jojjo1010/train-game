@@ -264,13 +264,14 @@ export class CombatSystem {
       if (mount.cooldownTimer > 0) continue;
 
       if (manned) {
+        // Brawler never shoots — garlic AOE handled above
+        if (mount.crew.role === 'Brawler') continue;
+
         // --- Manned: full power, crew bonuses apply ---
         let angle;
         if (mount.crew === selectedCrew && mount._fireAngle2D !== undefined) {
-          // Selected crew: fire where the mouse/gun is pointing
           angle = mount._fireAngle2D;
         } else {
-          // Unselected manned crew: auto-target nearest enemy in cone
           const target = this.findTarget(mount, enemies, areaMult);
           if (!target) continue;
           angle = this.leadAngle(mount, target);
@@ -279,7 +280,6 @@ export class CombatSystem {
         let damage = mount.damage * train.totalDamageMultiplier * banditMult;
         if (hasDriver) damage *= DRIVER_DAMAGE_BUFF;
         if (mount.crew.role === 'Gunner') damage *= GUNNER_DAMAGE_MULT;
-        if (mount.crew.role === 'Brawler') damage *= BRAWLER_DAMAGE_MULT;
         if (train.hasBuddyBonus(mount)) damage *= 1.15;
 
         this.fireProjectile(mount.worldX, mount.worldY, angle, damage, 'crew', mount.crew.color);
