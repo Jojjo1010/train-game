@@ -1512,18 +1512,29 @@ export class Renderer3D {
           mesh.children.forEach(c => { if (c.material) c.material.color.setHex(color); });
           // Fade on death
           if (b.state === 4) {
-            const fadeTime = b._brawlerKicked ? 1.8 : 0.6;
-            const alpha = b._brawlerKicked && !b._kickLanded
-              ? 1.0 // fully visible while flying
-              : Math.max(0, (b._landTimer || b.timer) / (fadeTime * 0.3)); // fade after landing
-            mesh.children.forEach(c => {
-              if (c.material) { c.material.transparent = true; c.material.opacity = Math.min(1, alpha); }
-            });
-            mesh.rotation.y += b._brawlerKicked ? 0.5 : 0.1; // spin much faster when kicked
-            if (b._brawlerKicked) {
-              const tProgress = 1 - b.timer / fadeTime;
-              // Parabolic arc: rises then falls
-              mesh.position.y = 4 + Math.sin(tProgress * Math.PI) * 60;
+            if (b._brawlerKicked && !b._kickLanded) {
+              // Flying phase: fully visible, spinning, arc upward
+              mesh.children.forEach(c => {
+                if (c.material) { c.material.transparent = false; c.material.opacity = 1; }
+              });
+              mesh.rotation.y += 0.5;
+              const flightTotal = 0.6; // must match bandits.js kick timer
+              const tProgress = 1 - Math.max(0, b.timer) / flightTotal;
+              mesh.position.y = 4 + Math.sin(tProgress * Math.PI) * 30;
+            } else if (b._brawlerKicked && b._kickLanded) {
+              // Landed: fade out quickly on the ground
+              const alpha = Math.max(0, b.timer / 0.3);
+              mesh.children.forEach(c => {
+                if (c.material) { c.material.transparent = true; c.material.opacity = alpha; }
+              });
+              mesh.position.y = 4;
+            } else {
+              // Normal death: fade + slow spin
+              const alpha = Math.max(0, b.timer / 0.6);
+              mesh.children.forEach(c => {
+                if (c.material) { c.material.transparent = true; c.material.opacity = alpha; }
+              });
+              mesh.rotation.y += 0.1;
             }
           } else {
             mesh.children.forEach(c => {
