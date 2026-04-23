@@ -1787,7 +1787,7 @@ Each system should be verified against the original web game:
 |---|---|
 | Train movement | Reaches end at same relative time (10,000 / 167 = ~60s) |
 | Crew damage | Manual gun Lv1 deals 12 dmg, Lv5 deals 28 dmg |
-| Driver buff | All weapons deal 1.5x with crew on driver seat |
+| Driver buff | Driver seat provides no damage multiplier (1.0x) |
 | Enemy HP scaling | Zone 1 base enemy: 20 HP. Zone 3 boss: ~40+ HP |
 | Turret burst | Lv3 fires 3 shots per burst |
 | Steam radius | Lv1: 80px equivalent, Lv5: 180px equivalent |
@@ -1797,10 +1797,228 @@ Each system should be verified against the original web game:
 | Coal consumption | 1 per hop, +2 per combat win |
 | Shop costs | Damage Lv1: 40g, Lv2: 80g, Lv3: 120g |
 | Level-up XP | Level 1→2: 80 XP (~7 kills), Level 5→6: 480 XP (~40 kills) |
-| Max crew | 3 (1 base + 2 unlockable at 300g each) |
+| Max crew | 2 (Rex + Kit, both available from the start) |
 | Game over types | 4 distinct screens: combat win, zone complete, world complete, death |
 | Object pools | 150 enemies + 300 projectiles at 60fps stable |
 | Save/Load | Gold, upgrades, and volumes persist across sessions |
+
+---
+
+---
+
+## Step 21: Crew Role System (Gunner / Brawler)
+
+**Goal:** Implement the per-world role selection UI and role-specific combat behavior.
+
+### What to Create
+- **WBP_CrewRoleSelect** Widget Blueprint — shown before entering the world map
+- **DA_CrewRole** Data Asset per role — stores damage multipliers, fight duration overrides, etc.
+- Role-specific behavior branches on `BP_CrewMember` and `BP_Bandit`
+
+### DA_CrewRole (Data Asset)
+Create a `DA_CrewRole` Primary Data Asset with fields:
+
+| Field | Type | Gunner Value | Brawler Value |
+|---|---|---|---|
+| `RoleName` | String | "Gunner" | "Brawler" |
+| `DamageMultiplier` | Float | 1.6 | 0.0 (no gun) |
+| `HasGun` | Bool | true | false |
+| `HasGarlic` | Bool | false | true |
+| `BanditFightDurationMultiplier` | Float | 2.0 | 0.0 (instant kick) |
+| `KickDamage` | Float | 0.0 | 60.0 |
+| `KickRadius` | Float | 0.0 | 160.0 (cm x100) |
+
+### WBP_CrewRoleSelect — Card Selection UI
+1. Create a **WBP_CrewRoleSelect** widget with a card-based layout
+2. Display one crew card per crew member, each with two selectable role tiles: Gunner / Brawler
+3. Show role description and stat preview on hover
+4. "Confirm" button locks in choices and transitions to `WorldMap` state
+5. Trigger this screen after `WorldSelect` — before entering the zone map
+
+### Role Assignment (on BP_CrewMember)
+Add a `CrewRole` variable (type: Enum `ECrewRole` with values `Gunner`, `Brawler`). On role set:
+- Store reference to matching `DA_CrewRole`
+- If `Brawler`: disable gun firing logic, activate garlic AOE component
+- If `Gunner`: enable gun firing logic, apply `DamageMultiplier` to all projectile damage
+
+### Verify
+- [ ] Role selection screen appears after world select, before world map
+- [ ] Both crew cards are shown, each with Gunner/Brawler options
+- [ ] Same role can be selected for both crew (e.g. 2 Brawlers)
+- [ ] Role is stored per crew member and persists through the world
+- [ ] Gunner crew fires projectiles with 1.6x damage multiplier
+- [ ] Brawler crew shows garlic aura, does not fire projectiles
+- [ ] Role resets between worlds
+
+---
+
+## Step 22: Brawler Garlic AOE Weapon
+
+**Goal:** Brawler crew continuously damages nearby enemies via a sphere overlap, with knockback and an aura visual.
+
+### What to Create
+- **USphereComponent** on `BP_CrewMember` for garlic overlap detection
+- Timer-based damage tick on the Brawler crew member
+- **NS_GarlicAura** Niagara ring attached to mount socket
+
+### Garlic Overlap & Damage Tick
+On `BP_CrewMember`, when role == Brawler:
+1. Add a **Sphere Collision Component** (`GarlicZone`), radius = 5000 cm (50 web px x 100)
+2. On **BeginPlay** (when Brawler role is set): **Set Timer by Event** every 0.4s → `GarlicTick`
+3. **GarlicTick** custom event:
+   - **Get Overlapping Actors** on `GarlicZone`, filter to `BP_Enemy`
+   - For each overlapping enemy:
+     - Apply 14 damage
+     - **Add Impulse** away from Brawler position, strength 20000 (200 web units x 100)
+     - Spawn hit spark effect: **Spawn System at Location** (`NS_DamageParticles`) at enemy position
+
+### Garlic Aura Visual
+1. Create a **Niagara System** `NS_GarlicAura`:
+   - Ring shape emitter, radius matching `GarlicZone` (5000 cm)
+   - Continuous loop while active
+   - Subtle pulsing glow to indicate damage area
+2. Attach `NS_GarlicAura` to the mount's weapon socket
+3. One Niagara Component per Brawler crew member — activate when Brawler arrives at a mount, deactivate when they leave
+4. No 3D weapon mesh on the mount for Brawler crew
+
+### Key Blueprint Nodes
+- **Sphere Collision Component** → **Get Overlapping Actors**
+- **Set Timer by Event** (garlic tick interval)
+- **Add Impulse** (knockback on each tick)
+- **Spawn System at Location** (hit sparks)
+- **Activate** / **Deactivate** (Niagara Component for aura ring)
+
+### Verify
+- [ ] Garlic zone damages all enemies within 5000 cm every 0.4s
+- [ ] Knockback pushes enemies away from Brawler position
+- [ ] Hit sparks appear on each tick
+- [ ] Aura ring is visible around Brawler's mount
+- [ ] Aura disappears when Brawler leaves the mount
+- [ ] No projectiles are fired from Brawler mounts
+
+---
+
+## Step 23: Brawler Kick Mechanic
+
+**Goal:** Brawler crew instantly kick bandits off the train, launching them into nearby enemies for AOE damage.
+
+### What to Create
+- Kick logic on `BP_Bandit` (triggered when Brawler crew arrives at an occupied mount)
+- **NS_ShockwaveEffect** Niagara system for impact visuals
+
+### Kick Trigger
+In `BP_Bandit` (Fighting state entry), check the arriving crew's role:
+- **Gunner:** proceed with normal fight duration (2x base)
+- **Brawler:** skip fight duration entirely, immediately call `BrawlerKick`
+
+### BrawlerKick Custom Event (on BP_Bandit)
+1. Record `KickOrigin` = current bandit world position
+2. Find nearest enemy cluster: **Sphere Overlap Actors** centered on bandit, radius 10000 cm (100 web px x 100)
+   - Pick the actor in the center of the cluster (or the nearest one if cluster is empty)
+   - Cap flight distance: max 10000 cm
+3. `KickLandingPoint` = position of target (or `KickOrigin` + max offset if no target)
+4. Spawn `NS_ShockwaveEffect` at `KickOrigin`
+5. Launch bandit: **Set Actor Location** + **Timeline** over 0.4s lerping from `KickOrigin` to `KickLandingPoint` (add parabolic arc via Sin)
+6. On Timeline complete:
+   - **UGameplayStatics::ApplyRadialDamage** centered on `KickLandingPoint`
+     - Damage: 60, Radius: 16000 cm, Damage Type: `UDamageType`
+   - Spawn `NS_ShockwaveEffect` at `KickLandingPoint`
+   - Start fade-out: **Timeline** 0.3s lerping mesh opacity to 0
+   - Deactivate bandit after fade
+
+### NS_ShockwaveEffect
+Create a Niagara system with a quick expanding ring and brief flash:
+- Ring emitter expanding from 0 to 16000 cm radius over 0.2s
+- High emissive burst, fades to 0 opacity
+
+### Key Blueprint Nodes
+- **Sphere Overlap Actors** (find nearby enemy cluster)
+- **Timeline** (parabolic flight arc + fade-out)
+- **Apply Radial Damage** (`UGameplayStatics::ApplyRadialDamage`)
+- **Set Scalar Parameter** on dynamic material (fade opacity)
+- **Spawn System at Location** (shockwave at origin and landing)
+
+### Verify
+- [ ] Brawler arriving at a bandit-occupied mount triggers an instant kick (no fight wait)
+- [ ] Bandit flies toward nearest enemy cluster in a parabolic arc over 0.4s
+- [ ] AOE damage (60 dmg, 160 radius) is applied at the landing point
+- [ ] Shockwave visual plays at both kick origin and landing point
+- [ ] Bandit fades out over 0.3s after landing
+- [ ] Gunner crew still uses the 2x fight duration path (not instant kick)
+
+---
+
+## Step 24: Auto Laser Weapon
+
+**Goal:** A projectile-firing auto-weapon that targets the nearest enemy without any cone restriction.
+
+### What to Create
+- Auto Laser firing logic on weapon mounts (extending the existing auto-weapon system from Step 9)
+- Uses the Garlic 3D model (`SM_Garlic` / `Garlic.fbx`) as the mount visual
+
+### Implementation
+The Auto Laser works identically to the Turret, with two differences:
+
+1. **No cone restriction.** When finding the nearest enemy, use a full **Sphere Overlap Actors** search — do not apply the `ConeHalfAngle` filter. Compare to Turret which restricts to a 90° arc.
+2. **Single projectile per fire** (at base level). Uses the same `BP_Projectile` pool as the Turret.
+
+In the mount's `AutoWeaponType` enum, add `AutoLaser`. In the firing Tick:
+```
+If AutoWeaponType == AutoLaser:
+  Check cooldown (FireInterval = 1.4s base)
+  FindNearestEnemy() — full sphere, no cone
+  FireProjectile toward enemy with base damage 10
+  Reset cooldown
+```
+
+`FindNearestEnemy()` — shared utility function:
+1. **Sphere Overlap Actors** at mount position, radius = weapon range
+2. Filter to active `BP_Enemy`
+3. Return actor with smallest distance to mount
+
+In `DA_WeaponStats`, add Auto Laser rows (same structure as Turret rows).
+
+### Mount Visual
+Assign `SM_Garlic` as the mount mesh when `AutoWeaponType == AutoLaser`. No separate model is needed — reuse the existing Garlic FBX from the asset pipeline.
+
+### Verify
+- [ ] Auto Laser fires projectiles at the nearest enemy every 1.4s (base)
+- [ ] Targets enemies in any direction — no cone angle filter
+- [ ] Turret still uses its 90° cone (Auto Laser does not affect Turret behavior)
+- [ ] Garlic mesh appears on the mount when Auto Laser is equipped
+- [ ] Stats scale with level (damage, interval, range)
+- [ ] Auto Laser can be acquired as a level-up card and placed on a mount
+
+---
+
+## Step 25: Controls Legend HUD Element
+
+**Goal:** A persistent key bindings reference displayed on the left side of the viewport during runs.
+
+### What to Create
+- **WBP_ControlsLegend** Widget Blueprint, anchored to the left side of the viewport
+
+### Layout
+- **Vertical Box** anchored to `Left Center` in the viewport
+- Each row: key icon (styled box) + action label in small text
+- Rows to include: Move (WASD), Cycle Crew (Tab), Select Crew (1/2), Pause (Space), Menu (Esc)
+- Semi-transparent dark background panel
+
+### Visibility
+- Show `WBP_ControlsLegend` during `Running` and `RUN_PAUSE` states
+- Hide during all other states (menus, setup, level-up, etc.)
+- Add/remove in `ChangeState` alongside `WBP_GameHUD`
+
+### Key Blueprint Nodes
+- **Anchor** = Left Center (in the UMG Anchors preset)
+- **Vertical Box** (rows of key + label pairs)
+- **Set Visibility** (show/hide with game state)
+
+### Verify
+- [ ] Controls legend is visible on the left side during gameplay
+- [ ] Legend hides during menus, setup, and level-up
+- [ ] Key labels are legible without obstructing gameplay
+- [ ] Tab key is listed for cycling crew selection
 
 ---
 

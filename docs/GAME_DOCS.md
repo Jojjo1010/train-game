@@ -73,12 +73,14 @@ START_SCREEN ──┬──> WORLD_SELECT ──> ZONE_MAP ──> SETUP ──
 ## 3. Start Screen
 
 - **Title:** Static golden title text ("TRAIN DEFENSE") with glow
+- **Gold display:** Persistent gold shown above the menu buttons
 - **3D Train Model:** Actual 3D train mesh slowly rotating, visible through semi-transparent overlay with vignette. All other gameplay objects (enemies, mounts, rails) hidden.
 - **Buttons:** 3 vertically stacked golden buttons:
   1. **Start Game** — enters WORLD_SELECT
   2. **Power Ups** — enters SHOP
   3. **Settings** — enters SETTINGS
 - No subtitle text
+- No dust particles
 
 ---
 
@@ -104,7 +106,7 @@ Total train width = 4 * 32 + 3 * 6 = 146 px
 
 ### HP System
 
-- **Base Max HP:** 100
+- **Base Max HP:** 150
 - **Shop bonus:** +15 HP per Max Hull upgrade level
 - HP persists between encounters within a world (healed only by Regen or Repair)
 - **Damage flash** and **HP flash** visual feedback on hit
@@ -124,14 +126,25 @@ Starting cargo boxes: 4 (so starting multiplier = 2.0x). Applies to gold earned 
 
 ### Crew Members
 
-| ID | Name | Color   | Role     | Bonus |
-|----|------|---------|----------|-------|
-| 0  | Rex  | Red     | Gunner   | +20% weapon damage (not yet implemented as passive; planned) |
-| 1  | Kit  | Blue    | Engineer | 15% faster auto-weapon fire rate (planned) |
-| 2  | Rosa | Green   | Medic    | +2 HP/sec regeneration (planned) |
+| ID | Name | Color |
+|----|------|-------|
+| 0  | Rex  | Red   |
+| 1  | Kit  | Blue  |
 
-- Start with 1 crew member (Rex). Additional crew unlocked via Crew Slots shop upgrade (max 3 total).
-- Colors: `#e74c3c` (red), `#3498db` (blue), `#2ecc71` (green)
+- Start with **2 crew members** (Rex and Kit). Max 2 crew — no additional unlocks.
+- Colors: `#e74c3c` (red), `#3498db` (blue)
+- Rosa (green) has been removed from the game.
+
+### Crew Roles
+
+Before entering each world, players choose a **role** for each crew member in the "CHOOSE YOUR CREW" UI. Roles are picked per-world (reset between worlds). Both crew can have the same role (e.g. 2 Brawlers).
+
+| Role    | Gun? | Bonus |
+|---------|------|-------|
+| **Gunner**  | Yes | +60% gun damage (`GUNNER_DAMAGE_MULT = 1.6`). 2x bandit fight duration. |
+| **Brawler** | No  | No manual gun. Has garlic AOE weapon instead (see Section 5.1). Instantly kicks bandits off with AOE landing damage. |
+
+The role selection screen ("CHOOSE YOUR CREW") appears after world selection, before entering the world map.
 
 ### Movement
 
@@ -146,12 +159,29 @@ DOOR_PAUSE      = 0.35 sec (delay when passing through a door between cars)
 - Doors visually open/close as crew pass through
 - Each car has a right-side door connecting to the next car
 
+### 5.1 Brawler Garlic AOE Weapon
+
+Brawler crew do not fire a manual gun. Instead, they project a garlic aura that damages all nearby enemies continuously.
+
+```
+GARLIC_RADIUS      = 50 px
+GARLIC_DAMAGE      = 14 per tick
+GARLIC_TICK_RATE   = 0.4s
+GARLIC_KNOCKBACK   = 200 (impulse per tick)
+```
+
+- Enemies within radius are damaged every 0.4s and knocked back (200 strength).
+- Hit sparks appear on each tick for visual feedback.
+- A 3D aura ring (using the Garlic model) is displayed around the Brawler's mount to show the damage area. One ring per Brawler.
+- No 3D weapon model is shown on the mount itself.
+- No projectiles are fired.
+
 ### Driver Seat
 
 Located at the center of the locomotive (car index 3). A crew member in the driver seat provides:
 
 ```
-DRIVER_DAMAGE_BUFF = 1.5x damage to all weapons
+DRIVER_DAMAGE_BUFF = 1.0x (no damage bonus)
 ```
 
 The driver does not operate a weapon mount.
@@ -188,6 +218,8 @@ Mount offset from car edge: MOUNT_RADIUS + 2 = 10 px
 
 A mount can hold either a crew member OR an auto-weapon, never both.
 
+**Unmanned mounts do not auto-fire.** Only mounts with a crew member or an installed auto-weapon will shoot.
+
 ---
 
 ## 7. Manual Weapons (Crew Guns)
@@ -212,10 +244,13 @@ Range per level:     +15
 
 ### Aiming
 
-- **Selected crew:** Weapon aims toward mouse cursor (clamped to mount's firing cone)
-- **Unselected crew:** Auto-targets nearest enemy within range and cone
+Applies to **Gunner** crew only. Brawler crew do not fire projectiles (see Section 5.1).
+
+- **Selected crew (Gunner):** Weapon aims toward mouse cursor, clamped to a screen-space cone angle
+- **Unselected crew (Gunner):** Auto-targets nearest enemy within range and cone
 - **Keyboard aiming:** WASD / Arrow keys rotate weapon direction at 2.5 rad/sec
 - Cone angle clamped to `baseDirection +/- 90 deg` (180 deg total arc)
+- Damage is multiplied by `GUNNER_DAMAGE_MULT = 1.6`
 
 ### Projectiles
 
@@ -229,7 +264,7 @@ PROJECTILE_RADIUS   = 3 px
 
 ## 8. Auto-Weapons
 
-Gained via level-up cards. **Maximum 2 auto-weapons** equipped at a time. Each must be placed on a weapon mount.
+Gained via level-up cards (not selected at start). **Maximum 2 auto-weapons** equipped at a time. Each must be placed on a weapon mount.
 
 ### Turret
 
@@ -243,17 +278,16 @@ Burst-fire projectile weapon that auto-targets nearest enemy.
 | 4     | 4           | 16     | 0.9s          | 310   |
 | 5     | 5           | 18     | 0.8s          | 330   |
 
-### Steam Blast
+### Auto Laser
 
-Aura damage that hits all enemies within radius. No projectiles.
+Fires projectiles at the nearest enemy. No cone restriction — targets freely. Uses the Garlic 3D model for its mount visuals.
 
-| Level | Radius | Damage/Tick | Tick Rate |
-|-------|--------|-------------|-----------|
-| 1     | 80     | 4           | 0.50s     |
-| 2     | 105    | 7           | 0.45s     |
-| 3     | 130    | 10          | 0.40s     |
-| 4     | 155    | 13          | 0.35s     |
-| 5     | 180    | 16          | 0.30s     |
+| Level | Damage | Fire Interval | Range |
+|-------|--------|---------------|-------|
+| 1     | 10     | 1.4s          | 240   |
+| (scales with level) |
+
+All stats (damage, fire interval, range) scale with level.
 
 ### Laser (Ricochet Shot)
 
@@ -267,7 +301,9 @@ Fires a bolt that bounces between enemies.
 | 4     | 5       | 17     | 1.6s          | 375   |
 | 5     | 6       | 20     | 1.3s          | 400   |
 
-Auto-weapons use a narrower cone: **90 deg total** (vs 180 deg for manual).
+**Note:** Steam Blast has been removed from the game.
+
+Auto-weapons use a narrower cone: **90 deg total** (vs 180 deg for manual). The Auto Laser has no cone restriction.
 
 ---
 
@@ -408,7 +444,21 @@ MAX_BANDITS           = 10 simultaneous
 
 ### Defeating Bandits
 
-When a crew member is assigned to a mount occupied by a bandit, the crew walks to that mount. Upon arrival, a fight plays out over `BANDIT_FIGHT_DURATION` (0.5s), after which the bandit is ejected.
+When a crew member is assigned to a mount occupied by a bandit, the crew walks to that mount. What happens on arrival depends on the crew member's **role**:
+
+**Gunner:**
+- A fight plays out over `BANDIT_FIGHT_DURATION` (2x the base duration — Gunner has 2x fight time).
+
+**Brawler:**
+- The bandit is **instantly kicked** — no fight duration.
+- The bandit flies toward the nearest enemy cluster (up to 100 px away, 0.4s flight).
+- On landing: AOE damage centered on the landing point.
+  ```
+  BRAWLER_KICK_DAMAGE = 60
+  BRAWLER_KICK_RADIUS = 160
+  ```
+- A **shockwave visual** plays at both the kick origin and the landing point.
+- The bandit fades out after landing (0.3s fade).
 
 ### First-Boarding Tooltip
 
@@ -479,8 +529,8 @@ On level-up, the game pauses and presents **3 random cards** drawn from the pool
 
 | Card Type          | Effect |
 |--------------------|--------|
-| Manual Gun Upgrade | Increase one crew member's weapon level |
-| New Auto-Weapon    | Acquire Turret, Steam Blast, or Laser (then place on mount) |
+| Manual Gun Upgrade | Increase a Gunner crew member's weapon level |
+| New Auto-Weapon    | Acquire Turret, Auto Laser, or Laser (Ricochet) (then place on mount) |
 | Auto-Weapon Upgrade| Level up an existing auto-weapon |
 | Shield (new/upgrade)| Add or upgrade Shield defense |
 | Regen (new/upgrade)| Add or upgrade Regen defense |
@@ -548,15 +598,13 @@ The shop is accessible from the start screen. Gold is persistent across runs and
 
 ### Upgrades
 
-| Upgrade      | Cost/Level | Max Level | Per Level       |
-|--------------|-----------|-----------|-----------------|
-| **Damage**   | 40        | 5         | +15% weapon damage |
-| **Shield**   | 35        | 5         | -2 damage per hit |
-| **Cool-off** | 45        | 5         | -10% cooldown    |
-| **Max Hull** | 30        | 5         | +15 max HP       |
-| **Range**    | 40        | 5         | +15% weapon range |
-| **Greed**    | 60        | 3         | +20% gold from coins |
-| **Crew Slots** | 300     | 2         | Unlock 1 crew member |
+| Upgrade        | Cost/Level | Max Level | Per Level          |
+|----------------|-----------|-----------|---------------------|
+| **Damage**     | 40        | 5         | +15% weapon damage  |
+| **Kick Force** | —         | —         | Increases Brawler kick AOE damage/radius |
+| **Max HP**     | 30        | 5         | +15 max HP          |
+
+Removed upgrades: Shield, Cool-off, Range, Greed, Crew Slots.
 
 ### Persistence
 
@@ -593,7 +641,7 @@ KNOCKBACK_DECAY    = 12/sec (exponential)
 
 ### Damage Numbers
 
-Floating numbers appear at hit location, rising and fading. Pool of 80 recycled instances.
+Floating numbers appear at hit location, rising and fading. Pool of 80 recycled instances. Displayed damage is **capped at the enemy's remaining HP** (no overkill numbers).
 
 ### Hitstop
 
@@ -671,12 +719,17 @@ Pre-loaded audio assets:
 | Key           | State    | Action |
 |---------------|----------|--------|
 | `1`, `2`, `3` | RUNNING, SETUP | Select crew member by index |
+| `Tab`         | SETUP, RUNNING, RUN_PAUSE | Cycle crew selection |
 | `W/A/S/D`     | RUNNING  | Rotate selected weapon aim direction |
 | Arrow keys    | RUNNING  | Rotate selected weapon aim direction |
 | `Escape`      | RUNNING  | Open pause menu |
 | `Space`       | RUNNING  | Tactical pause (RUN_PAUSE) |
 | `Space`       | RUN_PAUSE | Resume gameplay |
 | `D`           | ZONE_MAP | Debug mode toggle |
+
+### Controls Legend
+
+A controls legend (key bindings reference) is displayed on the left side of the screen during runs.
 
 ### State-Specific Controls
 
@@ -696,15 +749,11 @@ Pre-loaded audio assets:
 
 ### Driver Buff
 
-Placing a crew member in the locomotive's driver seat applies a global **1.5x damage multiplier** to all weapons on the train. The driver cannot operate a weapon mount.
+Placing a crew member in the locomotive's driver seat applies no damage multiplier (`DRIVER_DAMAGE_BUFF = 1.0`). The driver does not operate a weapon mount.
 
-### Engineer Bonus (Role)
+### Crew Roles
 
-Engineer crew (Kit, blue) provides 15% faster fire rate for auto-weapons when assigned.
-
-### Medic Bonus (Role)
-
-Medic crew (Rosa, green) provides +2 HP/sec regeneration when assigned.
+See Section 5 for Gunner and Brawler role details. Roles replace the old Engineer/Medic bonus system.
 
 ### Cargo Multiplier
 
