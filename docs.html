@@ -212,6 +212,21 @@
       <h2 style="color:var(--accent); margin-bottom:24px;">Changelog</h2>
 
       <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
+  <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-23 — Brawler Garlic AOE &amp; Auto Laser</h3>
+  <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
+    <li><strong>Crew roles:</strong> Pick Gunner or Brawler before each world (no weapon slot at start)</li>
+    <li><strong>Brawler garlic:</strong> AOE damage aura (50 radius, 14 dmg/0.4s) with knockback + hit sparks</li>
+    <li><strong>Brawler kick:</strong> Instant bandit kick, flies toward enemy cluster, AOE landing damage (60 dmg, 160 radius)</li>
+    <li><strong>Auto Laser:</strong> Replaces Steam Blast — fires projectiles at nearest enemy, uses Garlic 3D model</li>
+    <li><strong>Controls:</strong> Tab cycles crew selection, controls legend visible on left during runs</li>
+    <li><strong>Unmanned mounts:</strong> No longer auto-fire</li>
+    <li><strong>Damage numbers:</strong> Capped at enemy's remaining HP</li>
+    <li><strong>Start screen:</strong> Gold displayed above buttons, dust particles removed</li>
+    <li><strong>Shop simplified:</strong> Only Damage, Kick Force, Max HP upgrades</li>
+  </ul>
+</div>
+
+      <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
         <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Spectacular Brawler Kick VFX</h3>
         <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
           <li><strong>Extreme launch velocity:</strong> Kicked bandits now fly 2-3x faster/higher (deathVx 400-600, deathVy -500 to -700) with longer flight time (1.8s)</li>
@@ -261,6 +276,7 @@
           <li><strong>Engineer (Kit):</strong> 2x fire rate on auto-weapons (was 1.15x) — makes auto-weapons viable as primary damage</li>
           <li><strong>Medic (Rosa):</strong> HP regen only activates after 3+ seconds stationary — repositioning has a real cost</li>
           <li>Updated crew tooltip text to reflect new dramatic bonuses</li>
+          <li><strong>Superseded (2026-04-23):</strong> Engineer and Medic roles removed — replaced by Gunner/Brawler pick system before each world</li>
         </ul>
       </div>
 
@@ -322,7 +338,7 @@
       <div class="card" style="margin-bottom:16px; padding:16px; background:var(--bg-1); border:1px solid var(--border); border-radius:var(--radius-lg);">
         <h3 style="color:var(--text); font-size:15px; margin-bottom:8px;">2026-04-22 — Bandit Escalation &amp; Unmanned Weapons</h3>
         <ul style="color:var(--text-muted); font-size:13px; line-height:1.8; padding-left:20px;">
-          <li><strong>Unmanned weapons:</strong> Mounts without crew auto-fire at 30% damage / 40% fire rate (grey projectiles, slow rotation)</li>
+          <li><strong>Unmanned weapons:</strong> Disabled — mounts without crew no longer fire</li>
           <li><strong>First bandit delay:</strong> 5s → 9s — calm orientation window before internal pressure</li>
         </ul>
       </div>
@@ -589,12 +605,13 @@
       'Zombies': { path: '/assets/enemy.fbx', scale: 0.07, camX: 30, camY: 20, camZ: 30, lookY: 5 },
       'Turret': { path: '/assets/AutoGun.fbx', scale: 0.1, camX: 20, camY: 15, camZ: 20, lookY: 3 },
       'Laser': { path: '/assets/Laser.fbx', scale: 0.1, camX: 20, camY: 15, camZ: 20, lookY: 3 },
+      'Auto Laser': { path: '/assets/Garlic.fbx', scale: 0.1, camX: 20, camY: 15, camZ: 20, lookY: 3 },
     };
 
     // ======= PARAMS — simplified with descriptions =======
     const PARAMS = [
       // Train
-      { section: 'Your Train', color: 'green', key: 'TRAIN_MAX_HP', label: 'Max HP', desc: 'How much damage your train can take before dying', default: 100, min: 20, max: 500, step: 10 },
+      { section: 'Your Train', color: 'green', key: 'TRAIN_MAX_HP', label: 'Max HP', desc: 'How much damage your train can take before dying', default: 150, min: 20, max: 500, step: 10 },
       { section: 'Your Train', key: 'TRAIN_SPEED', label: 'Travel Speed', desc: 'How fast the train moves during combat — higher = shorter fights', default: 167, min: 50, max: 400, step: 1 },
       { section: 'Your Train', key: 'CAR_WIDTH', label: 'Hitbox Width', desc: 'Width of each car\'s collision box — bigger = easier to hit', default: 32, min: 10, max: 100, step: 1 },
       { section: 'Your Train', key: 'CAR_HEIGHT', label: 'Hitbox Depth', desc: 'Depth of each car\'s collision box', default: 14, min: 5, max: 60, step: 1 },
@@ -605,8 +622,8 @@
       { section: 'Zombies', color: 'red', group: 'Shared', key: 'ENEMY_BASE_HP', label: 'Base HP', desc: 'Starting health before tier multipliers', default: 20, min: 5, max: 200, step: 5 },
       { section: 'Zombies', group: 'Shared', key: 'ENEMY_BASE_SPEED', label: 'Base Speed', desc: 'How fast zombies move toward your train', default: 50, min: 10, max: 200, step: 5 },
       { section: 'Zombies', group: 'Shared', key: 'ENEMY_RADIUS', label: 'Base Size', desc: 'Base collision radius before tier multipliers', default: 6, min: 2, max: 30, step: 1 },
-      { section: 'Zombies', group: 'Shared', key: 'ENEMY_CONTACT_DAMAGE', label: 'Contact Damage', desc: 'Damage when a zombie reaches your train', default: 6, min: 1, max: 30, step: 1 },
-      { section: 'Zombies', group: 'Spawning', key: 'ENEMY_SPAWN_INTERVAL_START', label: 'Spawn Rate (start)', desc: 'Seconds between spawns at start — lower = more', default: 1.5, min: 0.2, max: 5, step: 0.1 },
+      { section: 'Zombies', group: 'Shared', key: 'ENEMY_CONTACT_DAMAGE', label: 'Contact Damage', desc: 'Damage when a zombie reaches your train', default: 8, min: 1, max: 30, step: 1 },
+      { section: 'Zombies', group: 'Spawning', key: 'ENEMY_SPAWN_INTERVAL_START', label: 'Spawn Rate (start)', desc: 'Seconds between spawns at start — lower = more', default: 2.0, min: 0.2, max: 5, step: 0.1 },
       { section: 'Zombies', group: 'Spawning', key: 'ENEMY_SPAWN_INTERVAL_MIN', label: 'Spawn Rate (fastest)', desc: 'Minimum interval at max difficulty', default: 0.25, min: 0.05, max: 2, step: 0.05 },
       { section: 'Zombies', group: 'Purple (easy)', key: 'ENEMY_PURPLE_RADIUS_MULT', label: 'Size Multiplier', desc: 'How big relative to base size', default: 1.5, min: 0.5, max: 5, step: 0.25 },
       { section: 'Zombies', group: 'Purple (easy)', key: 'ENEMY_PURPLE_HP_MULT', label: 'HP Multiplier', desc: 'HP relative to base HP', default: 1, min: 0.5, max: 5, step: 0.5 },
@@ -621,7 +638,7 @@
       { section: 'Crew Weapons', key: 'PROJECTILE_SPEED', label: 'Bullet Speed', desc: 'How fast bullets travel', default: 350, min: 100, max: 800, step: 10 },
       { section: 'Crew Weapons', key: 'PROJECTILE_LIFETIME', label: 'Bullet Lifetime', desc: 'How long bullets exist (seconds) before vanishing', default: 2, min: 0.5, max: 5, step: 0.25 },
       { section: 'Crew Weapons', key: 'PROJECTILE_RADIUS', label: 'Bullet Size', desc: 'Collision radius of bullets — bigger = easier to hit', default: 3, min: 1, max: 10, step: 1 },
-      { section: 'Crew Weapons', key: 'DRIVER_DAMAGE_BUFF', label: 'Driver Bonus', desc: 'Damage multiplier when someone is driving the train', default: 1.5, min: 1, max: 3, step: 0.1 },
+      { section: 'Crew Weapons', key: 'DRIVER_DAMAGE_BUFF', label: 'Driver Bonus', desc: 'Damage multiplier when someone is driving the train', default: 1.0, min: 1, max: 3, step: 0.1 },
 
       // Turret (base + scaling)
       { section: 'Turret', color: 'orange', key: 'TURRET_LV1_DAMAGE', label: 'Base Damage', desc: 'Damage at level 1', default: 10, min: 1, max: 50, step: 1 },
@@ -633,13 +650,13 @@
       { section: 'Turret', key: 'TURRET_LV1_SHOTS', label: 'Base Shots/Burst', desc: 'Projectiles per burst at level 1', default: 1, min: 1, max: 10, step: 1 },
       { section: 'Turret', key: 'TURRET_SHOT_GROWTH', label: 'Extra Shot/Level', desc: 'Additional projectiles per level', default: 1, min: 0, max: 3, step: 1 },
 
-      // Steam Blast (base + scaling)
-      { section: 'Steam Blast', color: 'sky', key: 'STEAM_LV1_RADIUS', label: 'Base Radius', desc: 'Damage aura size at level 1', default: 80, min: 20, max: 400, step: 5 },
-      { section: 'Steam Blast', key: 'STEAM_RADIUS_GROWTH', label: 'Radius/Level', desc: 'Extra aura size per level', default: 25, min: 0, max: 50, step: 5 },
-      { section: 'Steam Blast', key: 'STEAM_LV1_DAMAGE', label: 'Base Damage', desc: 'Damage per tick at level 1', default: 4, min: 1, max: 50, step: 1 },
-      { section: 'Steam Blast', key: 'STEAM_DAMAGE_GROWTH', label: 'Damage/Level', desc: 'Extra damage per level', default: 3, min: 0, max: 10, step: 1 },
-      { section: 'Steam Blast', key: 'STEAM_LV1_TICK_RATE', label: 'Base Tick Rate', desc: 'Seconds between damage ticks — lower = more DPS', default: 0.5, min: 0.1, max: 2, step: 0.05 },
-      { section: 'Steam Blast', key: 'STEAM_TICK_REDUCTION', label: 'Tick Reduction/Lv', desc: 'How much faster ticks get per level', default: 0.05, min: 0, max: 0.2, step: 0.01 },
+      // Auto Laser (base + scaling)
+      { section: 'Auto Laser', color: 'sky', key: 'AUTOLASER_LV1_DAMAGE', label: 'Base Damage', desc: 'Damage per shot at level 1', default: 10, min: 1, max: 50, step: 1 },
+      { section: 'Auto Laser', key: 'AUTOLASER_DAMAGE_GROWTH', label: 'Damage/Level', desc: 'Extra damage per level', default: 3, min: 0, max: 10, step: 1 },
+      { section: 'Auto Laser', key: 'AUTOLASER_LV1_FIRE_INTERVAL', label: 'Base Fire Interval', desc: 'Seconds between shots at level 1 — lower = faster', default: 1.4, min: 0.3, max: 3, step: 0.05 },
+      { section: 'Auto Laser', key: 'AUTOLASER_INTERVAL_REDUCTION', label: 'Interval Reduction/Lv', desc: 'How much faster per level', default: 0.15, min: 0, max: 0.5, step: 0.025 },
+      { section: 'Auto Laser', key: 'AUTOLASER_LV1_RANGE', label: 'Base Range', desc: 'Targeting range at level 1', default: 240, min: 50, max: 600, step: 10 },
+      { section: 'Auto Laser', key: 'AUTOLASER_RANGE_GROWTH', label: 'Range/Level', desc: 'Extra range per level', default: 20, min: 0, max: 50, step: 5 },
 
       // Laser (base + scaling)
       { section: 'Laser', color: 'violet', key: 'LASER_LV1_BOUNCES', label: 'Base Bounces', desc: 'Number of enemy bounces at level 1', default: 2, min: 1, max: 15, step: 1 },
@@ -651,14 +668,33 @@
       { section: 'Laser', key: 'LASER_LV1_SPEED', label: 'Base Speed', desc: 'Bolt travel speed at level 1', default: 300, min: 100, max: 800, step: 10 },
       { section: 'Laser', key: 'LASER_SPEED_GROWTH', label: 'Speed/Level', desc: 'Extra bolt speed per level', default: 25, min: 0, max: 50, step: 5 },
 
+      // Brawler Garlic
+      { section: 'Brawler Garlic', color: 'green', key: 'BRAWLER_GARLIC_RADIUS', label: 'Aura Radius', desc: 'Garlic AOE damage radius', default: 50, min: 20, max: 200, step: 5 },
+      { section: 'Brawler Garlic', key: 'BRAWLER_GARLIC_DAMAGE', label: 'Damage/Tick', desc: 'Damage dealt per tick to enemies in range', default: 14, min: 1, max: 50, step: 1 },
+      { section: 'Brawler Garlic', key: 'BRAWLER_GARLIC_TICK_RATE', label: 'Tick Rate', desc: 'Seconds between damage ticks', default: 0.4, min: 0.1, max: 2, step: 0.05 },
+
+      // Brawler Kick
+      { section: 'Brawler Kick', color: 'green', key: 'BRAWLER_KICK_DAMAGE', label: 'Kick AOE Damage', desc: 'Damage when kicked bandit lands', default: 60, min: 10, max: 200, step: 5 },
+      { section: 'Brawler Kick', key: 'BRAWLER_KICK_RADIUS', label: 'Kick AOE Radius', desc: 'Radius of landing damage area', default: 160, min: 50, max: 400, step: 10 },
+
+      // Crew Roles
+      { section: 'Crew Roles', color: 'amber', key: 'GUNNER_DAMAGE_MULT', label: 'Gunner Damage Mult', desc: 'Damage multiplier for Gunner role', default: 1.6, min: 1, max: 3, step: 0.1 },
+      { section: 'Crew Roles', key: 'BRAWLER_DAMAGE_MULT', label: 'Brawler Damage Mult', desc: 'Gun damage multiplier for Brawler (unused - Brawler has garlic)', default: 0.6, min: 0.1, max: 1.5, step: 0.1 },
+      { section: 'Crew Roles', key: 'GUNNER_FIGHT_DURATION_MULT', label: 'Gunner Fight Duration', desc: 'Multiplier for bandit fight time (Gunner takes longer)', default: 2.0, min: 1, max: 5, step: 0.5 },
+
       // Progression
       { section: 'Progression', color: 'cyan', key: 'XP_PER_KILL', label: 'XP per Kill', desc: 'Experience gained from each enemy killed', default: 12, min: 1, max: 50, step: 1 },
       { section: 'Progression', key: 'XP_PER_LEVEL', label: 'XP per Level', desc: 'XP needed to level up — higher = slower progression', default: 80, min: 10, max: 300, step: 5 },
       { section: 'Progression', key: 'TARGET_DISTANCE', label: 'Run Distance', desc: 'How far the train travels per combat — higher = longer fights', default: 10000, min: 2000, max: 30000, step: 500 },
+      { section: 'Progression', key: 'WAVE_CYCLE_DURATION', label: 'Wave Cycle Duration', desc: 'Total seconds per wave cycle (surge + calm)', default: 12, min: 5, max: 60, step: 1 },
+      { section: 'Progression', key: 'WAVE_SURGE_DURATION', label: 'Wave Surge Duration', desc: 'Seconds of heavy spawning per cycle', default: 5, min: 1, max: 30, step: 1 },
+      { section: 'Progression', key: 'WAVE_CALM_DURATION', label: 'Wave Calm Duration', desc: 'Seconds of reduced spawning per cycle', default: 5, min: 1, max: 30, step: 1 },
+      { section: 'Progression', key: 'BANDIT_SPAWN_INTERVAL', label: 'Bandit Spawn Interval', desc: 'Seconds between bandit spawns', default: 12, min: 5, max: 60, step: 1 },
+      { section: 'Progression', key: 'BANDIT_STEAL_RATE', label: 'Bandit Steal Rate', desc: 'Gold per second stolen by bandits (0 = disabled)', default: 0, min: 0, max: 20, step: 1 },
 
       // World
       { section: 'World', color: 'cyan', key: 'ZONES_PER_WORLD', label: 'Zones per World', desc: 'Number of zones to complete before winning', default: 3, min: 1, max: 10, step: 1 },
-      { section: 'World', key: 'ZONE_DIFFICULTY_SCALE', label: 'Zone Difficulty Scale', desc: 'How much harder each zone gets — 0.3 = gentle, 1.0 = doubles each zone', default: 0.3, min: 0.1, max: 1.5, step: 0.05 },
+      { section: 'World', key: 'ZONE_DIFFICULTY_SCALE', label: 'Zone Difficulty Scale', desc: 'How much harder each zone gets — 0.2 = gentle, 1.0 = doubles each zone', default: 0.2, min: 0.1, max: 1.5, step: 0.05 },
       { section: 'World', key: 'GOLD_PER_STATION', label: 'Gold per Station', desc: 'Bonus gold for each station visited when completing a zone', default: 25, min: 5, max: 100, step: 5 },
       { section: 'World', key: 'COAL_PER_WIN', label: 'Coal per Win', desc: 'Coal refueled after winning a combat', default: 2, min: 0, max: 5, step: 1 },
       { section: 'World', key: 'COIN_VALUE', label: 'Coin Value', desc: 'Gold earned per coin collected', default: 10, min: 1, max: 50, step: 1 },
@@ -667,17 +703,10 @@
       // Shop upgrades
       { section: 'Shop Upgrades', color: 'purple', group: 'Damage', key: 'SHOP_DAMAGE_COST', label: 'Cost', desc: 'Base gold cost per level', default: 40, min: 5, max: 200, step: 5 },
       { section: 'Shop Upgrades', group: 'Damage', key: 'SHOP_DAMAGE_PER_LEVEL', label: '% per Level', desc: 'Weapon damage increase per level', default: 15, min: 5, max: 50, step: 1 },
-      { section: 'Shop Upgrades', group: 'Shield', key: 'SHOP_SHIELD_COST', label: 'Cost', desc: 'Base gold cost per level', default: 35, min: 5, max: 200, step: 5 },
-      { section: 'Shop Upgrades', group: 'Shield', key: 'SHOP_SHIELD_PER_LEVEL', label: 'Reduction/Lv', desc: 'Damage reduced per hit per level', default: 2, min: 1, max: 10, step: 1 },
-      { section: 'Shop Upgrades', group: 'Cool-off', key: 'SHOP_COOLOFF_COST', label: 'Cost', desc: 'Base gold cost per level', default: 45, min: 5, max: 200, step: 5 },
-      { section: 'Shop Upgrades', group: 'Cool-off', key: 'SHOP_COOLOFF_PER_LEVEL', label: '% per Level', desc: 'Cooldown reduction per level', default: 10, min: 2, max: 30, step: 1 },
+      { section: 'Shop Upgrades', group: 'Kick Force', key: 'SHOP_KICK_COST', label: 'Cost', desc: 'Base gold cost per level', default: 40, min: 5, max: 200, step: 5 },
+      { section: 'Shop Upgrades', group: 'Kick Force', key: 'SHOP_KICK_PER_LEVEL', label: 'Levels', desc: 'Each level adds kick damage and radius', default: 1, min: 1, max: 10, step: 1 },
       { section: 'Shop Upgrades', group: 'Max Hull', key: 'SHOP_MAXHP_COST', label: 'Cost', desc: 'Base gold cost per level', default: 30, min: 5, max: 200, step: 5 },
-      { section: 'Shop Upgrades', group: 'Max Hull', key: 'SHOP_MAXHP_PER_LEVEL', label: 'HP per Level', desc: 'Extra max HP per level', default: 15, min: 5, max: 50, step: 5 },
-      { section: 'Shop Upgrades', group: 'Range', key: 'SHOP_RANGE_COST', label: 'Cost', desc: 'Base gold cost per level', default: 40, min: 5, max: 200, step: 5 },
-      { section: 'Shop Upgrades', group: 'Range', key: 'SHOP_RANGE_PER_LEVEL', label: '% per Level', desc: 'Weapon range increase per level', default: 15, min: 5, max: 50, step: 1 },
-      { section: 'Shop Upgrades', group: 'Greed', key: 'SHOP_GREED_COST', label: 'Cost', desc: 'Base gold cost per level', default: 60, min: 10, max: 300, step: 5 },
-      { section: 'Shop Upgrades', group: 'Greed', key: 'SHOP_GREED_PER_LEVEL', label: '% per Level', desc: 'Extra gold from coins per level', default: 20, min: 5, max: 50, step: 5 },
-      { section: 'Shop Upgrades', group: 'Crew Slots', key: 'SHOP_CREW_COST', label: 'Cost', desc: 'Gold to unlock an additional crew member', default: 100, min: 20, max: 500, step: 10 },
+      { section: 'Shop Upgrades', group: 'Max Hull', key: 'SHOP_MAXHP_PER_LEVEL', label: 'HP per Level', desc: 'Extra max HP per level', default: 25, min: 5, max: 50, step: 5 },
     ];
 
     const sectionMeta = {};
