@@ -45,23 +45,24 @@ Open http://localhost:8080
 
 ## Crew system
 
-The train starts with 1 crew member. Up to 2 more can be unlocked via the shop (Crew Slots upgrade, max 3 total).
+The train starts with 2 crew members: **Rex** and **Kit**. Both are available from the start — no unlock required.
 
-### Named crew with fixed roles
+### Crew roles (chosen per world)
 
-| Index | Name | Role      | Passive bonus (while stationed on any slot) |
-|-------|------|-----------|---------------------------------------------|
-| 0     | Rex  | Gunner    | +20% manual weapon damage                  |
-| 1     | Kit  | Engineer  | Auto-weapons fire 15% faster               |
-| 2     | Rosa | Medic     | +2 HP/s hull regeneration                  |
+Before entering each world, the player picks a **role** for each crew member in the "CHOOSE YOUR CREW" screen. Both crew can share the same role.
 
-Roles are fixed — each crew member always has the same role regardless of position.
+| Role    | Weapon              | Bonus |
+|---------|---------------------|-------|
+| Gunner  | Manual gun          | ×1.6 gun damage |
+| Brawler | Garlic AOE (no gun) | Instantly kicks bandits off with AOE damage; no manual projectiles |
+
+Roles reset between worlds. A Brawler crew member cannot fire projectiles — instead they project a garlic aura that damages all nearby enemies on a tick.
 
 **Stationed** means assigned to a slot and not currently walking between cars.
 
 ### Crew movement
 
-During combat, crew walk along the train between cars. Movement is animated — crew pass through doors with a brief pause. If an auto-weapon mount is vacated and the crew member is idle there after defeating a bandit, a hint banner appears.
+During combat, crew walk along the train between cars. Movement is animated — crew pass through doors with a brief pause (0.55s per door). If an auto-weapon mount is vacated and the crew member is idle there after defeating a bandit, a hint banner appears.
 
 ### Crew placement rules
 
@@ -76,44 +77,43 @@ During combat, crew walk along the train between cars. Movement is animated — 
 
 ### Manual weapons (crew-operated)
 
-Each crew member has a personal gun that upgrades independently (levels 1–5 via level-up cards).
+Only **Gunner** crew fire manual guns. **Brawler** crew use a garlic AOE instead (see Crew roles above). Each crew member's gun upgrades independently (levels 1–5 via level-up cards).
 
 | Stat at Lv1 | Value |
 |-------------|-------|
 | Damage      | 12    |
-| Fire rate   | 5/s   |
+| Fire rate   | 2/s   |
 | Range       | 220   |
 
-Growth per level: +4 damage, +0.8/s fire rate, +15 range.
+Growth per level: +5 damage, +0.6/s fire rate, +15 range.
 
-- **Gunner bonus (Rex):** ×1.2 damage on top of all other multipliers.
-- **Driver bonus:** ×1.5 damage to all weapons when driver seat is manned.
+- **Gunner bonus:** ×1.6 damage on top of all other multipliers.
+- **Driver seat:** No damage bonus (driver does not operate a weapon mount).
 - Mounts auto-target the nearest enemy in range. When a crew member is selected, the mount fires toward the mouse cursor within its cone.
 
 ### Auto-weapons (level-up unlocks, max 2 equipped)
 
 Auto-weapons are gained via level-up cards and placed on empty mounts. Up to 2 can be active at once. They fire independently of crew.
 
-| Weapon      | Description                                        | Max level |
-|-------------|-----------------------------------------------------|-----------|
-| Turret      | Targets nearest enemy, fires bursts                | 5         |
-| Steam Blast | Area-of-effect aura centered on its mount          | 5         |
-| Laser       | Bouncing bolt that chains between enemies          | 5         |
+| Weapon       | Description                                        | Max level |
+|--------------|-----------------------------------------------------|-----------|
+| Turret       | Targets nearest enemy, fires bursts                | 5         |
+| Auto Laser   | Single projectile at nearest enemy, no cone limit  | 5         |
+| Laser        | Bouncing bolt that chains between enemies          | 5         |
 
-- **Engineer bonus (Kit):** All auto-weapons fire 15% faster when Kit is stationed anywhere.
 - A bandit landing on an auto-weapon mount disables that weapon until the bandit is defeated.
 
 ---
 
 ## Enemy wave system
 
-Enemy spawning follows a **CALM → WARNING → SURGE** cycle. Each full cycle is 30 seconds.
+Enemy spawning follows a **CALM → WARNING → SURGE** cycle. Each full cycle is ~13 seconds.
 
 | Phase   | Duration | Spawn rate       | HUD indicator                          |
 |---------|----------|------------------|----------------------------------------|
-| CALM    | ~17s     | ×0.6 (after first surge), normal before | None                         |
+| CALM    | 5s       | ×0.5             | None                                   |
 | WARNING | 3s       | Normal           | Pulsing red banner: "WAVE N INCOMING"  |
-| SURGE   | 8s       | ×2.5 (×3.5 at boss stations) | Red screen-edge vignette, surge banner |
+| SURGE   | 5s       | ×2.0 (×3.5 at boss stations) | Red screen-edge vignette, surge banner |
 
 Wave number increments on each SURGE start. Each successive wave escalates by ×1.15 per wave on top of base difficulty. During a surge, additional enemies are spawned per tick based on wave number.
 
@@ -151,10 +151,12 @@ Bandits are a separate threat from enemy waves. They spawn from off-screen and r
 **Behavior states:** RUNNING → JUMPING → ON_TRAIN → FIGHTING → DEAD
 
 - **Targeting:** Bandits only jump onto mounts with no crew currently stationed.
-- **On an empty mount:** Steal 5 gold/second from `train.runGold`.
-- **On an auto-weapon mount:** The weapon is disabled for as long as the bandit is there.
-- **Defeated:** Move crew to the bandit's slot. After a 0.5s fight, the bandit is kicked off. Crew stays at the slot (guarding it) but won't fire while on an auto-weapon mount.
-- **Spawn rate:** Starts after 8s, then every ~15s (scales down with difficulty, minimum 4s).
+- **On a mount:** Disables that weapon slot. Gold stealing is disabled (steal rate = 0).
+- **On an auto-weapon mount:** The auto-weapon is disabled for as long as the bandit is there.
+- **Defeated:** Move crew to the bandit's slot. What happens depends on the crew role:
+  - **Gunner:** 0.5s fight then bandit is kicked off.
+  - **Brawler:** Bandit is instantly kicked with AOE damage (60 damage, 160px radius).
+- **Spawn rate:** Every ~12s (scales down with difficulty, minimum 3s).
 - **Alert banner:** Pulsing red banner appears at the top while any bandit is on the train.
 
 ---
@@ -203,17 +205,13 @@ Start with 4 cargo boxes. Win bonus = `runGold × (1 + boxes × 0.25)`. At 4 box
 
 ## Persistent shop upgrades
 
-Persist across worlds. Cost scales: `base_cost × (level + 1)`.
+Persist across worlds. Flat cost per level (not scaling).
 
-| Upgrade    | Base cost | Max level | Effect per level       |
-|------------|-----------|-----------|------------------------|
-| Damage     | 40        | 5         | +15% weapon damage     |
-| Shield     | 35        | 5         | -2 damage per hit      |
-| Cool-off   | 45        | 5         | -10% weapon cooldown   |
-| Max Hull   | 30        | 5         | +15 max HP             |
-| Range      | 40        | 5         | +15% weapon range/area |
-| Greed      | 60        | 3         | +20% coin gold value   |
-| Crew Slots | 300       | 2         | Unlock crew member     |
+| Upgrade    | Cost/level | Max level | Effect per level                     |
+|------------|-----------|-----------|--------------------------------------|
+| Damage     | 40        | 5         | +15% weapon damage                   |
+| Kick Force | 40        | 5         | Increases Brawler kick damage/radius |
+| Max HP     | 30        | 5         | +25 max HP                           |
 
 ---
 

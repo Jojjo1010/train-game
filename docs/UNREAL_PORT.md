@@ -626,15 +626,15 @@ Crew moves through car doors, not teleporting. Implementation:
    - Calculate path: current position → nearest door → through intermediate doors → destination mount
    - Store path as `MovementPath` (Array of FVector)
 3. Use a **Timeline** node:
-   - Play rate matches 12000 cm/s (120 web px/s)
+   - Play rate matches 8500 cm/s (85 web px/s)
    - Each segment: **Lerp** between current waypoint and next
-   - At each door waypoint: **Delay** 0.35 seconds (door pause)
+   - At each door waypoint: **Delay** 0.55 seconds (door pause)
 4. On arrival: set `CurrentMount`, begin firing
 
 ### Key Blueprint Nodes
 - **Timeline** (for smooth interpolation between waypoints)
 - **Lerp (Vector)** (interpolate position)
-- **Delay** (0.35s door pause)
+- **Delay** (0.55s door pause)
 - **Set Actor Location** (each frame during movement)
 - **Create Dynamic Material Instance** → **Set Vector Parameter** "Color" (to apply crew color)
 
@@ -646,8 +646,8 @@ The web game interpolates crew position directly in the game loop with a speed c
 - [ ] Each crew member has the correct color (Rex = red, Kit = blue)
 - [ ] Selecting a crew member highlights them (glow, outline, or scale up slightly)
 - [ ] Assigning to a mount starts movement through doors
-- [ ] 0.35s pause at each door
-- [ ] Movement speed is approximately 12000 cm/s
+- [ ] 0.55s pause at each door
+- [ ] Movement speed is approximately 8500 cm/s
 - [ ] Reassign cooldown prevents instant re-placement (1 second)
 - [ ] Crew arrives at mount and stops moving
 
@@ -937,17 +937,14 @@ Create `EBanditState` enumeration:
    - If mount has auto-weapon → disable it
 
 **OnTrain:**
-1. Accumulate `StealTimer` += `DeltaSeconds`
-2. Every 0.2s of accumulated time: deduct gold (`5 gold/sec = 1 gold per 0.2s`)
-3. Spawn floating "-1g" text at bandit position
-4. Check: has crew been assigned to this mount? If yes → transition to `Fighting`
+1. The bandit occupies the mount, disabling it. Gold stealing is **disabled** (steal rate = 0).
+2. Check: has crew been assigned to this mount? If yes → transition to `Fighting`
 
 **Fighting:**
-1. Accumulate `FightTimer` += `DeltaSeconds`
-2. Play a brief fight animation (shake both bandit and crew)
-3. When `FightTimer` >= 0.5: crew wins
-   - Transition to `Dead`
-   - Re-enable mount (set `OccupantType` back to Crew or Empty)
+1. Check the crew member's role:
+   - **Gunner:** Accumulate `FightTimer` += `DeltaSeconds`. When `FightTimer` >= 0.5s: crew wins.
+   - **Brawler:** Crew wins instantly (0s fight duration). Bandit is flung toward the nearest enemy cluster; on landing, deals AOE damage (60 damage, 160px radius). Play shockwave visual.
+2. On crew win: transition to `Dead`, re-enable mount.
 
 **Dead:**
 1. Fling bandit off train: use a **Timeline** to animate the bandit position along an upward + outward arc (enemies and bandits use manual movement, not physics, so **Add Impulse** will not work)
@@ -955,7 +952,7 @@ Create `EBanditState` enumeration:
 
 ### Spawner Logic
 On the GameMode, a timer spawns bandits:
-- Interval: `Max(4, 15 - difficulty * 1.5)` seconds
+- Interval: `Max(3, 12 - difficulty * 1.0)` seconds (`BANDIT_SPAWN_INTERVAL` = 12, minimum 3s)
 - Spawn from the right side of the screen
 - Pick a random unmanned mount as target
 - If no unmanned mounts → skip spawn
@@ -974,9 +971,9 @@ The web game uses a state machine with string states checked in the update loop.
 - [ ] Jump animation follows a smooth parabolic arc over 0.4 seconds
 - [ ] Landing on a mount changes its state to Bandit-occupied
 - [ ] Auto-weapon on occupied mount stops firing
-- [ ] Stealing deducts gold at 5g/sec with visible "-gold" numbers
+- [ ] No gold is deducted while bandits are on train (steal rate = 0)
 - [ ] Placing crew on the mount triggers the fight
-- [ ] Fight lasts 0.5s, crew always wins
+- [ ] Gunner fight lasts 0.5s then crew wins; Brawler wins instantly with shockwave AOE
 - [ ] Bandit flings off the train on death
 - [ ] Max 10 bandits active simultaneously
 - [ ] No bandits target mounts that already have bandits
@@ -1246,7 +1243,7 @@ The web game renders the zone map on a 2D canvas with click detection. In UE5, t
 |---|---|---|---|
 | Damage | 40 | 5 | +15% weapon damage |
 | Kick Force | 40 | 5 | Increases Brawler kick AOE damage/radius |
-| Max HP | 30 | 5 | +15 max HP |
+| Max HP | 30 | 5 | +25 max HP |
 
 > **Removed upgrades:** Shield, Cool-off, Range, Greed, and Crew Slots have been removed from the shop. Crew (Rex and Kit) are both available from the start with no unlock cost.
 
@@ -1288,7 +1285,7 @@ Create a Blueprint extending **SaveGame** (right-click > Blueprint Class > searc
 ### Applying Upgrades
 At the start of each combat run (Setup state):
 1. Get upgrade levels from GameInstance
-2. Apply to train: `MaxHP = 150 + maxHpLevel * 15`
+2. Apply to train: `MaxHP = 150 + maxHpLevel * 25`
 3. Store multipliers for combat use: `DamageMultiplier = 1.0 + damageLvl * 0.15`
 4. Apply kick force upgrade to Brawler kick damage/radius
 

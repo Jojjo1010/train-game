@@ -151,8 +151,8 @@ The role selection screen ("CHOOSE YOUR CREW") appears after world selection, be
 Crew physically walk between mounts/seats through the train:
 
 ```
-CREW_WALK_SPEED = 120 px/sec
-DOOR_PAUSE      = 0.35 sec (delay when passing through a door between cars)
+CREW_WALK_SPEED = 85 px/sec
+DOOR_PAUSE      = 0.55 sec (delay when passing through a door between cars)
 ```
 
 - Movement follows waypoints along the train with pauses at doors
@@ -167,7 +167,7 @@ Brawler crew do not fire a manual gun. Instead, they project a garlic aura that 
 GARLIC_RADIUS      = 50 px
 GARLIC_DAMAGE      = 14 per tick
 GARLIC_TICK_RATE   = 0.4s
-GARLIC_KNOCKBACK   = 200 (impulse per tick)
+GARLIC_KNOCKBACK   = 250 (impulse per tick)
 ```
 
 - Enemies within radius are damaged every 0.4s and knocked back (200 strength).
